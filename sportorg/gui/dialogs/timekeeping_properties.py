@@ -764,8 +764,8 @@ class TimekeepingPropertiesDialog(QDialog):
         obj.set_setting("time_format_24", time_format_24)
 
         # credit settings
-        credit_time_enabled = self.credit_time_off_radio.isChecked()
-        obj.set_setting("credit_time_enabled", not credit_time_enabled)
+        credit_time_disabled = self.credit_time_off_radio.isChecked()
+        obj.set_setting("credit_time_enabled", not credit_time_disabled)
         obj.set_setting("credit_time_cp", self.credit_time_cp_value.value())
 
         ResultCalculation(race()).process_results()
