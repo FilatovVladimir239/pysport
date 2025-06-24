@@ -181,8 +181,6 @@ class Widget(QtWidgets.QWidget):
                 control_codes.append(str(control.code))
 
         time_accuracy = race().get_setting("time_accuracy", 0)
-        code = ""
-        last_correct_time = OTime()
 
         start_fmt = "{name:<8} {time}"
         start_time = result.get_start_time()
@@ -191,34 +189,14 @@ class Widget(QtWidgets.QWidget):
         )
         self.result_card_details.append(start_str)
 
-        str_fmt_correct = "{index:02d} {code} {time} {diff}"
-        str_fmt_incorrect = "-- {code} {time}"
-        index = 1
-        for split in result.splits:
-            str_fmt = str_fmt_correct
-            if not split.is_correct:
-                str_fmt = str_fmt_incorrect
+        splits = result.splits
 
-            s = str_fmt.format(
-                index=index,
-                code=("(" + str(split.code) + ")   ")[:5],
-                time=split.time.to_str(time_accuracy),
-                diff=split.leg_time.to_str(time_accuracy),
-                leg_place=split.leg_place,
-                speed=split.speed,
-            )
-            if split.is_correct:
-                index += 1
-                last_correct_time = split.time
+        is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
 
-            if split.code == code:
-                s = '<span style="background: red">{}</span>'.format(s)
-            if is_highlight and len(control_codes) and split.code not in control_codes:
-                s = '<span style="background: yellow">{}</span>'.format(s)
-
-            self.result_card_details.append(s)
-            code = split.code
-
+        if is_trailo:
+            last_correct_time = self.show_trailo_splits(result.splits, time_accuracy)
+        else:
+            last_correct_time = self.show_standard_splits(result.splits, time_accuracy)
         finish_time = result.get_finish_time()
         finish_leg = finish_time - last_correct_time
         finish_fmt = "{name:<8} {time} {diff}"
@@ -233,7 +211,7 @@ class Widget(QtWidgets.QWidget):
         self.result_card_start_edit.setText(time_to_hhmmss(result.get_start_time()))
 
         split_codes = []
-        for split in result.splits:
+        for split in splits:
             split_codes.append(split.code)
 
         start_str = translate("Start")
@@ -256,3 +234,54 @@ class Widget(QtWidgets.QWidget):
             self.result_course_length_edit.setText(str(course.length))
         finish_str = translate("Finish")
         self.result_course_details.append(finish_str)
+
+    def show_trailo_splits(self, splits, time_accuracy) -> OTime:
+        last_correct_time = OTime()
+        str_fmt_correct = "{code} {answer} {time}"
+        str_fmt_incorrect = "--   {answer} {time}"
+        splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
+        for split in splits:
+            str_fmt = str_fmt_correct
+            if not split.is_correct:
+                str_fmt = str_fmt_incorrect
+            s = str_fmt.format(
+                code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
+                answer=split.code[-1],
+                time=split.time.to_str(time_accuracy)
+            )
+            if split.is_correct:
+                last_correct_time = split.time
+
+            self.result_card_details.append(s)
+        return last_correct_time
+
+    def show_standard_splits(self, splits, time_accuracy) -> OTime:
+        code = ""
+        last_correct_time = OTime()
+        str_fmt_correct = "{index:02d} {code} {time} {diff}"
+        str_fmt_incorrect = "-- {code} {time}"
+        index = 1
+        for split in splits:
+            str_fmt = str_fmt_correct
+            if not split.is_correct:
+                str_fmt = str_fmt_incorrect
+            s = str_fmt.format(
+                index=index,
+                code=("(" + str(split.code) + ")   ")[:5],
+                time=split.time.to_str(time_accuracy),
+                diff=split.leg_time.to_str(time_accuracy),
+                leg_place=split.leg_place,
+                speed=split.speed,
+            )
+            if split.is_correct:
+                index += 1
+                last_correct_time = split.time
+
+            if split.code == code:
+                s = '<span style="background: red">{}</span>'.format(s)
+            if is_highlight and len(control_codes) and split.code not in control_codes:
+                s = '<span style="background: yellow">{}</span>'.format(s)
+
+            self.result_card_details.append(s)
+            code = split.code
+        return last_correct_time

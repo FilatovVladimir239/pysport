@@ -125,6 +125,8 @@ def _get_person_obj(data, race_data, result=None):
 
         if race_data["settings"].get("result_processing_mode", "time") == "ardf":
             obj["score"] = result["scores_ardf"]
+        elif race_data["settings"].get("result_processing_mode", "time") == "trailo":
+            obj["score"] = result["rogaine_score"]
         elif race_data["settings"].get("result_processing_mode", "time") == "scores":
             obj["score"] = result["rogaine_score"]
             if result["rogaine_penalty"] > 0:
