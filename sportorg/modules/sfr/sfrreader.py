@@ -11,6 +11,7 @@ from sportorg.language import translate
 from sportorg.libs.sfr import sfrreader
 from sportorg.libs.sfr.sfrreader import SFRReaderCardChanged, SFRReaderException
 from sportorg.models import memory
+from sportorg.models.memory import TrailOAns
 from sportorg.modules.sportident import backup
 from sportorg.utils.time import time_to_otime
 
@@ -95,11 +96,17 @@ class ResultThread(QThread):
         result = memory.race().new_result(memory.ResultSFR)
         result.card_number = card_data["bib"]  # SFR has no card id, only bib
 
+        is_trailo = memory.race().get_setting("result_processing_mode", "time") == "trailo"
+        trailo_ans = result.card_number % 10
+
         for i in range(len(card_data["punches"])):
             t = card_data["punches"][i][1]
             if t:
                 split = memory.Split()
-                split.code = str(card_data["punches"][i][0])
+                code = str(card_data["punches"][i][0])
+                if is_trailo:
+                    code = code + TrailOAns(trailo_ans).name
+                split.code = code
                 split.time = time_to_otime(t)
                 split.days = memory.race().get_days(t)
                 if split.code != "0" and split.code != "":
@@ -116,10 +123,10 @@ class ResultThread(QThread):
     def time_to_sec(value, max_val=86400):
         if isinstance(value, datetime.datetime):
             ret = (
-                value.hour * 3600
-                + value.minute * 60
-                + value.second
-                + value.microsecond / 1000000
+                    value.hour * 3600
+                    + value.minute * 60
+                    + value.second
+                    + value.microsecond / 1000000
             )
             if max_val:
                 ret = ret % max_val
@@ -171,8 +178,8 @@ class SFRReaderClient:
         if self._reader_thread and self._result_thread:
             # return self._reader_thread.is_alive() and self._result_thread.is_alive()
             return (
-                not self._reader_thread.isFinished()
-                and not self._result_thread.isFinished()
+                    not self._reader_thread.isFinished()
+                    and not self._result_thread.isFinished()
             )
 
         return False

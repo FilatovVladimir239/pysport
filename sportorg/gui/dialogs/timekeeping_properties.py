@@ -117,6 +117,10 @@ class TimekeepingPropertiesDialog(QDialog):
         self.rp_scores_radio = QRadioButton(translate("by scores (rogaine)"))
         self.rp_scores_radio.toggled.connect(self.rp_result_calculation_mode)
         self.result_processing_layout.addRow(self.rp_scores_radio)
+        self.rp_trailo_radio = QRadioButton(translate("trailo"))
+        self.rp_trailo_radio.toggled.connect(self.rp_result_calculation_mode)
+        self.result_processing_layout.addRow(self.rp_trailo_radio)
+
         self.result_processing_group.setLayout(self.result_processing_layout)
         self.result_proc_layout.addRow(self.result_processing_group)
 
@@ -510,6 +514,8 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_time_radio.setChecked(True)
         elif rp_mode == "ardf":
             self.rp_ardf_radio.setChecked(True)
+        elif rp_mode == "trailo":
+            self.rp_trailo_radio.setChecked(True)
         else:
             self.rp_scores_radio.setChecked(True)
 
@@ -679,6 +685,8 @@ class TimekeepingPropertiesDialog(QDialog):
             rp_mode = "ardf"
         elif self.rp_scores_radio.isChecked():
             rp_mode = "scores"
+        elif self.rp_trailo_radio.isChecked():
+            rp_mode = "trailo"
 
         rp_score_mode = "rogain"
         if self.rp_fixed_scores_radio.isChecked():

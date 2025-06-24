@@ -42,6 +42,21 @@ class SystemType(Enum):
         return self.__str__()
 
 
+class TrailOAns(Enum):
+    Z = 0
+    A = 1
+    B = 2
+    C = 3
+    D = 4
+    E = 5
+    F = 6
+    def __str__(self) -> str:
+        return self._name_
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
 class _TitleType(Enum):
     def __str__(self) -> str:
         return self._name_
@@ -672,9 +687,12 @@ class Result(ABC):
             return ""
 
         ret = ""
-        if race().get_setting("result_processing_mode", "time") == "ardf":
+        result_processing_mode = race().get_setting("result_processing_mode", "time")
+        if result_processing_mode == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
-        elif race().get_setting("result_processing_mode", "time") == "scores":
+        elif result_processing_mode == "scores":
+            ret += f"{self.rogaine_score} {translate('points')} "
+        elif result_processing_mode == "trailo":
             ret += f"{self.rogaine_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
@@ -1064,6 +1082,20 @@ class ResultSportident(Result):
         controls = course.controls
         course_index = 0
         count_controls = len(controls)
+
+        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
+        if is_trailo and len(self.splits) > 0:
+            splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
+            splits[0].is_correct = True
+            splits[0].course_index = splits[0].code[:-1]
+            for i, split in enumerate(splits[1:], start=1):
+                logging.info(split.code[:-1] + " " + splits[i - 1].code[:-1])
+                if split.code[:-1] == splits[i - 1].code[:-1]:
+                    split.is_correct = False
+                else:
+                    split.is_correct = True
+            return True
+
         if count_controls == 0:
             return True
 
@@ -2665,6 +2697,7 @@ def get_current_race_index():
 
 def races():
     return _event
+
 
 
 def race(i=None):
