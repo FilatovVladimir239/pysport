@@ -148,7 +148,12 @@ class ResultSportidentGeneration:
 
     def _merge_punches(self):
         card_number = self._result.card_number
-        existing_res = race().find_person_by_card(card_number)
+        existing_person = race().find_person_by_card(card_number)
+        if not existing_person:
+            self._add_result()
+            return True
+
+        existing_res = race().find_person_result(existing_person)
 
         if not existing_res:
             self._add_result()

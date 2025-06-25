@@ -93,17 +93,22 @@ class ResultThread(QThread):
 
     @staticmethod
     def _get_result(card_data):
-        result = memory.race().new_result(memory.ResultSFR)
-        result.card_number = card_data["bib"]  # SFR has no card id, only bib
-
         is_trailo = memory.race().get_setting("result_processing_mode", "time") == "trailo"
-        trailo_ans = result.card_number % 10
+        card_number = card_data["bib"]
+        if is_trailo:
+            trailo_ans = card_number % 10
+            card_number = card_number // 10
+
+        result = memory.race().new_result(memory.ResultSFR)
+        result.card_number = card_number   # SFR has no card id, only bib
 
         for i in range(len(card_data["punches"])):
             t = card_data["punches"][i][1]
             if t:
                 split = memory.Split()
                 code = str(card_data["punches"][i][0])
+                if code == "0":
+                    continue
                 if is_trailo:
                     code = code + TrailOAns(trailo_ans).name
                 split.code = code
