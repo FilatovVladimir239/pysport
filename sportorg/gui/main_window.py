@@ -8,10 +8,19 @@ from queue import Queue
 
 import psutil
 from psutil import Process
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMainWindow, QMessageBox
+
+from sportorg.models.result.result_checker import ResultChecker
+
+try:
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from PySide6.QtCore import QTimer
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QMainWindow, QMessageBox
+except ModuleNotFoundError:
+    from PySide2 import QtCore, QtGui, QtWidgets
+    from PySide2.QtCore import QTimer
+    from PySide2.QtGui import QActionEvent
+    from PySide2.QtWidgets import QMainWindow, QMessageBox, QAction
 
 from sportorg import config
 from sportorg.gui.dialogs.course_edit import CourseEditDialog
@@ -39,8 +48,11 @@ from sportorg.models.memory import (
     new_event,
     race,
     set_current_race_index,
+    RaceType,
+    races,
+    get_current_race_index,
 )
-from sportorg.models.result.result_calculation import ResultCalculation
+from sportorg.models.result.result_tools import recalculate_results
 from sportorg.models.result.split_calculation import GroupSplits
 from sportorg.modules.backup.file import File
 from sportorg.modules.configs.configs import Config as Configuration
@@ -481,6 +493,18 @@ class MainWindow(QMainWindow):
             table = self.get_organization_table()
             table.setModel(OrganizationMemoryModel())
 
+            obj = race()
+            if obj.data.race_type == RaceType.MULTI_DAY_RACE:
+                day_index = get_current_race_index()
+                for i in range(len(races())):
+                    set_current_race_index(i)
+                    race().rebuild_indexes()
+                    ResultChecker.check_all()
+                    ResultCalculation(race()).process_results()
+                set_current_race_index(day_index)
+            else:
+                obj.rebuild_indexes(True, True)
+
         except Exception as e:
             logging.error(str(e))
 
@@ -492,7 +516,7 @@ class MainWindow(QMainWindow):
         self.refresh_timer.start(delay)
 
     def res_recalculate_by_timer(self):
-        ResultCalculation(race()).process_results()
+        recalculate_results(recheck_results=False)
         self.res_recalculate.stop()
 
     def deleyed_res_recalculate(self, delay=1000):  # msec
@@ -607,7 +631,7 @@ class MainWindow(QMainWindow):
                 rg = ResultSportidentGeneration(result)
                 if rg.add_result():
                     result = rg.get_result()
-                    ResultCalculation(race()).process_results()
+                    recalculate_results(recheck_results=False)
                     if race().get_setting("split_printout", False):
                         try:
                             split_printout([result])
@@ -853,12 +877,12 @@ class MainWindow(QMainWindow):
         res = []
         if tab == 0:
             res = race().delete_persons(indexes)
-            ResultCalculation(race()).process_results()
+            recalculate_results(recheck_results=False)
             live_client.delete(res)
             race().rebuild_indexes()
         elif tab == 1:
             res = race().delete_results(indexes)
-            ResultCalculation(race()).process_results()
+            recalculate_results(recheck_results=False)
             live_client.delete(res)
         elif tab == 2:
             try:
@@ -873,6 +897,7 @@ class MainWindow(QMainWindow):
         elif tab == 3:
             try:
                 res = race().delete_courses(indexes)
+                race().rebuild_indexes(False, True)
             except NotEmptyException as e:
                 logging.warning(str(e))
                 QMessageBox.question(

@@ -2,21 +2,38 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, List, Optional
 
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (
-    QCheckBox,
-    QDateEdit,
-    QDialog,
-    QDialogButtonBox,
-    QFormLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QScrollArea,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
+try:
+    from PySide6.QtGui import QIcon
+    from PySide6.QtWidgets import (
+        QCheckBox,
+        QDateEdit,
+        QDialog,
+        QDialogButtonBox,
+        QFormLayout,
+        QLabel,
+        QLineEdit,
+        QPushButton,
+        QScrollArea,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
+    )
+except ModuleNotFoundError:
+    from PySide2.QtGui import QIcon
+    from PySide2.QtWidgets import (
+        QCheckBox,
+        QDateEdit,
+        QDialog,
+        QDialogButtonBox,
+        QFormLayout,
+        QLabel,
+        QLineEdit,
+        QPushButton,
+        QScrollArea,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
+    )
 
 from sportorg import config
 from sportorg.gui.utils.custom_controls import AdvComboBox, AdvSpinBox, AdvTimeEdit
@@ -103,6 +120,7 @@ class BaseDialog(QDialog):
         self.ok_title: str = translate("Ok")
         self.cancel_title: str = translate("Cancel")
         self.is_modal: bool = True
+        self.size = (400, 319)
         self.form = [
             LineField(),
             TextField(),
@@ -119,11 +137,13 @@ class BaseDialog(QDialog):
         return super().exec_()
 
     def _init_ui(self) -> None:
+        # type:ignore
         parent = self.parent()
 
         self.setWindowTitle(self.title)
         self.setWindowIcon(QIcon(config.ICON))
         self.setModal(self.is_modal)
+        self.resize(*self.size)  # type:ignore
         if self.is_modal and parent:  # type:ignore
             self.setMaximumWidth(parent.size().width())
             self.setMaximumHeight(parent.size().height())
