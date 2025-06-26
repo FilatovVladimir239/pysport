@@ -7,6 +7,7 @@ from sportorg.models.memory import (
     Result,
     ResultSportident,
     ResultStatus,
+    Split,
     find,
     race,
 )
@@ -507,15 +508,24 @@ class ResultChecker:
         if not course:
             return ret
 
+        result.splits = list(filter(lambda s: s.code[-1] != 'X', result.splits))
+
         splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
         control_points = sorted(course.controls, key=lambda s: (int(s.code[:-1])))
-        for controlPoint in control_points:
+
+        for control_point in control_points:
+            control_point_detected = False
             for cur_split in splits:
                 cur_code = cur_split.code[:-1]
-                if cur_code == controlPoint.code[:-1]:
-                    if cur_split.code[-1] == controlPoint.code[-1]:
+                if cur_code == control_point.code[:-1]:
+                    control_point_detected = True
+                    if cur_split.code[-1] == control_point.code[-1]:
                         ret += 1
                     break
+            if not control_point_detected:
+                new_split = Split()
+                new_split.code = control_point.code[:-1] + "X"
+                result.splits.append(new_split)
 
         if result.person and result.person.group:
             user_time = result.get_result_otime()
