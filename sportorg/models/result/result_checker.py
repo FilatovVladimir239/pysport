@@ -27,16 +27,6 @@ class ResultChecker:
         if race().get_setting("result_processing_mode", "time") == "ardf":
             result.scores_ardf = self.calculate_scores_ardf(result)
             return True
-        if race().get_setting("result_processing_mode", "time") == "trailo":
-            penalty_step = race().get_setting(
-                "result_processing_scores_minute_penalty", 1
-            )
-            score = self.calculate_scores_trailo(result)
-            penalty = self.calculate_rogaine_penalty(result, score, penalty_step)
-
-            result.rogaine_score = score
-            result.rogaine_penalty = penalty
-
         elif race().get_setting("result_processing_mode", "time") == "scores":
             # process by score (rogaine)
             allow_duplicates = race().get_setting(
@@ -106,8 +96,8 @@ class ResultChecker:
                         )
                     )
                     if (
-                            max_overrun_time.to_msec() > 0
-                            and result_time > max_time + max_overrun_time
+                        max_overrun_time.to_msec() > 0
+                        and result_time > max_time + max_overrun_time
                     ):
                         result.status = ResultStatus.OVERTIME
 
@@ -410,7 +400,7 @@ class ResultChecker:
 
     @staticmethod
     def calculate_rogaine_penalty(
-            result: Result, score: int, penalty_step: int = 1
+        result: Result, score: int, penalty_step: int = 1
     ) -> int:
         """
         Calculates the penalty for a given result based on the participant's excess of a race time.
@@ -487,33 +477,6 @@ class ResultChecker:
 
                 index_in_order = initial_index
                 break
-
-        if result.person and result.person.group:
-            user_time = result.get_result_otime()
-            max_time = result.person.group.max_time
-            if OTime() < max_time < user_time:
-                result.status = ResultStatus.DISQUALIFIED
-                return 0
-
-        return ret
-
-    @staticmethod
-    def calculate_scores_trailo(result):
-        ret = 0
-
-        course = race().find_course(result)
-        if not course:
-            return ret
-
-        splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
-        control_points = sorted(course.controls, key=lambda s: (int(s.code[:-1])))
-        for controlPoint in control_points:
-            for cur_split in splits:
-                cur_code = cur_split.code[:-1]
-                if cur_code == controlPoint.code[:-1]:
-                    if cur_split.code[-1] == controlPoint.code[-1]:
-                        ret += 1
-                    break
 
         if result.person and result.person.group:
             user_time = result.get_result_otime()

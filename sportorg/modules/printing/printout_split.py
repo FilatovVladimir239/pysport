@@ -163,7 +163,6 @@ class SportorgPrinter:
         is_penalty_used = obj.get_setting("marked_route_mode", "off") != "off"
         is_relay = group.is_relay()
         is_credit_time_used = race().get_setting("credit_time_enabled", False)
-        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
 
         fn = "Lucida Console"
         fs_small = 2.5
@@ -199,12 +198,8 @@ class SportorgPrinter:
         )
 
         # Splits
-        splits = result.splits.copy()
-        if is_trailo:
-            splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
-
         index = 1
-        for split in splits:
+        for split in result.splits:
             if not is_group_existed:
                 line = (
                     ("  " + str(index))[-3:]
@@ -226,15 +221,6 @@ class SportorgPrinter:
                     + split.leg_time.to_str()[-5:]
                 )
                 index += 1
-                self.print_line(line, fn, fs_main)
-            elif split.is_correct and is_trailo:
-                line = (
-                        ("  " + str(split.code[:-1]))[-3:]
-                        + " "
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                )
                 self.print_line(line, fn, fs_main)
             elif split.is_correct:
                 line = (
@@ -261,14 +247,6 @@ class SportorgPrinter:
                             break
 
                 self.print_line(line, fn, fs_main)
-            elif is_trailo:
-                line = (
-                        " " * 4
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                )
-                self.print_line(line, fn, fs_main)
             else:
                 line = (
                     " " * 4
@@ -279,8 +257,8 @@ class SportorgPrinter:
                 self.print_line(line, fn, fs_main)
 
         finish_split = ""
-        if len(splits) > 0:
-            finish_split = (result.get_finish_time() - splits[-1].time).to_str()
+        if len(result.splits) > 0:
+            finish_split = (result.get_finish_time() - result.splits[-1].time).to_str()
 
         # Finish
         self.print_line(

@@ -675,9 +675,6 @@ msgstr "по баллам (рогейн)"
 msgid "ardf"
 msgstr "ARDF"
 
-msgid "trailo"
-msgstr "TrailO"
-
 msgid "rogain scores"
 msgstr "рогейн (45КП = 4балла, 78КП = 7баллов)"
 
