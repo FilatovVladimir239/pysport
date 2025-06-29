@@ -193,29 +193,17 @@ class Widget(QtWidgets.QWidget):
         )
         self.result_card_details.append(start_str)
 
-        splits = result.splits
-
         is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
-
         if is_trailo:
-            last_correct_time = self.show_trailo_splits(result.splits, time_accuracy)
+            self.show_trailo_splits(result, time_accuracy)
         else:
-            last_correct_time = self.show_standard_splits(result.splits, time_accuracy, is_highlight, control_codes)
-        finish_time = result.get_finish_time()
-        finish_leg = finish_time - last_correct_time
-        finish_fmt = "{name:<8} {time} {diff}"
-        finish_str = finish_fmt.format(
-            name=translate("Finish"),
-            time=finish_time.to_str(time_accuracy),
-            diff=finish_leg.to_str(time_accuracy),
-        )
-        self.result_card_details.append(finish_str)
+            self.show_standard_splits(result, time_accuracy, is_highlight, control_codes)
 
         self.result_card_finish_edit.setText(time_to_hhmmss(result.get_finish_time()))
         self.result_card_start_edit.setText(time_to_hhmmss(result.get_start_time()))
 
         split_codes = []
-        for split in splits:
+        for split in result.splits:
             split_codes.append(split.code)
 
         start_str = translate("Start")
@@ -239,12 +227,11 @@ class Widget(QtWidgets.QWidget):
         finish_str = translate("Finish")
         self.result_course_details.append(finish_str)
 
-    def show_trailo_splits(self, splits, time_accuracy) -> OTime:
-        last_correct_time = OTime()
+    def show_trailo_splits(self, result, time_accuracy) -> OTime:
         str_fmt_correct = "{code} {answer} {time}"
         str_fmt_incorrect = "--   {answer} {time}"
-        splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
-        for split in splits:
+        result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
+        for split in result.splits:
             str_fmt = str_fmt_correct
             if split.course_index == -1:
                 str_fmt = str_fmt_incorrect
@@ -254,19 +241,23 @@ class Widget(QtWidgets.QWidget):
                 time=split.time.to_str(time_accuracy)
             )
 
-            if split.course_index >= 0:
-                last_correct_time = split.time
-
             self.result_card_details.append(s)
-        return last_correct_time
 
-    def show_standard_splits(self, splits, time_accuracy, is_highlight, control_codes) -> OTime:
+        finish_time = result.get_finish_time()
+        finish_fmt = "{name:<8} {time}"
+        finish_str = finish_fmt.format(
+            name=translate("Finish"),
+            time=finish_time.to_str(time_accuracy),
+        )
+        self.result_card_details.append(finish_str)
+
+    def show_standard_splits(self, result, time_accuracy, is_highlight, control_codes) -> OTime:
         code = ""
         last_correct_time = OTime()
         str_fmt_correct = "{index:02d} {code} {time} {diff}"
         str_fmt_incorrect = "-- {code} {time}"
         index = 1
-        for split in splits:
+        for split in result.splits:
             str_fmt = str_fmt_correct
             if not split.is_correct:
                 str_fmt = str_fmt_incorrect
@@ -289,4 +280,13 @@ class Widget(QtWidgets.QWidget):
 
             self.result_card_details.append(s)
             code = split.code
-        return last_correct_time
+
+        finish_time = result.get_finish_time()
+        finish_leg = finish_time - last_correct_time
+        finish_fmt = "{name:<8} {time} {diff}"
+        finish_str = finish_fmt.format(
+            name=translate("Finish"),
+            time=finish_time.to_str(time_accuracy),
+            diff=finish_leg.to_str(time_accuracy),
+        )
+        self.result_card_details.append(finish_str)
