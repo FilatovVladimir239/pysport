@@ -242,14 +242,15 @@ class Widget(QtWidgets.QWidget):
         splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
         for split in splits:
             str_fmt = str_fmt_correct
-            if not split.is_correct:
+            if split.course_index == -1:
                 str_fmt = str_fmt_incorrect
             s = str_fmt.format(
                 code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
                 answer=split.code[-1],
                 time=split.time.to_str(time_accuracy)
             )
-            if split.is_correct:
+
+            if split.course_index >= 0:
                 last_correct_time = split.time
 
             self.result_card_details.append(s)

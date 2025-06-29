@@ -1083,18 +1083,6 @@ class ResultSportident(Result):
         course_index = 0
         count_controls = len(controls)
 
-        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
-        if is_trailo and len(self.splits) > 0:
-            splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
-            splits[0].is_correct = True
-            splits[0].course_index = splits[0].code[:-1]
-            for i, split in enumerate(splits[1:], start=1):
-                if split.code[:-1] == splits[i - 1].code[:-1]:
-                    split.is_correct = False
-                else:
-                    split.is_correct = True
-            return True
-
         if count_controls == 0:
             return True
 
@@ -1106,6 +1094,34 @@ class ResultSportident(Result):
             i.is_correct = False
             i.has_penalty = True
             i.course_index = -1
+
+        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
+
+        if is_trailo and len(self.splits) > 0:
+            self.splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
+            for cur_split in self.splits:
+                cur_split.is_correct = False
+                cur_split.course_index = -1
+
+            for control_point in controls:
+                control_point_detected = False
+                for cur_split in self.splits:
+                    cur_code = cur_split.code[:-1]
+                    if cur_code == control_point.code[:-1]:
+                        control_point_detected = True
+                        cur_split.course_index = int(cur_code)
+                        if cur_split.code[-1] == control_point.code[-1]:
+                            cur_split.is_correct = True
+                        break
+                if not control_point_detected:
+                    new_split = Split()
+                    new_split.is_correct = False
+                    new_split.code = control_point.code[:-1] + "X"
+                    new_split.course_index = int(control_point.code[:-1])
+                    self.splits.append(new_split)
+
+            self.splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
+            return True
 
         ignore_punches_before_start = obj.get_setting(
             "ignore_punches_before_start", False

@@ -13,8 +13,8 @@ class PersonSplits:
 
         self.assigned_rank = ""
         if (
-            hasattr(self.result, "assigned_rank")
-            and self.result.assigned_rank != Qualification.NOT_QUALIFIED
+                hasattr(self.result, "assigned_rank")
+                and self.result.assigned_rank != Qualification.NOT_QUALIFIED
         ):
             self.assigned_rank = self.result.assigned_rank.get_title()
 
@@ -39,6 +39,32 @@ class PersonSplits:
         leg_start_time = self.result.get_start_time()
         start_time = self.result.get_start_time()
 
+        if self.race.get_setting("result_processing_mode", "time") == "trailo":
+            logging.info("testing 123")
+            self.result.splits = sorted(self.result.splits, key=lambda s: (int(s.code[:-1]), s.time))
+            splits = self.result.splits
+            for cur_split in splits:
+                cur_split.course_index = -1
+
+            for control_point in self.course.controls:
+                control_point_detected = False
+                for cur_split in splits:
+                    cur_code = cur_split.code[:-1]
+                    if cur_code == control_point.code[:-1]:
+                        control_point_detected = True
+                        cur_split.course_index = int(cur_code)
+                        break
+                if not control_point_detected:
+                    new_split = Split()
+                    new_split.code = control_point.code[:-1] + "X"
+                    new_split.is_correct = False
+                    new_split.course_index = int(control_point.code[:-1])
+                    self.result.splits.append(new_split)
+
+            self.result.splits = sorted(self.result.splits, key=lambda s: (int(s.code[:-1]), s.time))
+            return self
+
+
         if self.course.length:
             self.result.speed = get_speed_min_per_km(
                 self.result.get_result_otime(), self.course.length
@@ -56,7 +82,7 @@ class PersonSplits:
                 prev_split = split.time
 
         while split_index < len(self.result.splits) and course_index < len(
-            self.course.controls
+                self.course.controls
         ):
             cur_split = self.result.splits[split_index]
 
