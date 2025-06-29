@@ -200,7 +200,7 @@ class Widget(QtWidgets.QWidget):
         if is_trailo:
             last_correct_time = self.show_trailo_splits(result.splits, time_accuracy)
         else:
-            last_correct_time = self.show_standard_splits(result.splits, time_accuracy, is_highlight, control_codes)
+            last_correct_time = self.show_standard_splits(result.splits, time_accuracy)
         finish_time = result.get_finish_time()
         finish_leg = finish_time - last_correct_time
         finish_fmt = "{name:<8} {time} {diff}"
@@ -259,7 +259,7 @@ class Widget(QtWidgets.QWidget):
             self.result_card_details.append(s)
         return last_correct_time
 
-    def show_standard_splits(self, splits, time_accuracy, is_highlight, control_codes) -> OTime:
+    def show_standard_splits(self, splits, time_accuracy) -> OTime:
         code = ""
         last_correct_time = OTime()
         str_fmt_correct = "{index:02d} {code} {time} {diff}"
