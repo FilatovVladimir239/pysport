@@ -1,5 +1,3 @@
-import logging
-
 from sportorg.common.otime import OTime
 from sportorg.models.constant import StatusComments
 from sportorg.models.memory import (
@@ -83,6 +81,7 @@ class ResultChecker:
             ResultStatus.MISSING_PUNCH,
             ResultStatus.OVERTIME,
             ResultStatus.MISS_PENALTY_LAP,
+            ResultStatus.MULTI_DAY_ISSUE,
         ]:
             result.status = ResultStatus.OK
 
@@ -122,7 +121,6 @@ class ResultChecker:
 
     @staticmethod
     def check_all():
-        logging.debug("Checking all results")
         for result in race().results:
             if result.person:
                 ResultChecker.checking(result)

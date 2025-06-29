@@ -1,25 +1,40 @@
 import logging
 
-from PySide6.QtCore import QTime
-from PySide6.QtWidgets import (
-    QCheckBox,
-    QDialog,
-    QDialogButtonBox,
-    QFormLayout,
-    QGroupBox,
-    QLabel,
-    QLineEdit,
-    QRadioButton,
-    QTabWidget,
-    QWidget,
-)
+try:
+    from PySide6.QtCore import QTime
+    from PySide6.QtWidgets import (
+        QCheckBox,
+        QDialog,
+        QDialogButtonBox,
+        QFormLayout,
+        QGroupBox,
+        QLabel,
+        QLineEdit,
+        QRadioButton,
+        QTabWidget,
+        QWidget,
+    )
+except ModuleNotFoundError:
+    from PySide2.QtCore import QTime
+    from PySide2.QtWidgets import (
+        QCheckBox,
+        QDialog,
+        QDialogButtonBox,
+        QFormLayout,
+        QGroupBox,
+        QLabel,
+        QLineEdit,
+        QRadioButton,
+        QTabWidget,
+        QWidget,
+    )
 
 from sportorg.common.otime import OTime
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.gui.utils.custom_controls import AdvComboBox, AdvSpinBox, AdvTimeEdit
 from sportorg.language import translate
 from sportorg.models.memory import race
-from sportorg.models.result.result_calculation import ResultCalculation
+from sportorg.models.result.result_tools import recalculate_results
 from sportorg.modules.sportident.sireader import SIReaderClient
 
 
@@ -38,6 +53,7 @@ class TimekeepingPropertiesDialog(QDialog):
         # self.setWindowIcon(QIcon(icon_dir('sportident.png')))
         self.setSizeGripEnabled(False)
         self.setModal(True)
+        self.setMinimumWidth(400)
         self.tab_widget = QTabWidget()
 
         # timekeeping tab
@@ -69,8 +85,10 @@ class TimekeepingPropertiesDialog(QDialog):
 
         self.chip_duplicate_box = QGroupBox(translate("Several readout of chip"))
         self.chip_duplicate_layout = QFormLayout()
-        self.chip_duplicate_several_results = QRadioButton(translate("Several results"))
-        self.chip_duplicate_layout.addRow(self.chip_duplicate_several_results)
+        self.chip_duplicate_serveral_results = QRadioButton(
+            translate("Several results")
+        )
+        self.chip_duplicate_layout.addRow(self.chip_duplicate_serveral_results)
         self.chip_duplicate_bib_request = QRadioButton(
             translate("Ask for a bib when re-reading the card")
         )
@@ -476,7 +494,7 @@ class TimekeepingPropertiesDialog(QDialog):
             self.chip_reading_autocreate.setChecked(True)
 
         if duplicate_chip_processing == "several_results":
-            self.chip_duplicate_several_results.setChecked(True)
+            self.chip_duplicate_serveral_results.setChecked(True)
         elif duplicate_chip_processing == "bib_request":
             self.chip_duplicate_bib_request.setChecked(True)
         elif duplicate_chip_processing == "relay_find_leg":
@@ -773,4 +791,4 @@ class TimekeepingPropertiesDialog(QDialog):
         obj.set_setting("credit_time_enabled", not credit_time_disabled)
         obj.set_setting("credit_time_cp", self.credit_time_cp_value.value())
 
-        ResultCalculation(race()).process_results()
+        recalculate_results(recheck_results=False)

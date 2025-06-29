@@ -5,10 +5,7 @@ from sportorg.gui.dialogs.dialog import BaseDialog, LineField, NumberField, Text
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.language import translate
 from sportorg.models.memory import CourseControl, find, race
-from sportorg.models.result.result_calculation import ResultCalculation
-from sportorg.models.result.result_checker import ResultChecker
-from sportorg.models.result.score_calculation import ScoreCalculation
-from sportorg.models.result.split_calculation import RaceSplits
+from sportorg.models.result.result_tools import recalculate_results
 from sportorg.modules.teamwork.teamwork import Teamwork
 
 
@@ -18,6 +15,7 @@ class CourseEditDialog(BaseDialog):
         self.current_object = course
         self.is_new = is_new
         self.title = translate("Course properties")
+        self.size = (400, 360)
         self.form = [
             LineField(
                 title=translate("Name"),
@@ -90,16 +88,13 @@ class CourseEditDialog(BaseDialog):
         name = self.fields["name"].q_item.text()
         self.button_ok.setDisabled(False)
         if name and name != self.current_object.name:
-            course = find(race().courses, name=name)
-            if course:
+            if name in race().course_index_name:
                 self.button_ok.setDisabled(True)
 
     def apply(self):
         obj = race()
+        self.current_object.index_name()
         if self.is_new:
             obj.courses.insert(0, self.current_object)
-        ResultChecker.check_all()
-        ResultCalculation(obj).process_results()
-        RaceSplits(obj).generate()
-        ScoreCalculation(obj).calculate_scores()
+        recalculate_results()
         Teamwork().send(self.current_object.to_dict())
