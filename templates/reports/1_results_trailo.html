@@ -32,7 +32,6 @@
     var selected = {% endraw %}{{selected|tojson}}{%raw %};
     racePreparation(race);
 
-    var isRogaine = race.settings.result_processing_mode === 'scores';
     var isArdf =  race.settings.result_processing_mode === 'ardf';
     var isTrailo = race.settings.result_processing_mode === 'trailo';
 
@@ -53,13 +52,11 @@
                     penalty_time: toHHMMSS(result.penalty_time),
                     penalty_laps: result.penalty_laps,
                     scores_ardf: result.scores_ardf,
-                    rogaine_score: result.rogaine_score,
-                    rogaine_penalty: result.rogaine_penalty,
-                    rogaine_points_earned: result.rogaine_score + result.rogaine_penalty,
+                    trailo_score: result.trailo_score,
                     result: result.result_current,
                     result_relay: result.result_relay,
                     result_msec: result.result_msec,
-                    diff: isRogaine || isArdf ? result.diff_scores : toHHMMSS(result.diff),
+                    diff: result.diff_scores,
                     place: result.place,
                     status: result.status,
                     scores: result.scores,
@@ -73,9 +70,7 @@
                     r.place_show = '';
                     r.speed = '';
                     r.scores = '';
-                    r.rogaine_points_earned = '';
-                    r.rogaine_penalty = '';
-                    r.rogaine_score = '';
+                    r.trailo_score = '';
                 }
 
                 // SPLITS
@@ -177,8 +172,8 @@
                     return -1
                 }
                 if (a.is_out_of_competition || b.is_out_of_competition) {
-                    if ((isRogaine || isTrailo) && a.rogaine_score != b.rogaine_score) {
-                        return -(a.rogaine_score - b.rogaine_score);
+                    if (a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
                     }
                     if (isArdf && a.scores_ardf != b.scores_ardf) {
                         return -(a.scores_ardf - b.scores_ardf);
@@ -240,12 +235,10 @@
                     penalty_time: toHHMMSS(result.penalty_time),
                     penalty_laps: result.penalty_laps,
                     scores_ardf: result.scores_ardf,
-                    rogaine_score: result.rogaine_score,
-                    rogaine_penalty: result.rogaine_penalty,
-                    rogaine_points_earned: result.rogaine_score + result.rogaine_penalty,
+                    trailo_score: result.trailo_score,
                     result: result.result_current,
                     result_msec: result.result_msec,
-                    diff: isRogaine || isArdf || isTrailo ? result.diff_scores : toHHMMSS(result.diff),
+                    diff: result.diff_scores,
                     place: result.place,
                     status: result.status,
                     scores: result.scores,
@@ -260,9 +253,7 @@
                     r.place_show = '';
                     r.speed = '';
                     r.scores = '';
-                    r.rogaine_points_earned = '';
-                    r.rogaine_penalty = '';
-                    r.rogaine_score = '';
+                    r.trailo_score = '';
                 }
 
                 // SPLITS
@@ -334,8 +325,8 @@
                     return -1
                 }
                 if (a.is_out_of_competition || b.is_out_of_competition) {
-                    if ((isRogaine || isTrailo) && a.rogaine_score != b.rogaine_score) {
-                        return -(a.rogaine_score - b.rogaine_score);
+                    if (isTrailo && a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
                     }
                     if (isArdf && a.scores_ardf != b.scores_ardf) {
                         return -(a.scores_ardf - b.scores_ardf);
@@ -348,8 +339,8 @@
                 if (b.place < 1) {
                     return -1
                 }
-                if ((isRogaine || isTrailo) && a.rogaine_score != b.rogaine_score) {
-                    return -(a.rogaine_score - b.rogaine_score);
+                if (a.trailo_score != b.trailo_score) {
+                    return -(a.trailo_score - b.trailo_score);
                 }
                 if (isArdf && a.scores_ardf != b.scores_ardf) {
                     return -(a.scores_ardf - b.scores_ardf);
@@ -381,7 +372,7 @@
             }
         } else {
             var get_score = function(res){
-                if (isRogaine || isTrailo) return res.rogaine_score;
+                if (isTrailo) return res.trailo_score;
                 if (isArdf) return res.scores_ardf;
                 return 0
             }
@@ -413,14 +404,14 @@
                 index++;
                 elem.index = index;
 				if (!elem.data.person.is_out_of_competition && elem.place !== 0 && elem.place !== -1) {
-					if (isRogaine || isArdf || isTrailo || last_result_msec < elem.result_msec){
+					if (isArdf || isTrailo || last_result_msec < elem.result_msec){
 						newplace += 1 + doubleplace;
 						doubleplace = 0;
 						last_result_msec = elem.result_msec;
 					} else {
 						doubleplace++;
 					}
-					elem.diff = isRogaine || isArdf || isTrailo ? best_score - get_score(elem) : toHHMMSS(elem.result_msec - best_result_msec);
+					elem.diff = isArdf || isTrailo ? best_score - get_score(elem) : toHHMMSS(elem.result_msec - best_result_msec);
 					elem.place = newplace;
 					elem.place_show = newplace;
                 }
@@ -514,12 +505,10 @@
             {key: 'penalty_time', title: 'Penalty', size: 9, active: false},
             {key: 'penalty_laps', title: 'Penalty,l', size: 9, active: false},
             {key: 'scores_ardf', title: 'ARDF', size: 4, active: isArdf},
-            {key: 'rogaine_points_earned', title: 'Total', size: 5, active: isRogaine},
-            {key: 'rogaine_penalty', title: 'Pen.', size: 4, active: isRogaine},
-            {key: 'rogaine_score', title: 'Pts', size: 4, active: isRogaine || isTrailo},
+            {key: 'trailo_score', title: 'Pts', size: 4, active: isTrailo},
             {key: 'result', title: 'Result', size: 14},
             {key: 'result_relay', title: 'Team result', size: 14},
-            {key: 'diff', title: 'Diff', size: 11, active: !isArdf && !isRogaine},
+            {key: 'diff', title: 'Diff', size: 11, active: !isArdf && !isTrailo},
             {key: 'speed', title: 'Pace', size: 12, active: false},
             {key: 'place_show', title: 'Place', size: 6},
             {key: 'scores', title: 'Scores', size: 5, active: false},

@@ -515,6 +515,8 @@ class Result(ABC):
         self.scores = 0
         self.rogaine_score = 0
         self.rogaine_penalty = 0
+        self.trailo_score = 0
+        self.trailo_time = 0
         self.scores_ardf = 0
         self.assigned_rank = Qualification.NOT_QUALIFIED
         self.diff: Optional[OTime] = None  # readonly
@@ -544,15 +546,21 @@ class Result(ABC):
 
     def __eq__(self, other) -> bool:
         eq = self.system_type and other.system_type
-
-        if race().get_setting("result_processing_mode", "time") == "time":
+        result_processing_time = race().get_setting("result_processing_mode", "time")
+        if result_processing_time == "time":
             if self.get_start_time() and other.get_start_time():
                 eq = eq and self.get_start_time() == other.get_start_time()
             if self.get_finish_time() and other.get_finish_time():
                 eq = eq and self.get_finish_time() == other.get_finish_time()
             else:
                 return False
-        elif race().get_setting("result_processing_mode", "time") == "ardf":
+        elif result_processing_time == "trailo":
+            eq = eq and self.trailo_score == other.trailo_score
+            if self.get_trailo_time() and other.get_trailo_time():
+                eq = eq and self.get_trailo_time() == other.get_trailo_time()
+            if self.get_penalty_time() and other.get_penalty_time():
+                eq = eq and self.get_penalty_time() == other.get_penalty_time()
+        elif result_processing_time == "ardf":
             eq = eq and self.scores_ardf == other.scores_ardf
             if eq and self.get_start_time() and other.get_start_time():
                 eq = eq and self.get_start_time() == other.get_start_time()
@@ -576,8 +584,8 @@ class Result(ABC):
         elif self.status != other.status and not self.is_status_ok():
             # incorrect statuses sort
             return self.status.value > other.status.value
-
-        if race().get_setting("result_processing_mode", "time") == "time":
+        result_processing_mode = race().get_setting("result_processing_mode", "time")
+        if result_processing_mode == "time":
             if (
                     self.get_result_otime() == OTime()
                     and other.get_result_otime() > OTime()
@@ -589,11 +597,16 @@ class Result(ABC):
             ):
                 return False
             return self.get_result_otime() > other.get_result_otime()
-        elif race().get_setting("result_processing_mode", "time") == "ardf":
+        elif result_processing_mode == "ardf":
             if self.scores_ardf == other.scores_ardf:
                 return self.get_result_otime() > other.get_result_otime()
             else:
                 return self.scores_ardf < other.scores_ardf
+        elif result_processing_mode == "trailo":
+            if self.trailo_score == other.trailo_score:
+                return self.get_trailo_time() + self.get_penalty_time() > other.get_trailo_time() + self.get_penalty_time()
+            else:
+                return self.trailo_score < other.trailo_score
         else:  # process by score (rogain)
             if self.rogaine_score == other.rogaine_score:
                 return self.get_result_otime() > other.get_result_otime()
@@ -631,6 +644,8 @@ class Result(ABC):
             "scores": self.scores,  # readonly
             "rogaine_score": self.rogaine_score,  # readonly
             "rogaine_penalty": self.rogaine_penalty,  # readonly
+            "trailo_score": self.trailo_score,  # readonly
+            "trailo_time": self.trailo_time,  # readonly
             "scores_ardf": self.scores_ardf,  # readonly
             "created_at": self.created_at,  # readonly
             "result": self.get_result(),  # readonly
@@ -663,6 +678,10 @@ class Result(ABC):
             self.rogaine_score = data["rogaine_score"]
         if "rogaine_penalty" in data and data["rogaine_penalty"] is not None:
             self.rogaine_penalty = data["rogaine_penalty"]
+        if "trailo_score" in data and data["trailo_score"] is not None:
+            self.trailo_score = data["trailo_score"]
+        if "trailo_time" in data and data["trailo_time"] is not None:
+            self.trailo_time = data["trailo_time"]
         if str(data["place"]).isdigit():
             self.place = int(data["place"])
         self.assigned_rank = Qualification.get_qual_by_code(data["assigned_rank"])
@@ -719,7 +738,7 @@ class Result(ABC):
         elif result_processing_mode == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
         elif result_processing_mode == "trailo":
-            ret += f"{self.rogaine_score} {translate('points')} "
+            ret += f"{self.trailo_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
         ret += self.get_result_otime().to_str(time_accuracy)
@@ -737,6 +756,8 @@ class Result(ABC):
         ret = ""
         if race().get_setting("result_processing_mode", "time") == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
+        elif race().get_setting("result_processing_mode", "time") == "trailo":
+            ret += f"{self.trailo_score} {translate('points')} "
         elif race().get_setting("result_processing_mode", "time") == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
 
@@ -773,6 +794,8 @@ class Result(ABC):
         ret = ""
         if race().get_setting("result_processing_mode", "time") == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
+        elif race().get_setting("result_processing_mode", "time") == "trailo":
+            ret += f"{self.trailo_score} {translate('points')} "
         elif race().get_setting("result_processing_mode", "time") == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
 
@@ -880,6 +903,13 @@ class Result(ABC):
             return self.finish_time
 
         return OTime.now()
+
+    def get_trailo_time(self) -> OTime:
+        if self.trailo_time:
+            return self.trailo_time
+
+        return OTime()
+
 
     def get_penalty_time(self) -> OTime:
         if self.penalty_time:
@@ -1121,34 +1151,6 @@ class ResultSportident(Result):
             i.is_correct = False
             i.has_penalty = True
             i.course_index = -1
-
-        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
-
-        if is_trailo and len(self.splits) > 0:
-            self.splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
-            for cur_split in self.splits:
-                cur_split.is_correct = False
-                cur_split.course_index = -1
-
-            for control_point in controls:
-                control_point_detected = False
-                for cur_split in self.splits:
-                    cur_code = cur_split.code[:-1]
-                    if cur_code == control_point.code[:-1]:
-                        control_point_detected = True
-                        cur_split.course_index = int(cur_code)
-                        if cur_split.code[-1] == control_point.code[-1]:
-                            cur_split.is_correct = True
-                        break
-                if not control_point_detected:
-                    new_split = Split()
-                    new_split.is_correct = False
-                    new_split.code = control_point.code[:-1] + "X"
-                    new_split.course_index = int(control_point.code[:-1])
-                    self.splits.append(new_split)
-
-            self.splits = sorted(self.splits, key=lambda s: (int(s.code[:-1]), s.time))
-            return True
 
         ignore_punches_before_start = obj.get_setting(
             "ignore_punches_before_start", False

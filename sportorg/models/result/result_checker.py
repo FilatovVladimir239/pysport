@@ -34,11 +34,8 @@ class ResultChecker:
                 "result_processing_scores_minute_penalty", 1
             )
             score = self.calculate_scores_trailo(result)
-            penalty = self.calculate_rogaine_penalty(result, score, penalty_step)
-
-            result.rogaine_score = score
-            result.rogaine_penalty = penalty
-
+            result.trailo_score = score
+            return True
         elif race().get_setting("result_processing_mode", "time") == "scores":
             # process by score (rogaine)
             allow_duplicates = race().get_setting(
@@ -155,6 +152,11 @@ class ResultChecker:
 
         controls = course.controls
         splits = result.splits
+
+        if race().get_setting("result_processing_mode", "time") == "trailo":
+            result.penalty_time = ResultChecker.penalty_calculation_trailo(splits, controls)
+            return
+
 
         # use prefixes _min and _lap in group name to force non-standard penalty
         # TODO move setting to group properties
@@ -318,6 +320,24 @@ class ResultChecker:
 
         res += max(len(controls) - correct_count, 0)
 
+        return res
+
+    @staticmethod
+    def penalty_calculation_trailo(splits, controls):
+        splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
+        controls = sorted(controls, key=lambda s: (int(s.code[:-1])))
+        res = OTime()
+        for control_point in controls:
+            control_point_code = int(control_point.code[:-1])
+            if control_point_code < 100:
+                continue
+
+            for cur_split in splits:
+                cur_code = int(cur_split.code[:-1])
+                if cur_code == control_point_code:
+                    if control_point_code >= 100 and control_point.code[-1] != 'T':
+                        res += OTime(msec=race().get_setting("marked_route_penalty_time", 60000))
+                    break
         return res
 
     @staticmethod
@@ -506,20 +526,16 @@ class ResultChecker:
         if not course:
             return ret
 
-        result.splits = list(filter(lambda s: s.code[-1] != 'X', result.splits))
-
         result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
         control_points = sorted(course.controls, key=lambda s: (int(s.code[:-1])))
-
+        result.penalty_time = OTime()
         for control_point in control_points:
             for cur_split in result.splits:
-                cur_code = cur_split.code[:-1]
-                if cur_code == control_point.code[:-1]:
-                    if cur_split.code[-1] == control_point.code[-1]:
+                cur_code = int(cur_split.code[:-1])
+                if cur_code == int(control_point.code[:-1]):
+                    if cur_code < 100 and cur_split.code[-1] == control_point.code[-1]:
                         ret += 1
                     break
-
-        result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
 
         if result.person and result.person.group:
             user_time = result.get_result_otime()

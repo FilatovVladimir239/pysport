@@ -77,6 +77,7 @@ class ResultCalculation:
 
     def set_places(self, array):
         is_rogaine = self.race.get_setting("result_processing_mode", "time") == "scores"
+        is_trailo = self.race.get_setting("result_processing_mode", "time") == "trailo"
         is_ardf = self.race.get_setting("result_processing_mode", "time") == "ardf"
         current_place = 1
         last_place = 1
@@ -91,6 +92,8 @@ class ResultCalculation:
                 res.diff = current_result - array[0].get_result_otime()
                 if is_rogaine:
                     res.diff_scores = array[0].rogaine_score - res.rogaine_score
+                elif is_trailo:
+                    res.diff_scores = array[0].trailo_score - res.trailo_score
                 elif is_ardf:
                     res.diff_scores = array[0].scores_ardf - res.scores_ardf
 

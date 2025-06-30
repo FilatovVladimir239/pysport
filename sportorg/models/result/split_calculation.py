@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from sportorg.models.memory import Course, Group, Qualification, ResultStatus
+from sportorg.models.memory import Course, Group, Qualification, ResultStatus, Split
 from sportorg.models.result.result_calculation import ResultCalculation
 from sportorg.utils.time import get_speed_min_per_km
 
@@ -42,10 +42,12 @@ class PersonSplits:
 
         if self.race.get_setting("result_processing_mode", "time") == "trailo":
             logging.info("testing 123")
+            self.result.splits = list(filter(lambda s: s.code[-1] != 'X', self.result.splits))
             self.result.splits = sorted(self.result.splits, key=lambda s: (int(s.code[:-1]), s.time))
             splits = self.result.splits
             for cur_split in splits:
                 cur_split.course_index = -1
+                cur_split.is_correct = False
 
             for control_point in self.course.controls:
                 control_point_detected = False
@@ -53,13 +55,22 @@ class PersonSplits:
                     cur_code = cur_split.code[:-1]
                     if cur_code == control_point.code[:-1]:
                         control_point_detected = True
-                        cur_split.course_index = int(cur_code)
+                        if control_point.code[:-1] == "T" :
+                            cur_split.leg_time = cur_split.time
+                        else:
+                            cur_split.course_index = int(cur_code)
+                            if cur_split.code[-1] == control_point.code[-1]:
+                                cur_split.is_correct = True
                         break
                 if not control_point_detected:
                     new_split = Split()
-                    new_split.code = control_point.code[:-1] + "X"
-                    new_split.is_correct = False
-                    new_split.course_index = int(control_point.code[:-1])
+                    if control_point.code[:-1] != "T":
+                        new_split.code = control_point.code[:-1] + "X"
+                        new_split.is_correct = False
+                        new_split.course_index = int(control_point.code[:-1])
+                    else:
+                        new_split.code = control_point.code
+                        new_split.is_correct = False
                     self.result.splits.append(new_split)
 
             self.result.splits = sorted(self.result.splits, key=lambda s: (int(s.code[:-1]), s.time))
