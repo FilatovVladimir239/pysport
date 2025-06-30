@@ -517,6 +517,7 @@ class Result(ABC):
         self.rogaine_penalty = 0
         self.trailo_score = 0
         self.trailo_time = 0
+        self.trailo_score_penalty = 0
         self.scores_ardf = 0
         self.assigned_rank = Qualification.NOT_QUALIFIED
         self.diff: Optional[OTime] = None  # readonly
@@ -644,6 +645,7 @@ class Result(ABC):
             "scores": self.scores,  # readonly
             "rogaine_score": self.rogaine_score,  # readonly
             "rogaine_penalty": self.rogaine_penalty,  # readonly
+            "trailo_score_penalty": self.trailo_score_penalty,  # readonly
             "trailo_score": self.trailo_score,  # readonly
             "trailo_time": self.trailo_time.to_msec() if self.penalty_time else None,  # readonly
             "scores_ardf": self.scores_ardf,  # readonly
@@ -684,6 +686,8 @@ class Result(ABC):
             self.rogaine_score = data["rogaine_score"]
         if "rogaine_penalty" in data and data["rogaine_penalty"] is not None:
             self.rogaine_penalty = data["rogaine_penalty"]
+        if "trailo_score_penalty" in data and data["trailo_score_penalty"] is not None:
+            self.trailo_score_penalty = data["trailo_score_penalty"]
         if "trailo_score" in data and data["trailo_score"] is not None:
             self.trailo_score = data["trailo_score"]
         if "trailo_time" in data and data["trailo_time"] is not None:
