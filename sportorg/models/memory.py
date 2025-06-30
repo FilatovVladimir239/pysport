@@ -645,7 +645,7 @@ class Result(ABC):
             "rogaine_score": self.rogaine_score,  # readonly
             "rogaine_penalty": self.rogaine_penalty,  # readonly
             "trailo_score": self.trailo_score,  # readonly
-            "trailo_time": self.trailo_time,  # readonly
+            "trailo_time": self.trailo_time.to_msec() if self.penalty_time else None,  # readonly
             "scores_ardf": self.scores_ardf,  # readonly
             "created_at": self.created_at,  # readonly
             "result": self.get_result(),  # readonly
@@ -655,11 +655,17 @@ class Result(ABC):
                 if self.is_status_ok()
                 else self.get_result()
             ),
+            "result_trailo_current": (
+                self.get_result_otime_trailo().to_str(time_accuracy=accuracy)
+                if self.is_status_ok()
+                else self.get_result()
+            ),
             "start_msec": self.get_start_time().to_msec(),  # readonly
             "finish_msec": self.get_finish_time().to_msec(),  # readonly
             "result_msec": self.get_result_otime().to_msec(),  # readonly
             "result_relay_msec": self.get_result_otime_relay().to_msec(),  # readonly
             "result_current_msec": self.get_result_otime_current_day().to_msec(),  # readonly
+            "result_trailo_current_msec": self.get_result_otime_trailo().to_msec(),  # readonly
             "can_win_count": self.can_win_count,
             "final_result_time": (
                 self.final_result_time.to_str() if self.final_result_time else None
@@ -741,7 +747,10 @@ class Result(ABC):
             ret += f"{self.trailo_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
-        ret += self.get_result_otime().to_str(time_accuracy)
+        if result_processing_mode == "trailo":
+            ret += self.get_result_otime_trailo().to_str(time_accuracy)
+        else:
+            ret += self.get_result_otime().to_str(time_accuracy)
         return ret
 
     def get_result_start_in_comment(self):

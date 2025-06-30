@@ -30,11 +30,7 @@ class ResultChecker:
             result.scores_ardf = self.calculate_scores_ardf(result)
             return True
         if race().get_setting("result_processing_mode", "time") == "trailo":
-            penalty_step = race().get_setting(
-                "result_processing_scores_minute_penalty", 1
-            )
-            score = self.calculate_scores_trailo(result)
-            result.trailo_score = score
+            self.calculate_scores_trailo(result)
             return True
         elif race().get_setting("result_processing_mode", "time") == "scores":
             # process by score (rogaine)
@@ -521,20 +517,21 @@ class ResultChecker:
 
     @staticmethod
     def calculate_scores_trailo(result):
-        ret = 0
         course = race().find_course(result)
         if not course:
-            return ret
+            return
 
         result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
         control_points = sorted(course.controls, key=lambda s: (int(s.code[:-1])))
-        result.penalty_time = OTime()
+        result.trailo_time = OTime()
         for control_point in control_points:
             for cur_split in result.splits:
                 cur_code = int(cur_split.code[:-1])
                 if cur_code == int(control_point.code[:-1]):
                     if cur_code < 100 and cur_split.code[-1] == control_point.code[-1]:
-                        ret += 1
+                        result.trailo_score += 1
+                    if cur_split.code[-1] == "T":
+                        result.trailo_time += cur_split.time
                     break
 
         if result.person and result.person.group:
@@ -542,6 +539,3 @@ class ResultChecker:
             max_time = result.person.group.max_time
             if OTime() < max_time < user_time:
                 result.status = ResultStatus.DISQUALIFIED
-                return 0
-
-        return ret

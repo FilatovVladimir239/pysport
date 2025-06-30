@@ -41,7 +41,6 @@ class PersonSplits:
         start_time = self.result.get_start_time()
 
         if self.race.get_setting("result_processing_mode", "time") == "trailo":
-            logging.info("testing 123")
             self.result.splits = list(filter(lambda s: s.code[-1] != 'X', self.result.splits))
             self.result.splits = sorted(self.result.splits, key=lambda s: (int(s.code[:-1]), s.time))
             splits = self.result.splits
