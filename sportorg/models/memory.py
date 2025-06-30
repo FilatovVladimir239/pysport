@@ -604,7 +604,7 @@ class Result(ABC):
                 return self.scores_ardf < other.scores_ardf
         elif result_processing_mode == "trailo":
             if self.trailo_score == other.trailo_score:
-                return self.get_trailo_time() + self.get_penalty_time() > other.get_trailo_time() + self.get_penalty_time()
+                return self.get_result_otime_trailo() > other.get_result_otime_trailo()
             else:
                 return self.trailo_score < other.trailo_score
         else:  # process by score (rogain)
@@ -826,6 +826,15 @@ class Result(ABC):
         ret_ms += self.get_penalty_time().to_msec()
         ret_ms -= self.get_credit_time().to_msec()
         return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
+
+    def get_result_otime_trailo(self):
+        time_accuracy = race().get_setting("time_accuracy", 0)
+        time_rounding = race().get_setting("time_rounding", "math")
+        ret_ms = self.get_trailo_time().to_msec()
+        ret_ms += self.get_penalty_time().to_msec()
+
+        return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
+
 
     def get_result_otime_relay(self):
         time_accuracy = race().get_setting("time_accuracy", 0)
