@@ -1,7 +1,9 @@
-import logging
+import gzip
+import json
 from re import subn
 from typing import Any, Dict
 
+from sportorg import config, settings
 from sportorg.common.otime import OTime
 from sportorg.utils.time import int_to_otime, time_to_hhmmss
 
@@ -31,12 +33,31 @@ RESULT_STATUS = [
 
 
 class Orgeo:
-    def __init__(self, session, url: str, user_agent: str = "SportOrg"):
+    def __init__(
+        self,
+        session,
+        url: str,
+        user_agent: str = "SportOrg " + config.VERSION,
+        compression: bool = True,
+    ):
         self.session = session
         self._url = url
+        self._compression = compression
         self._headers = {"User-Agent": user_agent}
 
     async def send(self, data):
+        if self._compression:
+            json_bytes = json.dumps(data).encode("utf-8")
+            compressed = gzip.compress(json_bytes)
+            headers = {
+                "Content-Type": "application/json",
+                "Content-Encoding": "gzip",
+                "Content-Length": str(len(compressed)),
+                **self._headers,
+            }
+
+            return await self.session.post(self._url, headers=headers, data=compressed)
+
         return await self.session.post(self._url, headers=self._headers, json=data)
 
     async def send_online_cp(self, chip, code, time):
@@ -200,7 +221,7 @@ async def create(url, data, race_data, log, *, session):
     data is Dict: Person, Result, Group, Course, Organization
     race_data is Dict: Race
     """
-    o = Orgeo(session, url)
+    o = Orgeo(session, url, compression=settings.SETTINGS.live_gzip_enabled)
     is_start = False
     group_i = 0
     persons = []
@@ -262,7 +283,7 @@ async def create_online_cp(url, data, race_data, log, *, session):
     if not race_data["settings"].get("live_cp_enabled", False):
         return
 
-    o = Orgeo(session, url)
+    o = Orgeo(session, url, compression=settings.SETTINGS.live_gzip_enabled)
 
     for item in data:
         if item["object"] in [
@@ -343,7 +364,7 @@ async def create_online_cp(url, data, race_data, log, *, session):
 
 
 async def delete(url, data, race_data, log, *, session):
-    o = Orgeo(session, url)
+    o = Orgeo(session, url, compression=settings.SETTINGS.live_gzip_enabled)
     persons = []
     for item in data:
         if item["object"] == "Person":
