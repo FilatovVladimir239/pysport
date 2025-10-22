@@ -49,7 +49,7 @@ def import_sfrx(source: str):
                             memory.CourseControl,
                             code=control["code"],
                             order=order,
-                            length=control["length"],
+                            length=int(control["length"]),
                         )
                     )
             c.controls = controls
@@ -81,6 +81,7 @@ def import_sfrx(source: str):
         person = memory.Person()
         person.name = person_dict["name"]
         person.surname = person_dict["surname"]
+        person.middle_name = person_dict["middle_name"]
 
         bib = convert_bib(str(person_dict["bib"]))
 

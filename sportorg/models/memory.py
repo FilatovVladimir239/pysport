@@ -1,5 +1,4 @@
 import datetime
-import dateutil.parser
 import logging
 import re
 import time
@@ -9,11 +8,13 @@ from datetime import date
 from enum import Enum, IntEnum
 from typing import Any, Dict, List, Optional
 
+import dateutil.parser
+
+from sportorg import settings
 from sportorg.common.model import Model
 from sportorg.common.otime import OTime, TimeRounding
 from sportorg.language import translate
-from sportorg.modules.configs.configs import Config
-from sportorg.utils.time import hhmmss_to_time, date_to_ddmmyyyy
+from sportorg.utils.time import date_to_ddmmyyyy, hhmmss_to_time
 
 
 class NotEmptyException(Exception):
@@ -1543,6 +1544,28 @@ class Person(Model):
         self._index_bib(new_bib)
         self._bib = new_bib
 
+    def get_relay_team_number(self) -> int:
+        """Return relay team bib if relay leg, otherwise 0"""
+        if self.bib > 1000 and self.group and self.group.is_relay():
+            team_number = self.bib % 1000
+            return team_number
+        return 0
+
+    def get_relay_leg_number(self) -> int:
+        """Return relay leg number if relay leg, otherwise 0"""
+        if self.bib > 1000 and self.group and self.group.is_relay():
+            leg_number = self.bib // 1000
+            return leg_number
+        return 0
+
+    def get_relay_bib(self) -> str:
+        """Return relay bib as team.leg if relay leg, otherwise empty string"""
+        team_number = self.get_relay_team_number()
+        leg_number = self.get_relay_leg_number()
+        if team_number > 0 and leg_number > 0:
+            return f"{team_number}.{leg_number}"
+        return ""
+
     # used for duplication
     def set_bib_without_indexing(self, new_bib: int) -> None:
         self._bib = new_bib
@@ -1746,7 +1769,7 @@ class Race(Model):
             "object": self.__class__.__name__,
             "id": str(self.id),
             "data": self.data.to_dict(),
-            "settings": self.settings,
+            "settings": self.settings.copy(),
             "organizations": [item.to_dict() for item in self.organizations],
             "courses": [item.to_dict() for item in self.courses],
             "groups": [item.to_dict() for item in self.groups],
@@ -1831,7 +1854,7 @@ class Race(Model):
                 "object": self.__class__.__name__,
                 "id": str(self.id),
                 "data": self.data.to_dict(),
-                "settings": self.settings,
+                "settings": self.settings.copy(),
                 "organizations": [item.to_dict() for item in return_orgs],
                 "courses": [item.to_dict() for item in return_courses],
                 "groups": [item.to_dict() for item in return_groups],
@@ -1890,7 +1913,7 @@ class Race(Model):
         obj = self.support_obj[dict_obj["object"]]()
         obj.id = uuid.UUID(dict_obj["id"])
         self.update_obj(obj, dict_obj)
-        self.list_obj[dict_obj["object"]].insert(0, obj)
+        self.list_obj[dict_obj["object"]].append(obj)
         self.index_obj[dict_obj["object"]][dict_obj["id"]] = obj
 
     def get_type(self, group: Group):
@@ -2302,9 +2325,7 @@ class Qualification(IntEnum):
 
     # get score for ranking, stored in config.ini file
     def get_score(self):
-        ret = Config().ranking.get(self.name.lower(), 0)
-        ret = float(ret)
-        return ret
+        return float(settings.SETTINGS.ranking.get(self.name.lower(), 0))
 
     @staticmethod
     def list_qual():

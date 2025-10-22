@@ -4,6 +4,8 @@ import uuid
 from os import remove
 from typing import Any, Dict, Type
 
+from sportorg.utils.text import detect_encoding
+
 try:
     from PySide6 import QtCore
     from PySide6.QtWidgets import QApplication, QMessageBox
@@ -11,7 +13,7 @@ except ModuleNotFoundError:
     from PySide2 import QtCore
     from PySide2.QtWidgets import QApplication, QMessageBox
 
-from sportorg import config
+from sportorg import config, settings
 from sportorg.common.otime import OTime
 from sportorg.gui.dialogs.about import AboutDialog
 from sportorg.gui.dialogs.control_time_change_dialog import ControlTimeChangeDialog
@@ -61,7 +63,6 @@ from sportorg.models.start.start_preparation import (
 )
 from sportorg.modules.backup.file import is_gzip_file
 from sportorg.modules.backup.json import get_races_from_file
-from sportorg.modules.configs.configs import Config
 from sportorg.modules.iof import iof_xml
 from sportorg.modules.live.live import live_client
 from sportorg.modules.ocad import ocad
@@ -384,7 +385,10 @@ class RecoverySportorgHtmlAction(Action, metaclass=ActionFactory):
             False,
         )
         tmp_filename = recovery_sportorg_html.recovery(file_name)
-        with open(tmp_filename) as f:
+        if tmp_filename == "":
+            return
+        encoding = detect_encoding(tmp_filename)
+        with open(tmp_filename, encoding=encoding) as f:
             attr = get_races_from_file(f)
         SportOrgImportDialog(*attr).exec_()
         remove(tmp_filename)
@@ -934,8 +938,8 @@ class ImportSportOrgAction(Action, metaclass=ActionFactory):
 
         # if user set UTF-8 usage, first try to open file in UTF-8,
         # then in system locale (1251 for RU Windows)
-        use_utf8 = Config().configuration.get("save_in_utf8", False)
-        use_gzip = Config().configuration.get("save_in_gzip", False)
+        use_utf8 = settings.SETTINGS.file_save_in_utf8
+        use_gzip = settings.SETTINGS.file_save_in_gzip
 
         if mode == "r":
             use_gzip = is_gzip_file(file_name)

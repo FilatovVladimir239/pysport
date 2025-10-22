@@ -114,6 +114,9 @@ msgstr "Фамилия"
 msgid "First name"
 msgstr "Имя"
 
+msgid "Birthday title"
+msgstr "Дата рожд."
+
 msgid "Birthday"
 msgstr "Дата рождения"
 
@@ -1341,6 +1344,9 @@ msgstr "Нац. код"
 msgid "Out of competition title"
 msgstr "В/К"
 
+msgid "Max time at"
+msgstr "Контр. время"
+
 msgid "Result count title"
 msgstr "Финиш"
 
@@ -1358,6 +1364,9 @@ msgstr "Мин. ГР"
 
 msgid "Max year title"
 msgstr "Макс. ГР"
+
+msgid "Max time title"
+msgstr "Контр. время"
 
 msgid "Start interval title"
 msgstr "Интервал"
@@ -1755,3 +1764,6 @@ msgstr "Не все дни"
 
 msgid "in list"
 msgstr "в списке"
+
+msgid "Gzip compression"
+msgstr "Сжатие gzip"
