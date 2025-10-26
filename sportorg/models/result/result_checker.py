@@ -21,58 +21,69 @@ class ResultChecker:
         self.person = person
 
     def check_result(self, result: ResultSportident):
-        if self.person is None:
-            return True
-        if self.person.group is None:
+        if self.person is None or self.person.group is None:
             return True
 
-        if race().get_setting("result_processing_mode", "time") == "ardf":
-            result.scores_ardf = self.calculate_scores_ardf(result)
-            return True
-        if race().get_setting("result_processing_mode", "time") == "trailo":
-            scores = self.calculate_scores_trailo(result)
-            penalty = self.calculate_rogaine_penalty(result, scores, 1)
-            time = self.calculate_time_trailo(result)
-            result.trailo_score_penalty = penalty
-            result.trailo_score = scores - penalty
-            result.trailo_time = time
-            return True
-        elif race().get_setting("result_processing_mode", "time") == "scores":
-            # process by score (rogaine)
-            allow_duplicates = race().get_setting(
-                "result_processing_scores_allow_duplicates", False
-            )
-            penalty_step = race().get_setting(
-                "result_processing_scores_minute_penalty", 1
-            )
+        processing_mode = race().get_setting("result_processing_mode", "time")
 
-            score = self.calculate_rogaine_score(result, allow_duplicates)
-            penalty = self.calculate_rogaine_penalty(result, score, penalty_step)
-            result.rogaine_score = score - penalty
-            result.rogaine_penalty = penalty
+        mode_handlers = {
+            "ardf": self._process_ardf_mode,
+            "trailo": self._process_trailo_mode,
+            "scores": self._process_scores_mode
+        }
+
+        if processing_mode in mode_handlers:
+            mode_handlers[processing_mode](result)
             return True
 
-        course = race().find_course(result)
+        return self._process_standard_mode(result)
 
+    def _process_ardf_mode(self, result):
+        result.scores_ardf = self.calculate_scores_ardf(result)
+
+    def _process_trailo_mode(self, result):
+        scores = self.calculate_scores_trailo(result)
+        penalty = self.calculate_rogaine_penalty(result, scores, 1)
+        time = self.calculate_time_trailo(result)
+        result.trailo_score_penalty = penalty
+        result.trailo_score = scores - penalty
+        result.trailo_time = time
+
+    def _process_scores_mode(self, result):
+        allow_duplicates = race().get_setting(
+            "result_processing_scores_allow_duplicates", False
+        )
+        penalty_step = race().get_setting(
+            "result_processing_scores_minute_penalty", 1
+        )
+
+        score = self.calculate_rogaine_score(result, allow_duplicates)
+        penalty = self.calculate_rogaine_penalty(result, score, penalty_step)
+        result.rogaine_score = score - penalty
+        result.rogaine_penalty = penalty
+
+    def _process_standard_mode(self, result):
         if race().get_setting("marked_route_dont_dsq", False):
-            # mode: competition without disqualification for mispunching (add penalty for missing cp)
-            result.check(course)
+            result.check(self._get_course(result))
             return True
 
+        course = self._get_course(result)
         if course is None:
-            if self.person.group.is_any_course:
-                return False
-            return True
+            return not self.person.group.is_any_course if self.person.group else True
 
         if self.person.group.is_any_course:
             return True
 
         return result.check(course)
 
+    def _get_course(self, result):
+        return race().find_course(result) if result.person else None
+
     @classmethod
     def checking(cls, result):
         if result.person is None:
             raise ResultCheckerException("Not person")
+
         o = cls(result.person)
         if result.status in [
             ResultStatus.OK,
@@ -81,41 +92,58 @@ class ResultChecker:
             ResultStatus.MISS_PENALTY_LAP,
             ResultStatus.MULTI_DAY_ISSUE,
         ]:
-            result.status = ResultStatus.OK
+            return o
 
-            check_flag = o.check_result(result)
-            ResultChecker.calculate_penalty(result)
-            ResultChecker.calculate_credit_time(result)
-            if not check_flag:
-                result.status = ResultStatus.MISSING_PUNCH
+        result.status = ResultStatus.OK
+        check_flag = o.check_result(result)
 
-            elif not cls.check_penalty_laps(result):
-                result.status = ResultStatus.MISS_PENALTY_LAP
+        # Расчет штрафов и кредитного времени
+        cls.calculate_penalty(result)
+        cls.calculate_credit_time(result)
 
-            elif result.person.group and result.person.group.max_time.to_msec():
-                rp_mode = race().get_setting("result_processing_mode", "time")
-                result_time = result.get_result_otime()
-                max_time = result.person.group.max_time
-                if rp_mode in ("time", "ardf"):
-                    if result_time > max_time:
-                        result.status = ResultStatus.OVERTIME
-                elif rp_mode == "scores":
-                    max_overrun_time = OTime(
-                        msec=race().get_setting(
-                            "result_processing_scores_max_overrun_time", 0
-                        )
-                    )
-                    if (
-                            max_overrun_time.to_msec() > 0
-                            and result_time > max_time + max_overrun_time
-                    ):
-                        result.status = ResultStatus.OVERTIME
+        # Проверка статуса результата
+        cls._validate_result_status(result, check_flag)
 
-            result.status_comment = StatusComments().get_status_default_comment(
-                result.status
-            )
+        result.status_comment = StatusComments().get_status_default_comment(
+            result.status
+        )
 
         return o
+
+    @classmethod
+    def _validate_result_status(cls, result, check_flag):
+        if not check_flag:
+            result.status = ResultStatus.MISSING_PUNCH
+        elif not cls.check_penalty_laps(result):
+            result.status = ResultStatus.MISS_PENALTY_LAP
+        else:
+            cls._check_overtime(result)
+
+    @classmethod
+    def _check_overtime(cls, result):
+        if not result.person or not result.person.group:
+            return
+
+        result_time = result.get_result_otime()
+        max_time = result.person.group.max_time
+
+        if not max_time.to_msec():
+            return
+
+        rp_mode = race().get_setting("result_processing_mode", "time")
+
+        if rp_mode in ("time", "ardf"):
+            if result_time > max_time:
+                result.status = ResultStatus.OVERTIME
+        elif rp_mode == "scores":
+            max_overrun_time = OTime(
+                msec=race().get_setting(
+                    "result_processing_scores_max_overrun_time", 0
+                )
+            )
+            if (max_overrun_time.to_msec() > 0 and
+                    result_time > max_time + max_overrun_time):
+                result.status = ResultStatus.OVERTIME
 
     @staticmethod
     def check_all():
@@ -125,14 +153,11 @@ class ResultChecker:
 
     @staticmethod
     def calculate_credit_time(result: Result):
-        credit_time_enabled = race().get_setting("credit_time_enabled", False)
-        if not credit_time_enabled:
+        if not race().get_setting("credit_time_enabled", False):
             return
 
         credit_cp = race().get_setting("credit_time_cp", 250)
-        splits = result.splits
-
-        result.credit_time = ResultChecker.credit_calculation(splits, credit_cp)
+        result.credit_time = ResultChecker.credit_calculation(result.splits, credit_cp)
 
     @staticmethod
     def calculate_penalty(result: Result):
@@ -140,48 +165,50 @@ class ResultChecker:
         if mode == "off":
             return
 
-        person = result.person
-
-        if person is None:
-            return
-        if person.group is None:
+        if not result.person or not result.person.group:
             return
 
         course = race().find_course(result)
         if not course:
             return
 
-        controls = course.controls
-        splits = result.splits
+        penalty_handlers = {
+            "trailo": ResultChecker._calculate_trailo_penalty,
+            "default": ResultChecker._calculate_standard_penalty
+        }
 
-        if race().get_setting("result_processing_mode", "time") == "trailo":
-            result.penalty_time = ResultChecker.penalty_calculation_trailo(splits, controls)
-            return
+        processing_mode = race().get_setting("result_processing_mode", "time")
+        handler = penalty_handlers.get("trailo" if processing_mode == "trailo" else "default")
+        handler(result, course, mode)
 
+    @staticmethod
+    def _calculate_trailo_penalty(result, course, mode):
+        result.penalty_time = ResultChecker.penalty_calculation_trailo(
+            result.splits, course.controls
+        )
 
-        # use prefixes _min and _lap in group name to force non-standard penalty
-        # TODO move setting to group properties
-        if person.group.name.lower().find("_min") > -1:
+    @staticmethod
+    def _calculate_standard_penalty(result, course, mode):
+        if result.person.group.name.lower().find("_min") > -1:
             mode = "time"
-        if person.group.name.lower().find("_lap") > -1:
+        if result.person.group.name.lower().find("_lap") > -1:
             mode = "laps"
 
         if mode == "laps" and race().get_setting("marked_route_if_station_check"):
             lap_station = race().get_setting("marked_route_penalty_lap_station_code")
-            splits, _ = ResultChecker.detach_penalty_laps2(splits, lap_station)
+            result.splits, _ = ResultChecker.detach_penalty_laps2(result.splits, lap_station)
 
         if race().get_setting("marked_route_dont_dsq", False):
-            # free order, don't penalty for extra cp
-            penalty = ResultChecker.penalty_calculation_free_order(splits, controls)
+            penalty = ResultChecker.penalty_calculation_free_order(
+                result.splits, course.controls
+            )
         else:
-            # marked route with penalty
             penalty = ResultChecker.penalty_calculation(
-                splits, controls, check_existence=True
+                result.splits, course.controls, check_existence=True
             )
 
         if race().get_setting("marked_route_max_penalty_by_cp", False):
-            # limit the penalty by quantity of controls
-            penalty = min(len(controls), penalty)
+            penalty = min(len(course.controls), penalty)
 
         result.penalty_laps = 0
         result.penalty_time = OTime()
@@ -215,7 +242,6 @@ class ResultChecker:
         for idx, split in enumerate(splits):
             if int(split.code) == credit_cp and idx > 0:
                 result_credit_time += split.time - splits[idx - 1].time
-
         return result_credit_time
 
     @staticmethod
@@ -267,7 +293,7 @@ class ResultChecker:
 
         incorrect_array = ResultChecker.get_marked_route_incorrect_list(controls)
 
-        if len(incorrect_array) > 0:
+        if incorrect_array:
             # marked route with choice, controls like 31(31,131), penalty only wrong choice (once),
             # ignoring controls from another courses, previous punches on uncleared card, duplicates
             # this mode allows combination of marked route and classic course, but please use different controls
@@ -326,6 +352,8 @@ class ResultChecker:
     @staticmethod
     def penalty_calculation_trailo(splits, controls):
         res = OTime()
+        penalty_time = OTime(msec=race().get_setting("marked_route_penalty_time", 60000))
+
         for control_point in controls:
             control_point_code = int(control_point.code[:-1])
             if control_point_code < 100:
@@ -333,24 +361,12 @@ class ResultChecker:
 
             for cur_split in splits:
                 cur_code = int(cur_split.code[:-1])
-                if cur_code == control_point_code:
-                    if control_point.code[-1] != 'T' and cur_split.code[-1] != control_point.code[-1]:
-                        logging.info(control_point_code)
-                        res += OTime(msec=race().get_setting("marked_route_penalty_time", 60000))
+                if (cur_code == control_point_code and
+                        control_point.code[-1] != 'T' and
+                        cur_split.code[-1] != control_point.code[-1]):
+                    res += penalty_time
                     break
         return res
-
-    @staticmethod
-    def detach_penalty_laps(splits, lap_station):
-        if not splits:
-            return [], []
-        for idx, punch in enumerate(reversed(splits)):
-            if int(punch.code) != lap_station:
-                break
-        else:
-            idx = len(splits)
-        idx = len(splits) - idx
-        return splits[:idx], splits[idx:]
 
     @staticmethod
     def detach_penalty_laps2(splits, lap_station):
@@ -383,11 +399,8 @@ class ResultChecker:
             _, penalty_laps = ResultChecker.detach_penalty_laps2(
                 result.splits, lap_station
             )
-            num_penalty_laps = len(penalty_laps)
-
-            if num_penalty_laps < result.penalty_laps:
+            if len(penalty_laps) < result.penalty_laps:
                 return False
-
         return True
 
     @staticmethod
@@ -455,28 +468,21 @@ class ResultChecker:
                 seconds_diff = time_diff.to_sec()
                 minutes_diff = (seconds_diff + 59) // 60  # note, 1:01 = 2 minutes
                 penalty = minutes_diff * penalty_step
-
-        # result = score - penalty >= 0
-        penalty = min(penalty, score)
-
-        return penalty
+        return min(penalty, score)
 
     @staticmethod
     def calculate_scores_ardf(result):
         user_array = []
         ret = 0
-
         course = race().find_course(result)
         if not course:
             return ret
 
         correct_order = [str(control.code) for control in course.controls]
-
         index_in_order = 0
 
         for cur_split in result.splits:
             code = str(cur_split.code)
-
             initial_index = index_in_order
 
             while index_in_order < len(correct_order):
@@ -496,7 +502,6 @@ class ResultChecker:
                             ret += 1
                             index_in_order = initial_index + 1
                             break
-
                     index_in_order += 1
                     continue
 
@@ -516,38 +521,40 @@ class ResultChecker:
             if OTime() < max_time < user_time:
                 result.status = ResultStatus.DISQUALIFIED
                 return 0
-
         return ret
 
     @staticmethod
     def calculate_scores_trailo(result):
         course = race().find_course(result)
         if not course:
-            return
+            return 0
+
         ret = 0
         for control_point in course.controls:
             if int(control_point.code[:-1]) >= 100:
                 continue
             for cur_split in result.splits:
                 cur_code = int(cur_split.code[:-1])
-                if cur_code == int(control_point.code[:-1]) and cur_split.code[-1] == control_point.code[-1]:
+                if (cur_code == int(control_point.code[:-1]) and
+                        cur_split.code[-1] == control_point.code[-1]):
                     ret += 1
                     break
         return ret
+
     @staticmethod
     def calculate_time_trailo(result):
         course = race().find_course(result)
         if not course:
-            return
+            return OTime()
 
         ret = OTime()
         for control_point in course.controls:
             if control_point.code[-1] != "T":
                 continue
-
             for cur_split in result.splits:
                 cur_code = int(cur_split.code[:-1])
-                if cur_code == int(control_point.code[:-1]) and cur_split.code[-1] == "T":
-                   ret += cur_split.time
-                   break
+                if (cur_code == int(control_point.code[:-1]) and
+                        cur_split.code[-1] == "T"):
+                    ret += cur_split.time
+                    break
         return ret

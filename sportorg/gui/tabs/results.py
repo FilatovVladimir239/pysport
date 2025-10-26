@@ -40,14 +40,13 @@ class ResultsTable(TableView):
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
         try:
-            if event.key() == QtCore.Qt.Key_Up or event.key() == QtCore.Qt.Key_Down:
+            if event.key() in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down):
                 self.entry_single_clicked(self.currentIndex())
         except Exception as e:
             logging.error(str(e))
 
     def entry_single_clicked(self, index):
         try:
-            #  show splits in the left area
             if -1 < index.row() < len(race().results):
                 self.parent_widget.show_splits(index)
         except Exception as e:
@@ -60,7 +59,6 @@ class ResultsTable(TableView):
                 dialog = ResultEditDialog(race().results[index.row()])
                 dialog.exec_()
                 GlobalAccess().get_main_window().refresh()
-                # self.selectRow(index.row()+1)
         except Exception as e:
             logging.error(str(e))
 
@@ -161,106 +159,90 @@ class Widget(QtWidgets.QWidget):
 
     def show_splits(self, index):
         result: Result = race().results[index.row()]
-        self.result_card_details.clear()
-        self.result_card_finish_edit.setText("")
-        self.result_card_start_edit.setText("")
+        is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
 
-        self.result_course_details.clear()
-        self.result_course_details.setLineWrapMode(QTextEdit.NoWrap)
-        self.result_course_name_edit.setText("")
-        self.result_course_length_edit.setText("")
+        self._clear_display_fields()
 
         if result.is_manual():
             return
 
-        course = None
-        if result.person:
-            course = race().find_course(result)
-
-        control_codes = []
-        is_highlight = True
-        if course:
-            is_highlight = not course.is_unknown()
-            for control in course.controls:
-                control_codes.append(str(control.code))
+        course = race().find_course(result) if result.person else None
+        control_codes = self._get_control_codes(course) if course else []
 
         time_accuracy = race().get_setting("time_accuracy", 0)
 
-        start_fmt = "{name:<8} {time}"
-        start_time = result.get_start_time()
-        start_str = start_fmt.format(
-            name=translate("Start"), time=start_time.to_str(time_accuracy)
-        )
-        self.result_card_details.append(start_str)
+        self._display_start_time(result, time_accuracy)
 
-        is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
         if is_trailo:
-            self.show_trailo_splits(result, time_accuracy)
+            self._display_trailo_splits(result, time_accuracy)
         else:
-            self.show_standard_splits(result, time_accuracy, is_highlight, control_codes)
+            is_highlight = not course.is_unknown() if course else False
+            self._display_standard_splits(result, time_accuracy, is_highlight, control_codes)
+
+        self._display_finish_time(result, time_accuracy)
 
         self.result_card_finish_edit.setText(time_to_hhmmss(result.get_finish_time()))
         self.result_card_start_edit.setText(time_to_hhmmss(result.get_start_time()))
 
-        split_codes = []
-        for split in result.splits:
-            split_codes.append(split.code)
+        self._display_course_info(course, result)
 
-        start_str = translate("Start")
-        self.result_course_details.append(start_str)
-        if course:
-            index = 1
-            for control in course.controls:
-                s = "{index:02d} ({code}) {length}".format(
-                    index=index,
-                    code=control.code,
-                    length=control.length if control.length else "",
-                )
-                if is_highlight and str(control.code) not in split_codes:
-                    s = '<span style="background: yellow">{}</span>'.format(s)
-                self.result_course_details.append(s)
-                index += 1
+    def _clear_display_fields(self):
+        fields = [
+            self.result_card_details,
+            self.result_card_finish_edit,
+            self.result_card_start_edit,
+            self.result_course_details,
+            self.result_course_name_edit,
+            self.result_course_length_edit
+        ]
+        for field in fields:
+            if hasattr(field, 'clear'):
+                field.clear()
+            elif hasattr(field, 'setText'):
+                field.setText("")
 
-            self.result_course_name_edit.setText(course.name)
-            self.result_course_name_edit.setCursorPosition(0)
-            self.result_course_length_edit.setText(str(course.length))
-        finish_str = translate("Finish")
-        self.result_course_details.append(finish_str)
+    def _get_control_codes(self, course):
+        return [str(control.code) for control in course.controls] if course else []
 
-    def show_trailo_splits(self, result, time_accuracy) -> OTime:
-        str_fmt_correct = "{code} {answer} {time}"
-        str_fmt_incorrect = "--   {answer} {time}"
-        result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
-        for split in result.splits:
-            str_fmt = str_fmt_correct
-            if split.course_index == -1:
-                str_fmt = str_fmt_incorrect
-            s = str_fmt.format(
-                code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
-                answer=split.code[-1],
-                time=split.time.to_str(time_accuracy)
-            )
+    def _display_start_time(self, result, time_accuracy):
+        start_time = result.get_start_time()
+        start_str = "{name:<8} {time}".format(
+            name=translate("Start"),
+            time=start_time.to_str(time_accuracy)
+        )
+        self.result_card_details.append(start_str)
 
-            self.result_card_details.append(s)
-
+    def _display_finish_time(self, result, time_accuracy):
         finish_time = result.get_finish_time()
-        finish_fmt = "{name:<8} {time}"
-        finish_str = finish_fmt.format(
+        finish_str = "{name:<8} {time}".format(
             name=translate("Finish"),
             time=finish_time.to_str(time_accuracy),
         )
         self.result_card_details.append(finish_str)
 
-    def show_standard_splits(self, result, time_accuracy, is_highlight, control_codes) -> OTime:
+    def _display_trailo_splits(self, result, time_accuracy):
+        str_fmt_correct = "{code} {answer} {time}"
+        str_fmt_incorrect = "--   {answer} {time}"
+
+        result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
+
+        for split in result.splits:
+            str_fmt = str_fmt_incorrect if split.course_index == -1 else str_fmt_correct
+            s = str_fmt.format(
+                code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
+                answer=split.code[-1],
+                time=split.time.to_str(time_accuracy)
+            )
+            self.result_card_details.append(s)
+
+    def _display_standard_splits(self, result, time_accuracy, is_highlight, control_codes):
         code = ""
         last_correct_time = OTime()
         str_fmt_correct = "{index:02d} {code} {time} {diff}"
         str_fmt_incorrect = "-- {code} {time}"
         index = 1
         for split in result.splits:
-            str_fmt = str_fmt_correct
-            if not split.is_correct:
-                str_fmt = str_fmt_incorrect
+            str_fmt = str_fmt_incorrect if not split.is_correct else str_fmt_correct
             s = str_fmt.format(
                 index=index,
                 code=("(" + str(split.code) + ")   ")[:5],
@@ -273,20 +255,45 @@ class Widget(QtWidgets.QWidget):
                 index += 1
                 last_correct_time = split.time
 
-            if split.code == code:
-                s = '<span style="background: red">{}</span>'.format(s)
-            if is_highlight and len(control_codes) and split.code not in control_codes:
-                s = '<span style="background: yellow">{}</span>'.format(s)
+            s = self._highlight_problem_splits(s, split, code, is_highlight, control_codes)
 
             self.result_card_details.append(s)
             code = split.code
 
         finish_time = result.get_finish_time()
         finish_leg = finish_time - last_correct_time
-        finish_fmt = "{name:<8} {time} {diff}"
-        finish_str = finish_fmt.format(
+        finish_str = "{name:<8} {time} {diff}".format(
             name=translate("Finish"),
             time=finish_time.to_str(time_accuracy),
             diff=finish_leg.to_str(time_accuracy),
         )
         self.result_card_details.append(finish_str)
+
+    def _highlight_problem_splits(self, s, split, last_code, is_highlight, control_codes):
+        if split.code == last_code:
+            s = '<span style="background: red">{}</span>'.format(s)
+        elif is_highlight and control_codes and split.code not in control_codes:
+            s = '<span style="background: yellow">{}</span>'.format(s)
+        return s
+
+    def _display_course_info(self, course, result):
+        split_codes = [split.code for split in result.splits]
+
+        self.result_course_details.append(translate("Start"))
+
+        if course:
+            for i, control in enumerate(course.controls, 1):
+                s = "{index:02d} ({code}) {length}".format(
+                    index=i,
+                    code=control.code,
+                    length=control.length if control.length else "",
+                )
+                if not course.is_unknown() and str(control.code) not in split_codes:
+                    s = '<span style="background: yellow">{}</span>'.format(s)
+                self.result_course_details.append(s)
+
+            self.result_course_name_edit.setText(course.name)
+            self.result_course_name_edit.setCursorPosition(0)
+            self.result_course_length_edit.setText(str(course.length))
+
+        self.result_course_details.append(translate("Finish"))

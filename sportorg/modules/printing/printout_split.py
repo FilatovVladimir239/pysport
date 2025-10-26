@@ -1,435 +1,473 @@
 import platform
+from typing import Optional, List
+from abc import ABC, abstractmethod
 
 from sportorg.language import translate
 from sportorg.models.memory import Group, Result, ResultStatus, race
 from sportorg.models.result.result_calculation import ResultCalculation
 
-if platform.system() == "Windows":  # current realisation works on Windows only
+if platform.system() == "Windows":
     import win32con
     import win32print
     import win32ui
 
 
-class SportorgPrinter:
-    def __init__(self, printer_name, scale_factor=60, x_offset=5, y_offset=5):
-        if not printer_name:
-            printer_name = win32print.GetDefaultPrinter()
+class SplitPrinterStrategy(ABC):
+    """Абстрактный класс стратегии печати сплитов"""
 
-        self.dc = win32ui.CreateDC()
-        self.dc.CreatePrinterDC(printer_name)
-        self.dc.SetMapMode(
-            win32con.MM_TWIPS
-        )  # 1440 units per inch, 1/20 of dot with 72dpi
+    @abstractmethod
+    def print_splits(self, printer: 'SportorgPrinter', result: Result, course, group):
+        pass
+
+    @abstractmethod
+    def format_split_line(self, split) -> str:
+        pass
+
+
+class NormalSplitPrinter(SplitPrinterStrategy):
+    """Стратегия печати для обычного режима"""
+
+    def print_splits(self, printer: 'SportorgPrinter', result: Result, course, group):
+        """Печать сплитов в обычном режиме"""
+        splits = result.splits.copy()
+        is_penalty_used = race().get_setting("marked_route_mode", "off") != "off"
+        is_relay = group.is_relay()
+
+        index = 1
+        for split in splits:
+            line = self.format_split_line(split, index, course, is_penalty_used, is_relay)
+            if line:
+                printer.print_line(line, 'main')
+                if split.is_correct:
+                    index += 1
+
+    def format_split_line(self, split, index: int, course, is_penalty_used: bool, is_relay: bool) -> str:
+        """Форматирование строки сплита"""
+        if not course:
+            return self._format_split_without_course(split, index)
+        elif split.is_correct:
+            return self._format_correct_split(split, index, course, is_penalty_used, is_relay)
+        else:
+            return self._format_incorrect_split(split)
+
+    def _format_split_without_course(self, split, index: int) -> str:
+        """Форматирование сплита без информации о курсе"""
+        return (
+            f"{index:>3} "
+            f"{split.code:>3} "
+            f"{split.time.to_str()[-7:]}"
+        )
+
+    def _format_correct_split(self, split, index: int, course, is_penalty_used: bool, is_relay: bool) -> str:
+        """Форматирование корректного сплита"""
+        line_parts = [
+            f"{split.course_index + 1:>3}",
+            f"{split.code:>3}",
+            f"{split.relative_time.to_str()[-7:]}",
+            f"{split.leg_time.to_str()[-5:]}",
+            f"{split.speed}",
+        ]
+
+        if not is_relay:
+            line_parts.append(f"{split.leg_place:>3}")
+
+        line = " ".join(line_parts)
+
+        # Добавление маркера для отмеченных контрольных пунктов
+        if is_penalty_used and course:
+            for course_cp in course.controls:
+                if str(course_cp).startswith(split.code):
+                    line += " +"
+                    break
+
+        return line
+
+    def _format_incorrect_split(self, split) -> str:
+        """Форматирование некорректного сплита"""
+        return (
+                " " * 4 +
+                f"{split.code:>3} "
+                f"{split.relative_time.to_str()[-7:]}"
+        )
+
+
+class TrailOSplitPrinter(SplitPrinterStrategy):
+    """Стратегия печати для режима Trail-O"""
+
+    def print_splits(self, printer: 'SportorgPrinter', result: Result, course, group):
+        """Печать сплитов в режиме Trail-O"""
+        splits = result.splits.copy()
+        splits.sort(key=lambda s: (int(s.code[:-1]), s.time))
+
+        for split in splits:
+            line = self.format_split_line(split)
+            printer.print_line(line, 'main')
+
+    def format_split_line(self, split) -> str:
+        """Форматирование строки сплита для Trail-O"""
+        if split.is_correct:
+            return (
+                f"{split.code[:-1]:>3} "
+                f"{split.code[-1]:>3} "
+                f"{split.relative_time.to_str()[-7:]}"
+            )
+        else:
+            return (
+                    " " * 4 +
+                    f"{split.code[-1]:>3} "
+                    f"{split.relative_time.to_str()[-7:]}"
+            )
+
+
+class SplitPrinterFactory:
+    """Фабрика для создания стратегий печати сплитов"""
+
+    @staticmethod
+    def create_printer() -> SplitPrinterStrategy:
+        """Создание стратегии печати в зависимости от режима"""
+        if race().get_setting("result_processing_mode", "time") == "trailo":
+            return TrailOSplitPrinter()
+        else:
+            return NormalSplitPrinter()
+
+
+class SportorgPrinter:
+    """Класс для печати результатов соревнований"""
+
+    # Константы для стилей печати
+    FONT_STYLES = {
+        'small': {'name': 'Lucida Console', 'size': 2.5, 'weight': 400},
+        'main': {'name': 'Lucida Console', 'size': 3, 'weight': 400},
+        'large': {'name': 'Lucida Console', 'size': 4, 'weight': 400},
+        'bold_large': {'name': 'Lucida Console', 'size': 4, 'weight': 700},
+        'bib': {'name': 'Arial Black', 'size': 50, 'weight': 400},
+        'penalty': {'name': 'Arial Black', 'size': 50, 'weight': 400},
+        'penalty_small': {'name': 'Arial', 'size': 15, 'weight': 400},
+    }
+
+    def __init__(self, printer_name: Optional[str] = None, scale_factor: int = 60,
+                 x_offset: int = 5, y_offset: int = 5):
+        if platform.system() != "Windows":
+            raise NotImplementedError("Printing is only supported on Windows")
+
+        self.printer_name = printer_name or win32print.GetDefaultPrinter()
+        self.scale_factor = scale_factor
+        self.x_offset = x_offset
         self.y_offset = y_offset
 
-        self.start_page()
+        self._split_printer = SplitPrinterFactory.create_printer()
+        self._init_printer()
 
-        self.scale_factor = scale_factor
-        self.x = x_offset * self.scale_factor
-        self.y = -1 * y_offset * self.scale_factor
+    def _init_printer(self):
+        self.dc = win32ui.CreateDC()
+        self.dc.CreatePrinterDC(self.printer_name)
+        self.dc.SetMapMode(win32con.MM_TWIPS)  # 1440 units per inch
+
+        self.x = self.x_offset * self.scale_factor
+        self.y = -self.y_offset * self.scale_factor
 
     def start_page(self):
+        """Начало новой страницы"""
         self.dc.StartDoc(translate("SportOrg printing"))
         self.dc.StartPage()
 
     def end_page(self):
+        """Завершение текущей страницы"""
         self.dc.EndPage()
-        self.y = -1 * self.y_offset * self.scale_factor
+        self.y = -self.y_offset * self.scale_factor  # Сброс позиции Y
 
     def end_doc(self):
+        """Завершение документа"""
         self.dc.EndDoc()
         self.dc.DeleteDC()
 
-    def move_cursor(self, offset):
+    def move_cursor(self, offset: float):
+        """Перемещение курсора по вертикали"""
         self.y -= int(self.scale_factor * offset)
 
-    def print_line(self, text, font_name, font_size, font_weight=400):
-        font = win32ui.CreateFont(
-            {
-                "name": font_name,
-                "height": int(self.scale_factor * font_size),
-                "weight": font_weight,
-            }
-        )
+    def print_line(self, text: str, font_style: str = 'main'):
+        """Печать строки с указанным стилем шрифта"""
+        style = self.FONT_STYLES[font_style]
+        font = win32ui.CreateFont({
+            "name": style['name'],
+            "height": int(self.scale_factor * style['size']),
+            "weight": style['weight'],
+        })
+
         self.dc.SelectObject(font)
         self.dc.TextOut(self.x, self.y, str(text))
-        self.move_cursor(font_size * 1.3)
+        self.move_cursor(style['size'] * 1.3)
 
-    def print_split(self, result):
-        if not (
-            race().get_setting("marked_route_if_counting_lap", False)
-            and race().get_setting("marked_route_mode", "laps") == "laps"
-        ):
-            # Normal split printout
-            self.print_split_normal(result)
+    def print_split(self, result: Result):
+        """Печать результата в зависимости от режима"""
+        if self._is_penalty_laps_mode():
+            self._print_penalty_laps_split(result)
         else:
-            # Printing of bib and penalty for Russian marked route with penalty laps
-            self.print_penalty_laps(result)
+            self._print_normal_split(result)
 
-    def print_penalty_laps(self, result: Result) -> None:
-        person = result.person
-        if person is None:
+    def _is_penalty_laps_mode(self) -> bool:
+        """Проверка режима кругов штрафа"""
+        return (race().get_setting("marked_route_if_counting_lap", False) and
+                race().get_setting("marked_route_mode", "laps") == "laps")
+
+    def _print_penalty_laps_split(self, result: Result):
+        """Печать номера и штрафных кругов"""
+        if not result.person:
             return
 
-        for _ in range(20):
-            self.print_line(".", "Arial", 1)  # empty vertical space
-        self.print_bib_line(result)
-        for _ in range(7):
-            self.print_line(".", "Arial", 1)  # empty vertical space
-        self.print_penalty_line(result)
+        self._print_vertical_space(20)
+        self._print_bib_line(result)
+        self._print_vertical_space(7)
+        self._print_penalty_line(result)
 
-    def print_bib_line(self, result: Result) -> None:
+    def _print_vertical_space(self, lines: int):
+        """Печать вертикального пробела"""
+        for _ in range(lines):
+            self.print_line(".", 'main')
+
+    def _print_bib_line(self, result: Result):
+        """Печать номера участника"""
         text = str(result.person.bib) if result.person else ""
+        self.print_line(text, 'bib')
 
-        font_name = "Arial Black"
-        font_size = 50
-        font_weight = 400
-
-        font = win32ui.CreateFont(
-            {
-                "name": font_name,
-                "height": int(self.scale_factor * font_size),
-                "weight": font_weight,
-            }
-        )
-        self.dc.SelectObject(font)
-        self.dc.TextOut(self.x, self.y, text)
-
-        self.move_cursor(font_size * 1.3)
-
-    def print_penalty_line(self, result: Result) -> None:
+    def _print_penalty_line(self, result: Result):
+        """Печать информации о штрафных кругах"""
         laps = result.penalty_laps
         if not result.is_status_ok():
-            laps = max(
-                2, laps
-            )  # print at least 2 laps for disqualified (to have possibility get lap time)
+            laps = max(2, laps)  # Минимум 2 круга для дисквалифицированных
+
         text = str(laps).rjust(2)
+        self.print_line(text, 'penalty')
 
-        font_name = "Arial Black"
-        font_size = 50
-        font_weight = 400
-
-        font = win32ui.CreateFont(
-            {
-                "name": font_name,
-                "height": int(self.scale_factor * font_size),
-                "weight": font_weight,
-            }
-        )
-        self.dc.SelectObject(font)
-        self.dc.TextOut(self.x, self.y, str(text))
-
-        dx1, dy1 = self.dc.GetTextExtent(str(text))
-
+        # Добавление подписи "laps"
         text_small = " " + translate("laps")
-        font_name_small = "Arial"
-        font_size_small = 15
-        font_weight = 400
+        self._print_suffix_text(text, text_small, 'penalty_small')
 
-        font = win32ui.CreateFont(
-            {
-                "name": font_name_small,
-                "height": int(self.scale_factor * font_size_small),
-                "weight": font_weight,
-            }
-        )
-        self.dc.SelectObject(font)
-        _, dy2 = self.dc.GetTextExtent(str(text_small))
-        dy = int(0.8 * (dy1 - dy2))  # calculate font baseline position
-        self.dc.TextOut(self.x + dx1, self.y - dy, str(text_small))
-
-        self.move_cursor(font_size * 1.3)
         self.end_page()
 
-    def print_split_normal(self, result: Result):
-        obj = race()
+    def _print_suffix_text(self, main_text: str, suffix_text: str, font_style: str):
+        """Печать дополнительного текста после основного"""
+        dx1, dy1 = self.dc.GetTextExtent(main_text)
+        style = self.FONT_STYLES[font_style]
 
-        person = result.person
-        if person is None or result.status in [
+        font = win32ui.CreateFont({
+            "name": style['name'],
+            "height": int(self.scale_factor * style['size']),
+            "weight": style['weight'],
+        })
+
+        self.dc.SelectObject(font)
+        _, dy2 = self.dc.GetTextExtent(suffix_text)
+        dy = int(0.8 * (dy1 - dy2))  # Выравнивание по базовой линии
+
+        self.dc.TextOut(self.x + dx1, self.y - dy, suffix_text)
+
+    def _print_normal_split(self, result: Result):
+        """Печать обычного результата с детальной информацией"""
+        if not result.person or result.status in [
             ResultStatus.DID_NOT_START,
             ResultStatus.DID_NOT_FINISH,
         ]:
             return
 
-        group = person.group
-        is_group_existed = True
-        if group is None:
-            group = Group()
-            group.name = "-"
-            is_group_existed = False
+        race_obj = race()
+        person = result.person
+        group = person.group or Group(name="-")
+        course = race_obj.find_course(result)
 
-        course = obj.find_course(result)
+        # Печать заголовка и информации о событии
+        self._print_event_info(race_obj)
 
-        is_penalty_used = obj.get_setting("marked_route_mode", "off") != "off"
-        is_relay = group.is_relay()
-        is_credit_time_used = race().get_setting("credit_time_enabled", False)
-        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
+        # Печать информации об участнике
+        self._print_athlete_info(person, group, result)
 
-        fn = "Lucida Console"
-        fs_small = 2.5
-        fs_main = 3
-        fs_large = 4
+        # Печать сплитов с использованием стратегии
+        self._print_splits_with_strategy(result, course, group)
 
-        # Information about start
-        self.print_line(obj.data.title, fn, fs_main)
-        self.print_line(
-            str(obj.data.start_datetime)[:10] + ", " + obj.data.location, fn, fs_main
-        )
+        # Печать финишной информации
+        self._print_finish_info(result, group)
 
-        # Athlete info, bib, card number, start time
-        self.print_line(person.full_name, fn, fs_large, 700)
-        self.print_line(translate("Group") + ": " + group.name, fn, fs_main)
+        # Печать дополнительной информации
+        self._print_additional_info(result, group, race_obj)
+
+        self.end_page()
+
+    def _print_event_info(self, race_obj):
+        """Печать информации о событии"""
+        self.print_line(race_obj.data.title, 'main')
+        event_info = f"{str(race_obj.data.start_datetime)[:10]}, {race_obj.data.location}"
+        self.print_line(event_info, 'main')
+
+    def _print_athlete_info(self, person, group, result):
+        """Печать информации об участнике"""
+        self.print_line(person.full_name, 'bold_large')
+        self.print_line(f"{translate('Group')}: {group.name}", 'main')
+
         if person.organization:
-            self.print_line(
-                translate("Team") + ": " + person.organization.name, fn, fs_main
-            )
-        self.print_line(
-            translate("Bib")
-            + ": "
-            + str(person.bib)
-            + " " * 5
-            + translate("Card")
-            + ": "
-            + str(person.card_number),
-            fn,
-            fs_main,
+            self.print_line(f"{translate('Team')}: {person.organization.name}", 'main')
+
+        bib_card_info = (
+            f"{translate('Bib')}: {person.bib}     "
+            f"{translate('Card')}: {person.card_number}"
         )
-        self.print_line(
-            translate("Start") + ": " + result.get_start_time().to_str(), fn, fs_main
-        )
+        self.print_line(bib_card_info, 'main')
+        self.print_line(f"{translate('Start')}: {result.get_start_time().to_str()}", 'main')
 
-        # Splits
-        splits = result.splits.copy()
-        if is_trailo:
-            splits = sorted(splits, key=lambda s: (int(s.code[:-1]), s.time))
+    def _print_splits_with_strategy(self, result: Result, course, group):
+        """Печать сплитов с использованием выбранной стратегии"""
+        self._split_printer.print_splits(self, result, course, group)
 
-        index = 1
-        for split in splits:
-            if not is_group_existed:
-                line = (
-                    ("  " + str(index))[-3:]
-                    + " "
-                    + ("  " + split.code)[-3:]
-                    + " "
-                    + split.time.to_str()[-7:]
-                )
-                index += 1
-                self.print_line(line, fn, fs_main)
-            elif not course:
-                line = (
-                    ("  " + str(index))[-3:]
-                    + " "
-                    + ("  " + split.code)[-3:]
-                    + " "
-                    + split.relative_time.to_str()[-7:]
-                    + " "
-                    + split.leg_time.to_str()[-5:]
-                )
-                index += 1
-                self.print_line(line, fn, fs_main)
-            elif split.is_correct and is_trailo:
-                line = (
-                        ("  " + str(split.code[:-1]))[-3:]
-                        + " "
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                )
-                self.print_line(line, fn, fs_main)
-            elif split.is_correct:
-                line = (
-                    ("  " + str(split.course_index + 1))[-3:]
-                    + " "
-                    + ("  " + split.code)[-3:]
-                    + " "
-                    + split.relative_time.to_str()[-7:]
-                    + " "
-                    + split.leg_time.to_str()[-5:]
-                    + " "
-                    + split.speed
-                    + " "
-                )
-
-                if not is_relay:
-                    line += ("  " + str(split.leg_place))[-3:]
-
-                # Highlight correct controls of marked route ( '31' and '31(31,32,33)' => + )
-                if is_penalty_used and course:
-                    for course_cp in course.controls:
-                        if str(course_cp).startswith(split.code):
-                            line += " +"
-                            break
-
-                self.print_line(line, fn, fs_main)
-            elif is_trailo:
-                line = (
-                        " " * 4
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                )
-                self.print_line(line, fn, fs_main)
-            else:
-                line = (
-                    " " * 4
-                    + (" " + split.code)[-3:]
-                    + " "
-                    + split.relative_time.to_str()[-7:]
-                )
-                self.print_line(line, fn, fs_main)
-
+    def _print_finish_info(self, result: Result, group):
+        """Печать информации о финише и результате"""
+        splits = result.splits
         finish_split = ""
-        if len(splits) > 0:
+        if splits:
             finish_split = (result.get_finish_time() - splits[-1].time).to_str()
 
-        # Finish
         self.print_line(
-            translate("Finish")
-            + ": "
-            + result.get_finish_time().to_str()
-            + " " * 4
-            + finish_split,
-            fn,
-            fs_main,
+            f"{translate('Finish')}: {result.get_finish_time().to_str()}     {finish_split}",
+            'main'
         )
 
-        # Result
-        if is_penalty_used:
-            if obj.get_setting("marked_route_mode") == "time":
-                self.print_line(
-                    translate("Penalty") + ": " + result.get_penalty_time().to_str(),
-                    fn,
-                    fs_main,
-                )
-            elif obj.get_setting("marked_route_mode") == "laps":
-                self.print_line(
-                    translate("Penalty") + ": " + str(result.penalty_laps),
-                    fn,
-                    fs_main,
-                )
+        # Результат
+        result_text = f"{translate('Result')}: {result.get_result()}"
+        if result.is_status_ok():
+            result_text += f"     {result.speed}"
+        self.print_line(result_text, 'main')
 
-        if is_credit_time_used:
+    def _print_additional_info(self, result: Result, group, race_obj):
+        """Печать дополнительной информации"""
+        self._print_penalty_info(result)
+        self._print_credit_time_info(result)
+        self._print_rogaine_info(result)
+        self._print_place_info(result, group)
+        self._print_competition_info(result, group, race_obj)
+        self._print_status_info(result, group)
+        self._print_draft_results(group)
+        self._print_footer(race_obj)
+
+    def _print_penalty_info(self, result: Result):
+        """Печать информации о штрафах"""
+        penalty_mode = race().get_setting("marked_route_mode")
+        if penalty_mode == "time":
             self.print_line(
-                translate("Credit") + ": " + result.get_credit_time().to_str(),
-                fn,
-                fs_main,
+                f"{translate('Penalty')}: {result.get_penalty_time().to_str()}",
+                'main'
+            )
+        elif penalty_mode == "laps":
+            self.print_line(
+                f"{translate('Penalty')}: {result.penalty_laps}",
+                'main'
             )
 
-        is_rogaine = race().get_setting("result_processing_mode", "time") == "scores"
-        if is_rogaine and result.rogaine_penalty > 0:
+    def _print_credit_time_info(self, result: Result):
+        """Печать информации о кредитном времени"""
+        if race().get_setting("credit_time_enabled", False):
+            self.print_line(
+                f"{translate('Credit')}: {result.get_credit_time().to_str()}",
+                'main'
+            )
+
+    def _print_rogaine_info(self, result: Result):
+        """Печать информации для рогейна"""
+        if (race().get_setting("result_processing_mode", "time") == "scores" and
+                result.rogaine_penalty > 0):
             penalty = result.rogaine_penalty
             total_score = result.rogaine_score + penalty
+
             self.print_line(
-                translate("Points gained") + ": " + str(total_score),
-                fn,
-                fs_main,
+                f"{translate('Points gained')}: {total_score}",
+                'main'
             )
             self.print_line(
-                translate("Penalty for finishing late") + ": " + str(penalty),
-                fn,
-                fs_main,
+                f"{translate('Penalty for finishing late')}: {penalty}",
+                'main'
             )
 
-        if result.is_status_ok():
-            self.print_line(
-                translate("Result")
-                + ": "
-                + result.get_result()
-                + " " * 4
-                + result.speed,
-                fn,
-                fs_main,
-            )
-        else:
-            self.print_line(
-                translate("Result") + ": " + result.get_result(), fn, fs_main
-            )
-
-        if is_relay and person.bib > 1000:
-            self.print_line(
-                translate("Team result") + ": " + result.get_result_relay(), fn, fs_main
-            )
-
-        # Place
-        if result.place > 0 and is_group_existed:
-            place = translate("Place") + ": " + str(result.place)
-            if not is_relay:
-                place += (
-                    " "
-                    + translate("from")
-                    + " "
-                    + str(group.count_finished)
-                    + " ("
-                    + translate("total")
-                    + " "
-                    + str(group.count_person)
-                    + ")"
+    def _print_place_info(self, result: Result, group):
+        """Печать информации о месте"""
+        if result.place > 0 and group.name != "-":
+            place_text = f"{translate('Place')}: {result.place}"
+            if not group.is_relay():
+                place_text += (
+                    f" {translate('from')} {group.count_finished} "
+                    f"({translate('total')} {group.count_person})"
                 )
-            self.print_line(place, fn, fs_main)
+            self.print_line(place_text, 'main')
         elif result.person.is_out_of_competition:
-            place = translate("Place") + ": " + translate("o/c").upper()
-            self.print_line(place, fn, fs_main)
+            self.print_line(f"{translate('Place')}: {translate('o/c').upper()}", 'main')
 
-        # Info about competitors, who can win current person
-        if (
-            result.is_status_ok()
-            and not is_relay
-            and not is_rogaine
-            and is_group_existed
-        ):
-            if obj.get_setting("system_start_source", "protocol") == "protocol":
+    def _print_competition_info(self, result: Result, group, race_obj):
+        """Печать информации о конкуренции"""
+        if (result.is_status_ok() and not group.is_relay() and
+                race_obj.get_setting("result_processing_mode", "time") != "scores" and
+                group.name != "-"):
+
+            if race_obj.get_setting("system_start_source", "protocol") == "protocol":
                 if hasattr(result, "can_win_count"):
                     if result.can_win_count > 0:
                         self.print_line(
-                            translate("Who can win you")
-                            + ": "
-                            + str(result.can_win_count),
-                            fn,
-                            fs_main,
+                            f"{translate('Who can win you')}: {result.can_win_count}",
+                            'main'
                         )
                         self.print_line(
-                            translate("Final result will be known")
-                            + ": "
-                            + result.final_result_time.to_str(),
-                            fn,
-                            fs_main,
+                            f"{translate('Final result will be known')}: "
+                            f"{result.final_result_time.to_str()}",
+                            'main'
                         )
                     else:
-                        self.print_line(translate("Result is final"), fn, fs_main)
+                        self.print_line(translate("Result is final"), 'main')
 
-        # Punch checking info
-        if is_group_existed:
-            if result.is_status_ok():
-                self.print_line(translate("Status: OK"), fn, fs_large, 700)
-            else:
-                self.print_line(translate("Status: DSQ"), fn, fs_large, 700)
+    def _print_status_info(self, result: Result, group):
+        """Печать информации о статусе"""
+        if group.name == "-":
+            return
+
+        status_text = translate("Status: OK") if result.is_status_ok() else translate("Status: DSQ")
+        self.print_line(status_text, 'bold_large')
+
+        if not result.is_status_ok():
+            self._print_course_controls(result)
+
+    def _print_course_controls(self, result: Result):
+        """Печать контрольных пунктов курса"""
+        course = race().find_course(result)
+        if not course or not course.controls:
+            return
+
+        cp_list = ""
+        line_limit = 35
+
+        for cp in course.controls:
+            cp_code = cp.code.split("(")[0]
+            if len(cp_list) + len(cp_code) + 1 > line_limit:
+                self.print_line(cp_list, 'main')
                 cp_list = ""
-                line_limit = 35
-                if course and course.controls:
-                    for cp in course.controls:
-                        if len(cp_list) > line_limit:
-                            self.print_line(cp_list, fn, fs_main)
-                            cp_list = ""
-                        cp_list += cp.code.split("(")[0] + " "
-                    self.print_line(cp_list, fn, fs_main)
+            cp_list += cp_code + " "
 
-            # Short result list
-            if is_relay:
-                pass
-            else:
-                res = ResultCalculation(obj).get_group_finishes(group)
-                self.print_line(translate("Draft results"), fn, fs_main)
-                for cur_res in res[:10]:
-                    self.print_line(
-                        ("   " + str(cur_res.get_place()))[-3:]
-                        + " "
-                        + (cur_res.person.full_name + " " * 22)[:22]
-                        + " "
-                        + cur_res.get_result(),
-                        fn,
-                        fs_main if not is_rogaine else fs_small,
-                    )
+        if cp_list:
+            self.print_line(cp_list, 'main')
 
-        self.print_line(obj.data.url, fn, fs_main)
+    def _print_draft_results(self, group):
+        """Печать предварительных результатов"""
+        if group.is_relay() or group.name == "-":
+            return
 
-        self.end_page()
+        race_obj = race()
+        is_rogaine = race_obj.get_setting("result_processing_mode", "time") == "scores"
+        results = ResultCalculation(race_obj).get_group_finishes(group)
+
+        self.print_line(translate("Draft results"), 'main')
+
+        font_style = 'small' if is_rogaine else 'main'
+        for cur_res in results[:10]:
+            result_line = (
+                f"{cur_res.get_place():>3} "
+                f"{cur_res.person.full_name:<22} "
+                f"{cur_res.get_result()}"
+            )
+            self.print_line(result_line, font_style)
+
+    def _print_footer(self, race_obj):
+        """Печать футера"""
+        self.print_line(race_obj.data.url, 'main')
