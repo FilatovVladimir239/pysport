@@ -205,11 +205,13 @@ class GroupSplits:
             self._set_places_for_leg(i, relative=True)
 
     def _sort_by_leg(self, index, relative=False):
-        key_func = (lambda item: item.get_leg_relative_time(index)
-        if relative else lambda item: item.get_leg_time(index))
-
         self.person_splits.sort(
-            key=lambda item: (key_func(item) is None, key_func(item))
+            key=lambda item: (
+                item.get_leg_relative_time(index) is None if relative else item.get_leg_time(index) is None,
+                item.get_leg_relative_time(index) if relative and item.get_leg_relative_time(index) is not None else
+                item.get_leg_time(index) if not relative and item.get_leg_time(index) is not None else
+                float('inf')
+            )
         )
 
     def _sort_results(self):

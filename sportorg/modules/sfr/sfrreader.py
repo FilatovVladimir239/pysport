@@ -175,8 +175,7 @@ class SFRReaderClient:
         self._logger = logging.root
         self._callback: Optional[Callable] = None
 
-    def set_callback(self, callback: Callable) -> 'SFRReaderClient':
-        """Установка callback-функции для обработки результатов"""
+    def set_call(self, callback: Callable) -> 'SFRReaderClient':
         self._callback = callback
         return self
 
@@ -190,12 +189,12 @@ class SFRReaderClient:
         self._logger.info(translate("Closing connection"))
 
     def toggle(self):
-        if self.is_running():
+        if self.is_alive():
             self.stop()
         else:
             self.start()
 
-    def is_running(self) -> bool:
+    def is_alive(self) -> bool:
         return (self._reader_thread and not self._reader_thread.isFinished() and
                 self._processor_thread and not self._processor_thread.isFinished())
 
