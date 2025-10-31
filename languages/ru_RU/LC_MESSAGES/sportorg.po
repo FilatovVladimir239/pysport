@@ -207,6 +207,9 @@ msgstr "Полное наименование"
 msgid "Course"
 msgstr "Дистанция"
 
+msgid "Parent group"
+msgstr "Входит в группу"
+
 msgid "Sex"
 msgstr "Пол"
 

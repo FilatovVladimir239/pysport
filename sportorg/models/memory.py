@@ -323,6 +323,8 @@ class Group(Model):
         self.is_best_team_placing_mode: bool = False
         self.relay_legs = 0
 
+        self.parent_group: Optional[Group] = None
+
     def __repr__(self) -> str:
         return "Group {}".format(self.name)
 
@@ -360,7 +362,7 @@ class Group(Model):
             "name": self.name,
             "course_id": str(self.course.id) if self.course else None,
             "is_any_course": self.is_any_course,
-            "long_name": self.long_name,
+            "parent_group_id":  str(self.parent_group.id) if self.parent_group else None,
             "price": self.price,
             "min_year": self.min_year,
             "max_year": self.max_year,
@@ -1838,6 +1840,7 @@ class Race(Model):
             obj.person = self.get_obj("Person", dict_obj["person_id"])
         elif dict_obj["object"] == "Group":
             obj.course = self.get_obj("Course", dict_obj["course_id"])
+            obj.parent_group = self.get_obj("Group", dict_obj["parent_group_id"])
 
     def create_obj(self, dict_obj):
         obj = self.support_obj[dict_obj["object"]]()

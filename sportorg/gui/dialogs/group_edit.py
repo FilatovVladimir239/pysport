@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 from sportorg.gui.dialogs.dialog import (
@@ -12,7 +13,7 @@ from sportorg.gui.dialogs.dialog import (
 from sportorg.gui.dialogs.group_ranking import GroupRankingDialog
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.language import translate
-from sportorg.models.constant import get_race_courses
+from sportorg.models.constant import get_race_courses, get_race_groups
 from sportorg.models.memory import Limit, RaceType, find, race
 from sportorg.models.result.result_calculation import ResultCalculation
 from sportorg.modules.live.live import live_client
@@ -39,6 +40,13 @@ class GroupEditDialog(BaseDialog):
                 title=translate("Full name"),
                 object=group,
                 key="long_name",
+            ),
+            AdvComboBoxField(
+                title=translate("Parent group"),
+                object=group,
+                key="parent_group",
+                id="parent_group",
+                items=self.get_group_names(),
             ),
             AdvComboBoxField(
                 title=translate("Course"),
@@ -117,8 +125,14 @@ class GroupEditDialog(BaseDialog):
                 key="is_active",
                 id="is_ranking_active",
             ),
-            ButtonField(text=translate("Configuration"), id="ranking"),
+            ButtonField(text=translate("Configuration"), id="ranking")
         ]
+
+    def get_group_names(self) -> list:
+        groups = get_race_groups()
+        if not self.is_new:
+            groups.remove(self.current_object.name)
+        return groups
 
     def before_showing(self) -> None:
         self.on_is_any_course_changed()
@@ -130,6 +144,11 @@ class GroupEditDialog(BaseDialog):
             return ""
         return course.name
 
+    def convert_parent_group(self, group) -> str:
+        if not group:
+            return ""
+        return group.name
+
     def convert_race_type(self, _) -> str:
         return race().get_type(self.current_object).get_title()
 
@@ -137,6 +156,9 @@ class GroupEditDialog(BaseDialog):
         if text in race().course_index_name:
             return race().course_index_name[text]
         return find(race().courses, name=text)
+
+    def parse_parent_group(self, text: str):
+        return find(race().groups, name=text)
 
     def parse_race_type(self, text: str):
         return RaceType.get_by_name(text)
@@ -205,4 +227,5 @@ class GroupEditDialog(BaseDialog):
 
         ResultCalculation(race()).set_rank(group)
         live_client.send(group)
+        logging.info(group.parent_group)
         Teamwork().send(group.to_dict())
