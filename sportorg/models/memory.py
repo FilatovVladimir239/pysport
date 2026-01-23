@@ -1778,12 +1778,12 @@ class Race(Model):
         }
 
     def to_dict_partial(
-            self,
-            person_list=[],
-            group_list=[],
-            course_list=[],
-            orgs_list=[],
-            result_list=[],
+        self,
+        person_list=None,
+        group_list=None,
+        course_list=None,
+        orgs_list=None,
+        result_list=None,
     ):
         if course_list and len(course_list) > 0:
             for group in self.groups:
@@ -1888,8 +1888,10 @@ class Race(Model):
 
     def get_obj(self, obj_name, obj_id):
         cur_dict = self.index_obj[obj_name]
-        if obj_id in cur_dict:
+        try:
             return cur_dict[obj_id]
+        except KeyError:
+            return None
 
     def update_obj(self, obj, dict_obj):
         obj.update_data(dict_obj)
@@ -1929,6 +1931,9 @@ class Race(Model):
             return self.settings[setting]
         else:
             return nvl_value
+
+    def get_punch_system(self):
+        return SystemType(self.get_setting("punch_system", SystemType.SPORTIDENT.value))
 
     def get_days(self, date_=None):
         return self.data.get_days(date_)
@@ -2037,14 +2042,16 @@ class Race(Model):
         return None
 
     def find_person_by_bib(self, bib: int) -> Person:
-        if bib in self.person_index_bib:
+        try:
             return self.person_index_bib[bib]
-        return None
+        except KeyError:
+            return None
 
     def find_person_by_card(self, card: int) -> Person:
-        if card in self.person_index_card:
+        try:
             return self.person_index_card[card]
-        return None
+        except KeyError:
+            return None
 
     def find_course(self, result: Result) -> Optional[Course]:
         # first get course by number
@@ -2200,12 +2207,10 @@ class Race(Model):
                 return
 
         self.results.insert(0, result)
+        self.index_obj[result.__class__.__name__][str(result.id)] = result
 
     def add_result(self, result):
-        for r in self.results:
-            if r is result:
-                break
-        else:
+        if not self.index_obj[result.__class__.__name__].get(str(result.id), None):
             self.add_new_result(result)
 
     def clear_results(self):

@@ -139,7 +139,6 @@ class PersonEditDialog(BaseDialog):
                 object=person,
                 key="start_group",
                 minimum=0,
-                maximum=99,
             ),
             NumberField(
                 title=translate("Punch card #"),

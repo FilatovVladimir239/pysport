@@ -3,6 +3,7 @@
 ## next
 
 ### Improvements
++ Generation of SRB file (SFR results board) on saving
 + New field - middle name (new Russian requirements)
 + Import of full date of birth
 + Optional build on Pyside2 (Qt5) / Pyside6 (Qt6)
@@ -14,9 +15,11 @@
 + End of competitors' maximum time column ([#501](https://github.com/sportorg/pysport/issues/501))
 + Competitors' numbers in relay format (e.g., 15.1, [#501](https://github.com/sportorg/pysport/issues/501))
 + Reverse row numbering in the results tab ([#519](https://github.com/sportorg/pysport/issues/519))
++ Templates can compress data (gzip) to reduce the size of html files
++ Punch system selection in timekeeping properties dialog
 
 ### Fixes
-+ Fixed: multi day race processing - all days are refreshed on the file opening 
++ Fixed: multi day race processing - all days are refreshed on the file opening
 + Fixed: SRPid readout, error in byte conversion
 + Fixed: Import from WDB with the rubbish in course object (special characters)
 + Fixed: Import from the buffer - last raw was missed
@@ -29,6 +32,8 @@
 + Added stability when sorting tables ([#500](https://github.com/sportorg/pysport/issues/500))
 + Fixed: wiping the file by saving or auto-saving if the file could not be opened ([#502](https://github.com/sportorg/pysport/issues/502))
 + Fixed reversed line order when opening the file ([#509](https://github.com/sportorg/pysport/issues/509))
++ Fixed a split printout error when a participant’s group or course was not found ([#526](https://github.com/sportorg/pysport/issues/526))
++ Fixed quick start group input using Alt+number ([#536](https://github.com/sportorg/pysport/issues/536))
 
 ## 2025-04-01
 
