@@ -57,7 +57,7 @@
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     result: result.result_trailo_current,
-                    result_msec: result.result_trailo_current_msec,
+                    result_msec: result.result_msec,
                     place: result.place,
                     status: result.status,
                     place_show: result.person.is_out_of_competition ? 'o/c' : result.place === 0 ? '' : result.place === -1 ? '' : result.place,
@@ -230,15 +230,47 @@
                 // SPLITS
                 var control_index = 0;
                 if (result.splits) {
+                    var getTrBlock = function (t, p) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'result-' + p;
+                        td1.appendChild(document.createTextNode(t));
+                        tr.appendChild(td1);
+                        return tr;
+                    };
+                    var lastSplit = 0;
+
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
-                        if (split.course_index >= 0) {
-                            if ((control_index + '_' + split.code.slice(0,-1)) in splits_recalc_times){
-                                splits_recalc_times[control_index + '_' + split.code.slice(0,-1)].push(split.leg_time);
-                                splits_recalc_times_total[control_index + '_' + split.code.slice(0,-1)].push(split.relative_time);
+
+                        if (split.course_index > 0) {
+                            var tbl = document.createElement('table');
+                            tbl.className = 'table-split';
+                            if(split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' correct'
                             }
+                            if(!split.is_correct){
+                                tbl.className += ' incorrect'
+                            }
+                            if (split.code.slice(-1) != "T"){
+                                tbl.appendChild(getTrBlock(split.code.slice(-1)));
+                            } else {
+                                tbl.appendChild(getTrBlock(toHHMMSS(split.time)));
+                            }
+                            r[control_index + '_' + split.code.slice(0,-1)] = tbl;
                             control_index++;
                         }
+                    }
+
+                    var finishMsec = r.result_msec - lastSplit;
+
+                    if (r.status === 1 && finishMsec > 0) {
+                        var tblF = document.createElement('table');
+                        tblF.className = 'table-split';
+                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                        var place_str = r.place > 0 ? r.place : 'o/c';
+                        tblF.appendChild(getTrBlock(toHHMMSS(r.result_msec) + ' (' + place_str + ')', r.place));
+                        r.finish_split = tblF;
                     }
                 }
 
