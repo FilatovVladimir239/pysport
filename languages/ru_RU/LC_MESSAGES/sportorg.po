@@ -687,6 +687,15 @@ msgstr "рогейн (45КП = 4балла, 78КП = 7баллов)"
 msgid "fixed scores"
 msgstr "фиксированные баллы за КП"
 
+msgid "preo sprint"
+msgstr "Preo sprint"
+
+msgid "preo"
+msgstr "Preo"
+
+msgid "tempo"
+msgstr "Tempo"
+
 msgid "minute penalty"
 msgstr "Штраф за каждую просроченную минуту"
 

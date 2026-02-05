@@ -7,6 +7,7 @@ from typing import Optional, Callable
 
 from PySide6.QtCore import QThread, Signal
 
+from sportorg.common.otime import OTime
 from sportorg.common.singleton import singleton
 from sportorg.language import translate
 from sportorg.libs.sfr import sfrreader
@@ -24,9 +25,10 @@ class SFRReaderCommand:
 
 
 class CardDataProcessor:
-
     def __init__(self):
-        self.is_trailo = memory.race().get_setting("result_processing_mode", "time") == "trailo"
+        self.is_trailo = (
+                memory.race().get_setting("result_processing_mode", "time") == "trailo"
+        )
 
     def process_card_data(self, card_data: dict) -> ResultSFR:
         card_number = card_data["bib"]
@@ -58,7 +60,9 @@ class CardDataProcessor:
         result.card_number = card_number
         return result
 
-    def _add_splits(self, result: ResultSFR, punches: list, trailo_ans: Optional[int] = None):
+    def _add_splits(
+            self, result: ResultSFR, punches: list, trailo_ans: Optional[int] = None
+    ):
         for punch_code, punch_time in punches:
             if not punch_time:
                 continue
@@ -68,7 +72,16 @@ class CardDataProcessor:
                 continue
 
             if trailo_ans is not None:
-                code = code + TrailOAns(trailo_ans).name
+                if int(code) < 50:
+                    code = code + TrailOAns(trailo_ans).name
+                else:
+                    if int(code) % 10 == 0:
+                        code = code + "TT"
+                    else:
+                        punch_time = time_to_otime(punch_time)
+                        trailo_ans = punch_time.hour
+                        code = code + "T" + TrailOAns(trailo_ans).name
+                        punch_time = OTime()
 
             split = self._create_split(code, punch_time)
             if split.code not in ("0", ""):
@@ -82,7 +95,6 @@ class CardDataProcessor:
         return split
 
     def _add_times(self, result: ResultSFR, card_data: dict):
-        """Добавление времени старта и финиша"""
         if card_data["start"]:
             result.start_time = time_to_otime(card_data["start"])
         if card_data["finish"]:
@@ -110,7 +122,6 @@ class SFRReaderThread(QThread):
         sfr.disconnect()
 
     def _poll_cards(self, sfr):
-        """Опрос карт в цикле"""
         while not self._stop_event.is_set():
             try:
                 if sfr.poll_card():
@@ -175,7 +186,7 @@ class SFRReaderClient:
         self._logger = logging.root
         self._callback: Optional[Callable] = None
 
-    def set_call(self, callback: Callable) -> 'SFRReaderClient':
+    def set_call(self, callback: Callable) -> "SFRReaderClient":
         self._callback = callback
         return self
 
@@ -195,8 +206,12 @@ class SFRReaderClient:
             self.start()
 
     def is_alive(self) -> bool:
-        return (self._reader_thread and not self._reader_thread.isFinished() and
-                self._processor_thread and not self._processor_thread.isFinished())
+        return (
+                self._reader_thread
+                and not self._reader_thread.isFinished()
+                and self._processor_thread
+                and not self._processor_thread.isFinished()
+        )
 
     def _start_reader_thread(self):
         if self._reader_thread is None or self._reader_thread.isFinished():

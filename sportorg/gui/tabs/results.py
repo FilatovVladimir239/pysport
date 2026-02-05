@@ -177,7 +177,9 @@ class Widget(QtWidgets.QWidget):
             self._display_trailo_splits(result, time_accuracy)
         else:
             is_highlight = not course.is_unknown() if course else False
-            self._display_standard_splits(result, time_accuracy, is_highlight, control_codes)
+            self._display_standard_splits(
+                result, time_accuracy, is_highlight, control_codes
+            )
 
         self._display_finish_time(result, time_accuracy)
 
@@ -193,12 +195,12 @@ class Widget(QtWidgets.QWidget):
             self.result_card_start_edit,
             self.result_course_details,
             self.result_course_name_edit,
-            self.result_course_length_edit
+            self.result_course_length_edit,
         ]
         for field in fields:
-            if hasattr(field, 'clear'):
+            if hasattr(field, "clear"):
                 field.clear()
-            elif hasattr(field, 'setText'):
+            elif hasattr(field, "setText"):
                 field.setText("")
 
     def _get_control_codes(self, course):
@@ -207,8 +209,7 @@ class Widget(QtWidgets.QWidget):
     def _display_start_time(self, result, time_accuracy):
         start_time = result.get_start_time()
         start_str = "{name:<8} {time}".format(
-            name=translate("Start"),
-            time=start_time.to_str(time_accuracy)
+            name=translate("Start"), time=start_time.to_str(time_accuracy)
         )
         self.result_card_details.append(start_str)
 
@@ -224,18 +225,20 @@ class Widget(QtWidgets.QWidget):
         str_fmt_correct = "{code} {answer} {time}"
         str_fmt_incorrect = "--   {answer} {time}"
 
-        result.splits = sorted(result.splits, key=lambda s: (int(s.code[:-1]), s.time))
+        result.splits = sorted(result.splits, key=lambda elem: (int(''.join(filter(str.isdigit, elem.code))), elem.time))
 
         for split in result.splits:
             str_fmt = str_fmt_incorrect if split.course_index == -1 else str_fmt_correct
             s = str_fmt.format(
                 code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
                 answer=split.code[-1],
-                time=split.time.to_str(time_accuracy)
+                time=split.time.to_str(time_accuracy),
             )
             self.result_card_details.append(s)
 
-    def _display_standard_splits(self, result, time_accuracy, is_highlight, control_codes):
+    def _display_standard_splits(
+        self, result, time_accuracy, is_highlight, control_codes
+    ):
         code = ""
         last_correct_time = OTime()
         str_fmt_correct = "{index:02d} {code} {time} {diff}"
@@ -255,7 +258,9 @@ class Widget(QtWidgets.QWidget):
                 index += 1
                 last_correct_time = split.time
 
-            s = self._highlight_problem_splits(s, split, code, is_highlight, control_codes)
+            s = self._highlight_problem_splits(
+                s, split, code, is_highlight, control_codes
+            )
 
             self.result_card_details.append(s)
             code = split.code
@@ -269,7 +274,9 @@ class Widget(QtWidgets.QWidget):
         )
         self.result_card_details.append(finish_str)
 
-    def _highlight_problem_splits(self, s, split, last_code, is_highlight, control_codes):
+    def _highlight_problem_splits(
+        self, s, split, last_code, is_highlight, control_codes
+    ):
         if split.code == last_code:
             s = '<span style="background: red">{}</span>'.format(s)
         elif is_highlight and control_codes and split.code not in control_codes:

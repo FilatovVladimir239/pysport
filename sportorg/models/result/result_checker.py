@@ -6,7 +6,6 @@ from sportorg.models.memory import (
     logging,
     ResultSportident,
     ResultStatus,
-    Split,
     find,
     race,
 )
@@ -25,7 +24,6 @@ class ResultChecker:
             return True
 
         processing_mode = race().get_setting("result_processing_mode", "time")
-
         mode_handlers = {
             "ardf": self._process_ardf_mode,
             "trailo": self._process_trailo_mode,
@@ -42,12 +40,17 @@ class ResultChecker:
         result.scores_ardf = self.calculate_scores_ardf(result)
 
     def _process_trailo_mode(self, result):
-        scores = self.calculate_scores_trailo(result)
-        penalty = self.calculate_rogaine_penalty(result, scores, 1)
-        time = self.calculate_time_trailo(result)
-        result.trailo_score_penalty = penalty
-        result.trailo_score = scores - penalty
-        result.trailo_time = time
+        trailo_mode = race().get_setting("trailo_mode", "preo_sprint")
+        if trailo_mode != "tempo":
+            scores = self.calculate_scores_trailo(result)
+            penalty = self.calculate_rogaine_penalty(result, scores, 1)
+            result.trailo_score_penalty = penalty
+            result.trailo_score = scores - penalty
+
+        if trailo_mode != "preo_sprint":
+            time = self.calculate_time_trailo(result)
+            time_penalty = ResultChecker._calculate_trailo_penalty(result)
+            result.trailo_time = OTime(msec=time.to_msec() + time_penalty.to_msec())
 
     def _process_scores_mode(self, result):
         allow_duplicates = race().get_setting(
@@ -97,11 +100,9 @@ class ResultChecker:
         result.status = ResultStatus.OK
         check_flag = o.check_result(result)
 
-        # Расчет штрафов и кредитного времени
         cls.calculate_penalty(result)
         cls.calculate_credit_time(result)
 
-        # Проверка статуса результата
         cls._validate_result_status(result, check_flag)
 
         result.status_comment = StatusComments().get_status_default_comment(
@@ -137,12 +138,12 @@ class ResultChecker:
                 result.status = ResultStatus.OVERTIME
         elif rp_mode == "scores":
             max_overrun_time = OTime(
-                msec=race().get_setting(
-                    "result_processing_scores_max_overrun_time", 0
-                )
+                msec=race().get_setting("result_processing_scores_max_overrun_time", 0)
             )
-            if (max_overrun_time.to_msec() > 0 and
-                    result_time > max_time + max_overrun_time):
+            if (
+                    max_overrun_time.to_msec() > 0
+                    and result_time > max_time + max_overrun_time
+            ):
                 result.status = ResultStatus.OVERTIME
 
     @staticmethod
@@ -172,20 +173,18 @@ class ResultChecker:
         if not course:
             return
 
-        penalty_handlers = {
-            "trailo": ResultChecker._calculate_trailo_penalty,
-            "default": ResultChecker._calculate_standard_penalty
-        }
-
-        processing_mode = race().get_setting("result_processing_mode", "time")
-        handler = penalty_handlers.get("trailo" if processing_mode == "trailo" else "default")
-        handler(result, course, mode)
+        ResultChecker._calculate_standard_penalty(result, course, mode)
 
     @staticmethod
-    def _calculate_trailo_penalty(result, course, mode):
-        result.penalty_time = ResultChecker.penalty_calculation_trailo(
-            result.splits, course.controls
-        )
+    def _calculate_trailo_penalty(result):
+        if not result.person or not result.person.group:
+            return
+
+        course = race().find_course(result)
+        if not course:
+            return
+
+        return ResultChecker.penalty_time_calculation_trailo(result.splits, course.controls)
 
     @staticmethod
     def _calculate_standard_penalty(result, course, mode):
@@ -196,7 +195,9 @@ class ResultChecker:
 
         if mode == "laps" and race().get_setting("marked_route_if_station_check"):
             lap_station = race().get_setting("marked_route_penalty_lap_station_code")
-            result.splits, _ = ResultChecker.detach_penalty_laps2(result.splits, lap_station)
+            result.splits, _ = ResultChecker.detach_penalty_laps2(
+                result.splits, lap_station
+            )
 
         if race().get_setting("marked_route_dont_dsq", False):
             penalty = ResultChecker.penalty_calculation_free_order(
@@ -350,20 +351,25 @@ class ResultChecker:
         return res
 
     @staticmethod
-    def penalty_calculation_trailo(splits, controls):
+    def penalty_time_calculation_trailo(splits, controls):
         res = OTime()
-        penalty_time = OTime(msec=race().get_setting("marked_route_penalty_time", 60000))
+        penalty_time = OTime(
+            sec=race().get_setting("trailo_time_penalty", 30)
+        )
 
         for control_point in controls:
-            control_point_code = int(control_point.code[:-1])
-            if control_point_code < 100:
+            if control_point.code[-2] != "T":
                 continue
 
+            control_point_code = int(control_point.code[:-2])
+
             for cur_split in splits:
-                cur_code = int(cur_split.code[:-1])
-                if (cur_code == control_point_code and
-                        control_point.code[-1] != 'T' and
-                        cur_split.code[-1] != control_point.code[-1]):
+                cur_code = int(cur_split.code[:-2])
+                if (
+                        cur_code == control_point_code
+                        and control_point.code[-1] != "T"
+                        and cur_split.code[-1] != control_point.code[-1]
+                ):
                     res += penalty_time
                     break
         return res
@@ -528,33 +534,26 @@ class ResultChecker:
         course = race().find_course(result)
         if not course:
             return 0
-
         ret = 0
         for control_point in course.controls:
-            if int(control_point.code[:-1]) >= 100:
+            if control_point.code[-2] == "T":
                 continue
             for cur_split in result.splits:
+                if cur_split.code[-2] == "T":
+                    continue
                 cur_code = int(cur_split.code[:-1])
-                if (cur_code == int(control_point.code[:-1]) and
-                        cur_split.code[-1] == control_point.code[-1]):
+                if (
+                        cur_code == int(control_point.code[:-1])
+                        and cur_split.code[-1] == control_point.code[-1]
+                ):
                     ret += 1
                     break
         return ret
 
     @staticmethod
     def calculate_time_trailo(result):
-        course = race().find_course(result)
-        if not course:
-            return OTime()
-
-        ret = OTime()
-        for control_point in course.controls:
-            if control_point.code[-1] != "T":
-                continue
-            for cur_split in result.splits:
-                cur_code = int(cur_split.code[:-1])
-                if (cur_code == int(control_point.code[:-1]) and
-                        cur_split.code[-1] == "T"):
-                    ret += cur_split.time
-                    break
-        return ret
+        ret = 0
+        for cur_split in result.splits:
+            if cur_split.code.endswith("TT"):
+                ret += cur_split.time.to_msec()
+        return OTime(msec=ret)

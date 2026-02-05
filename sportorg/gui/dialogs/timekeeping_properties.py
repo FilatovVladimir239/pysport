@@ -191,6 +191,22 @@ class TimekeepingPropertiesDialog(QDialog):
         self.rp_scores_layout.addRow(self.rp_scores_allow_duplicates)
         self.result_proc_layout.addRow(self.rp_scores_group)
 
+        self.trail_settings_group = QGroupBox()
+        self.trail_settings_layout = QFormLayout(self.trail_settings_group)
+        self.trail_settings_preo_radio = QRadioButton(translate("preo"))
+        self.trail_settings_layout.addRow(self.trail_settings_preo_radio)
+        self.trail_settings_preo_sprint_radio = QRadioButton(translate("preo sprint"))
+        self.trail_settings_layout.addRow(self.trail_settings_preo_sprint_radio)
+        self.trail_settings_tempo_radio = QRadioButton(translate("tempo"))
+        self.trail_settings_layout.addRow(self.trail_settings_tempo_radio)
+
+        self.trail_settings_penalty_time_label = QLabel(translate("penalty time"))
+        self.trail_settings_penalty_time = AdvSpinBox(max_width=50, value=30)
+        self.trail_settings_layout.addRow(
+            self.trail_settings_penalty_time_label, self.trail_settings_penalty_time
+        )
+        self.result_proc_layout.addRow(self.trail_settings_group)
+
         self.start_group_box = QGroupBox(translate("Start time"))
         self.start_layout = QFormLayout()
         self.item_start_protocol = QRadioButton(translate("From protocol"))
@@ -413,6 +429,10 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_scores_group.show()
         else:
             self.rp_scores_group.hide()
+        if self.rp_trailo_radio.isChecked():
+            self.trail_settings_group.show()
+        else:
+            self.trail_settings_group.hide()
 
     def penalty_calculation_mode(self):
         if (
@@ -565,6 +585,18 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_trailo_radio.setChecked(True)
         else:
             self.rp_scores_radio.setChecked(True)
+
+        trailo_mode = obj.get_setting("trailo_mode", "preo")
+        trailo_time_penalty = obj.get_setting("trailo_time_penalty", 30)
+        if trailo_mode == "preo":
+            self.trail_settings_preo_radio.setChecked(True)
+        elif trailo_mode == "preo_sprint":
+            self.trail_settings_preo_sprint_radio.setChecked(True)
+        else:
+            self.trail_settings_tempo_radio.setChecked(True)
+
+        self.trail_settings_penalty_time.setValue(trailo_time_penalty)
+
 
         if rp_score_mode == "rogain":
             self.rp_rogain_scores_radio.setChecked(True)
@@ -750,6 +782,13 @@ class TimekeepingPropertiesDialog(QDialog):
         if self.rp_fixed_scores_radio.isChecked():
             rp_score_mode = "fixed"
 
+        if self.trail_settings_preo_radio.isChecked():
+            trailo_mode = "preo"
+        elif self.trail_settings_preo_sprint_radio.isChecked():
+            trailo_mode = "preo_sprint"
+        else:
+            trailo_mode = "tempo"
+
         rp_fixed_scores_value = self.rp_fixed_scores_edit.value()
 
         rp_scores_minute_penalty = self.rp_scores_minute_penalty_edit.value()
@@ -759,6 +798,8 @@ class TimekeepingPropertiesDialog(QDialog):
 
         rp_scores_allow_duplicates = self.rp_scores_allow_duplicates.isChecked()
 
+        obj.set_setting("trailo_mode", trailo_mode)
+        obj.set_setting("trailo_time_penalty", self.trail_settings_penalty_time.value())
         obj.set_setting("result_processing_mode", rp_mode)
         obj.set_setting("result_processing_score_mode", rp_score_mode)
         obj.set_setting("result_processing_fixed_score_value", rp_fixed_scores_value)

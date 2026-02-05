@@ -18,8 +18,10 @@ class PersonSplits:
 
     def _get_assigned_rank(self):
         """Получение назначенного разряда"""
-        if (hasattr(self.result, "assigned_rank") and
-                self.result.assigned_rank != Qualification.NOT_QUALIFIED):
+        if (
+            hasattr(self.result, "assigned_rank")
+            and self.result.assigned_rank != Qualification.NOT_QUALIFIED
+        ):
             return self.result.assigned_rank.get_title()
         return ""
 
@@ -38,7 +40,7 @@ class PersonSplits:
 
         mode_handlers = {
             "trailo": self._generate_trailo_splits,
-            "default": self._generate_standard_splits
+            "default": self._generate_standard_splits,
         }
 
         handler = mode_handlers.get(processing_mode, mode_handlers["default"])
@@ -47,10 +49,8 @@ class PersonSplits:
         return self
 
     def _generate_trailo_splits(self):
-        self.result.splits = [
-            s for s in self.result.splits if s.code[-1] != 'X'
-        ]
-        self.result.splits.sort(key=lambda s: (int(s.code[:-1]), s.time))
+        self.result.splits = [s for s in self.result.splits if s.code[-1] != "X"]
+        self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
 
         for split in self.result.splits:
             split.course_index = -1
@@ -59,7 +59,7 @@ class PersonSplits:
         for control in self.course.controls:
             self._process_trailo_control(control)
 
-        self.result.splits.sort(key=lambda s: (int(s.code[:-1]), s.time))
+        self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
 
     def _process_trailo_control(self, control):
         control_detected = False
@@ -74,21 +74,19 @@ class PersonSplits:
             self._add_missing_trailo_control(control)
 
     def _update_trailo_split(self, split, control):
-        if control.code[:-1] == "T":
+        if control.code[-1] == "T":
             split.leg_time = split.time
         else:
-            split.course_index = int(control.code[:-1])
-            split.is_correct = (split.code[-1] == control.code[-1])
+            if control.code[-2] != "T":
+                split.course_index = int(control.code[:-1])
+            split.is_correct = split.code[-1] == control.code[-1]
 
     def _add_missing_trailo_control(self, control):
         new_split = Split()
-        if control.code[:-1] != "T":
-            new_split.code = control.code[:-1] + "X"
-            new_split.is_correct = False
+        new_split.code = control.code[:-1] + "X"
+        new_split.is_correct = False
+        if control.code[-2] != "T":
             new_split.course_index = int(control.code[:-1])
-        else:
-            new_split.code = control.code
-            new_split.is_correct = False
         self.result.splits.append(new_split)
 
     def _generate_standard_splits(self):
@@ -119,9 +117,9 @@ class PersonSplits:
         course_index = 0
         leg_start_time = start_time
 
-        while (split_index < len(self.result.splits) and
-               course_index < len(self.course.controls)):
-
+        while split_index < len(self.result.splits) and course_index < len(
+            self.course.controls
+        ):
             current_split = self.result.splits[split_index]
             current_split.index = split_index
 
@@ -151,8 +149,9 @@ class PersonSplits:
     def get_leg_by_course_index(self, index):
         if index > self.last_correct_index:
             return None
-        return next((split for split in self.result.splits
-                     if split.course_index == index), None)
+        return next(
+            (split for split in self.result.splits if split.course_index == index), None
+        )
 
     def get_leg_time(self, index):
         leg = self.get_leg_by_course_index(index)
@@ -186,8 +185,7 @@ class GroupSplits:
         finishes = ResultCalculation(self.race).get_group_finishes(self.group)
 
         self.person_splits = [
-            PersonSplits(self.race, result).generate()
-            for result in finishes
+            PersonSplits(self.race, result).generate() for result in finishes
         ]
 
         self._set_places()
@@ -207,10 +205,14 @@ class GroupSplits:
     def _sort_by_leg(self, index, relative=False):
         self.person_splits.sort(
             key=lambda item: (
-                item.get_leg_relative_time(index) is None if relative else item.get_leg_time(index) is None,
-                item.get_leg_relative_time(index) if relative and item.get_leg_relative_time(index) is not None else
-                item.get_leg_time(index) if not relative and item.get_leg_time(index) is not None else
-                float('inf')
+                item.get_leg_relative_time(index) is None
+                if relative
+                else item.get_leg_time(index) is None,
+                item.get_leg_relative_time(index)
+                if relative and item.get_leg_relative_time(index) is not None
+                else item.get_leg_time(index)
+                if not relative and item.get_leg_time(index) is not None
+                else float("inf"),
             )
         )
 
@@ -250,11 +252,16 @@ class GroupSplits:
         if not self.person_splits:
             return
 
-        time_attr = 'relative_time' if relative else 'leg_time'
-        place_attr = 'relative_place' if relative else 'leg_place'
+        time_attr = "relative_time" if relative else "leg_time"
+        place_attr = "relative_place" if relative else "leg_place"
 
-        leader_time = getattr(self.person_splits[0].get_leg_by_course_index(index),
-                              time_attr, None) if self.person_splits[0].get_leg_by_course_index(index) else None
+        leader_time = (
+            getattr(
+                self.person_splits[0].get_leg_by_course_index(index), time_attr, None
+            )
+            if self.person_splits[0].get_leg_by_course_index(index)
+            else None
+        )
 
         double_places_counter = 0
         prev_time = leader_time
@@ -281,10 +288,7 @@ class GroupSplits:
     def _set_leg_leader(self, index):
         if self.person_splits:
             leader = self.person_splits[0]
-            self.leader[str(index)] = (
-                leader.person.name,
-                leader.get_leg_time(index)
-            )
+            self.leader[str(index)] = (leader.person.name, leader.get_leg_time(index))
 
     def get_leg_leader(self, index):
         return self.leader.get(str(index), ("", ""))

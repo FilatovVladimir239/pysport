@@ -517,7 +517,7 @@ class Result(ABC):
         self.rogaine_score = 0
         self.rogaine_penalty = 0
         self.trailo_score = 0
-        self.trailo_time = 0
+        self.trailo_time: OTime = OTime()
         self.trailo_score_penalty = 0
         self.scores_ardf = 0
         self.assigned_rank = Qualification.NOT_QUALIFIED
@@ -589,13 +589,13 @@ class Result(ABC):
         result_processing_mode = race().get_setting("result_processing_mode", "time")
         if result_processing_mode == "time":
             if (
-                    self.get_result_otime() == OTime()
-                    and other.get_result_otime() > OTime()
+                self.get_result_otime() == OTime()
+                and other.get_result_otime() > OTime()
             ):
                 return True
             if (
-                    self.get_result_otime() > OTime()
-                    and other.get_result_otime() == OTime()
+                self.get_result_otime() > OTime()
+                and other.get_result_otime() == OTime()
             ):
                 return False
             return self.get_result_otime() > other.get_result_otime()
@@ -648,7 +648,7 @@ class Result(ABC):
             "rogaine_penalty": self.rogaine_penalty,  # readonly
             "trailo_score_penalty": self.trailo_score_penalty,  # readonly
             "trailo_score": self.trailo_score,  # readonly
-            "trailo_time": self.trailo_time.to_msec() if self.penalty_time else None,  # readonly
+            "trailo_time": self.trailo_time.to_msec() if self.trailo_time else None,  # readonly
             "scores_ardf": self.scores_ardf,  # readonly
             "created_at": self.created_at,  # readonly
             "result": self.get_result(),  # readonly
@@ -692,7 +692,7 @@ class Result(ABC):
         if "trailo_score" in data and data["trailo_score"] is not None:
             self.trailo_score = data["trailo_score"]
         if "trailo_time" in data and data["trailo_time"] is not None:
-            self.trailo_time = data["trailo_time"]
+            self.trailo_time = OTime(msec=data["trailo_time"])
         if str(data["place"]).isdigit():
             self.place = int(data["place"])
         self.assigned_rank = Qualification.get_qual_by_code(data["assigned_rank"])
@@ -744,16 +744,18 @@ class Result(ABC):
 
         ret = ""
         result_processing_mode = race().get_setting("result_processing_mode", "time")
+        trailo_mode = race().get_setting("trailo_mode", "preo_sprint")
+
         if result_processing_mode == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
         elif result_processing_mode == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
-        elif result_processing_mode == "trailo":
+        elif result_processing_mode == "trailo" and trailo_mode !="tempo":
             ret += f"{self.trailo_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
-        if result_processing_mode == "trailo":
-            ret += self.get_result_otime_trailo().to_str(time_accuracy)
+        if result_processing_mode == "trailo" and trailo_mode != "preo_sprint":
+            ret += str(self.get_result_otime_trailo().to_sec())
         else:
             ret += self.get_result_otime().to_str(time_accuracy)
         return ret
@@ -793,9 +795,9 @@ class Result(ABC):
 
         # Check previous legs not to be disqualified
         if (
-                self.person.bib > 2000
-                and self.person.group
-                and self.person.group.is_relay()
+            self.person.bib > 2000
+            and self.person.group
+            and self.person.group.is_relay()
         ):
             cur_bib = self.person.bib - 1000
             while cur_bib > 1000:
@@ -845,16 +847,13 @@ class Result(ABC):
         time_accuracy = race().get_setting("time_accuracy", 0)
         time_rounding = race().get_setting("time_rounding", "math")
         ret_ms = self.get_trailo_time().to_msec()
-        ret_ms += self.get_penalty_time().to_msec()
-
         return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
-
 
     def get_result_otime_relay(self):
         time_accuracy = race().get_setting("time_accuracy", 0)
         time_rounding = race().get_setting("time_rounding", "math")
         ret_ms = (
-                self.get_finish_time().to_msec() - self.get_start_time_relay().to_msec()
+            self.get_finish_time().to_msec() - self.get_start_time_relay().to_msec()
         )
 
         # accumulate penalty for all legs
@@ -907,16 +906,16 @@ class Result(ABC):
         if self.person:
             first_leg_person = self.person
             if (
-                    self.person.bib > 2000
-                    and self.person.group
-                    and self.person.group.is_relay()
+                self.person.bib > 2000
+                and self.person.group
+                and self.person.group.is_relay()
             ):
                 bib_to_find = 1000 + self.person.bib % 1000
                 first_leg_person = race().find_person_by_bib(bib_to_find)
             if first_leg_person:
                 if (
-                        first_leg_person.start_time
-                        and first_leg_person.start_time.to_msec()
+                    first_leg_person.start_time
+                    and first_leg_person.start_time.to_msec()
                 ):
                     return first_leg_person.start_time
         return OTime()
@@ -932,7 +931,6 @@ class Result(ABC):
             return self.trailo_time
 
         return OTime()
-
 
     def get_penalty_time(self) -> OTime:
         if self.penalty_time:
@@ -963,11 +961,11 @@ class Result(ABC):
 
     def is_punch(self):
         return (
-                self.is_sportident()
-                or self.is_sfr()
-                or self.is_sportiduino()
-                or self.is_rfid_impinj()
-                or self.is_srpid()
+            self.is_sportident()
+            or self.is_sfr()
+            or self.is_sportiduino()
+            or self.is_rfid_impinj()
+            or self.is_srpid()
         )
 
     def is_sportident(self):
@@ -1002,8 +1000,8 @@ class Result(ABC):
                         if cur_person.start_time and self.person.start_time:
                             if cur_person.start_time > self.person.start_time:
                                 if (
-                                        self.get_result_otime()
-                                        > OTime.now() - cur_person.start_time
+                                    self.get_result_otime()
+                                    > OTime.now() - cur_person.start_time
                                 ):
                                     who_can_win_count += 1
                                     max_unfinished_start_time = max(
@@ -1029,9 +1027,9 @@ class Result(ABC):
         """
         ret = []
         if (
-                self.person
-                and self.person.group
-                and self.person.group.get_type() == RaceType.MULTI_DAY_RACE
+            self.person
+            and self.person.group
+            and self.person.group.get_type() == RaceType.MULTI_DAY_RACE
         ):
             person_id = self.person.multi_day_id
             for day in races():
@@ -1089,18 +1087,18 @@ class ResultSportident(Result):
         start_source = obj.get_setting("system_start_source", "protocol")
         if start_source == "protocol":
             if (
-                    self.person
-                    and self.person.start_time
-                    and self.person.start_time.to_msec()
+                self.person
+                and self.person.start_time
+                and self.person.start_time.to_msec()
             ):
                 return self.person.start_time
         elif start_source == "station":
             if self.start_time and self.start_time.to_msec():
                 return self.start_time
             elif (
-                    self.person
-                    and self.person.start_time
-                    and self.person.start_time.to_msec()
+                self.person
+                and self.person.start_time
+                and self.person.start_time.to_msec()
             ):
                 return self.person.start_time
         elif start_source == "cp":
@@ -1199,14 +1197,14 @@ class ResultSportident(Result):
                 if ind_begin > 0 and ind_end > 0:
                     list_exists = True
                     # any control from the list e.g. '%(31,32,35-45)'
-                    arr = re.split(r"\s*,\s*", template[ind_begin + 1: ind_end])
+                    arr = re.split(r"\s*,\s*", template[ind_begin + 1 : ind_end])
                     for cp in arr:
                         cp_range = re.split(r"\s*-\s*", cp)
                         if int(cur_code) == int(cp_range[0]):
                             list_contains = True
                         elif len(cp_range) > 1:
                             if int(cur_code) > int(cp_range[0]) and int(
-                                    cur_code
+                                cur_code
                             ) <= int(cp_range[len(cp_range) - 1]):
                                 list_contains = True
 
@@ -1236,9 +1234,9 @@ class ResultSportident(Result):
 
                         if prev_split.code == cur_code and j in recognized_indexes:
                             if (
-                                    course_index_current < 0
-                                    or str(controls[course_index_current].code).find("*")
-                                    < 0
+                                course_index_current < 0
+                                or str(controls[course_index_current].code).find("*")
+                                < 0
                             ):
                                 # check only free order controls to be duplicated
                                 continue
@@ -1306,7 +1304,7 @@ class ResultSportident(Result):
         finish_code = "20"
 
         is_changed = False
-        is_trailo =  race().get_setting("result_processing_mode", "time") == "trailo"
+        is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
 
         if self.start_time is None:
             self.start_time = new_result.start_time
@@ -1317,8 +1315,8 @@ class ResultSportident(Result):
         # backup old start as punch
         if self.start_time and new_result.start_time and self.start_time > OTime():
             if (
-                    abs(new_result.start_time.to_sec() - self.start_time.to_sec())
-                    > tolerance_sec
+                abs(new_result.start_time.to_sec() - self.start_time.to_sec())
+                > tolerance_sec
             ):
                 i = 0
 
@@ -1332,10 +1330,15 @@ class ResultSportident(Result):
                 is_changed = True
 
         # backup old finish as punch
-        if not is_trailo and self.finish_time and new_result.finish_time and self.finish_time > OTime():
+        if (
+            not is_trailo
+            and self.finish_time
+            and new_result.finish_time
+            and self.finish_time > OTime()
+        ):
             if (
-                    abs(new_result.finish_time.to_sec() - self.finish_time.to_sec())
-                    > tolerance_sec
+                abs(new_result.finish_time.to_sec() - self.finish_time.to_sec())
+                > tolerance_sec
             ):
                 backup_finish = Split()
                 backup_finish.time = self.finish_time
@@ -1351,8 +1354,8 @@ class ResultSportident(Result):
             for punch_old in self.splits:
                 if punch_new.code == punch_old.code:
                     if (
-                            abs(punch_new.time.to_sec() - punch_old.time.to_sec())
-                            < tolerance_sec
+                        abs(punch_new.time.to_sec() - punch_old.time.to_sec())
+                        < tolerance_sec
                     ):
                         exists = True
                         break
@@ -1793,9 +1796,9 @@ class Race(Model):
         if group_list and len(group_list) > 0:
             for person in self.persons:
                 if (
-                        person.group
-                        and person.group.name in group_list
-                        and person not in person_list
+                    person.group
+                    and person.group.name in group_list
+                    and person not in person_list
                 ):
                     person_list.append(person)
 
@@ -1803,9 +1806,9 @@ class Race(Model):
             person_list = []
             for person in self.persons:
                 if (
-                        person.organization
-                        and person.organization in orgs_list
-                        and person not in person_list
+                    person.organization
+                    and person.organization in orgs_list
+                    and person not in person_list
                 ):
                     person_list.append(person)
 
@@ -1975,15 +1978,15 @@ class Race(Model):
                 result.person = None
                 result.bib = person.bib
         if (
-                person.bib
-                and person.bib in self.person_index_bib
-                and self.person_index_bib[person.bib] is person
+            person.bib
+            and person.bib in self.person_index_bib
+            and self.person_index_bib[person.bib] is person
         ):
             del self.person_index_bib[person.bib]
         if (
-                person.card_number
-                and person.card_number in self.person_index_card
-                and self.person_index_card[person.card_number] is person
+            person.card_number
+            and person.card_number in self.person_index_card
+            and self.person_index_card[person.card_number] is person
         ):
             del self.person_index_card[person.card_number]
 
@@ -2339,12 +2342,12 @@ class Qualification(IntEnum):
 
 class RankingItem:
     def __init__(
-            self,
-            qual=Qualification.NOT_QUALIFIED,
-            use_scores=True,
-            max_place=0,
-            max_time=None,
-            is_active=True,
+        self,
+        qual=Qualification.NOT_QUALIFIED,
+        use_scores=True,
+        max_place=0,
+        max_time=None,
+        is_active=True,
     ):
         self.qual = qual
         self.use_scores = use_scores
@@ -2722,9 +2725,9 @@ class RelayTeam:
         the status is ok and there are no participants out of competition
         """
         return (
-                self.get_is_status_ok()
-                and self.get_is_all_legs_finished()
-                and not self.get_is_out_of_competition()
+            self.get_is_status_ok()
+            and self.get_is_all_legs_finished()
+            and not self.get_is_out_of_competition()
         )
 
     def get_is_status_ok(self):
