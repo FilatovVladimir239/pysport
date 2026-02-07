@@ -22,6 +22,7 @@
     table.table-split.incorrect {
         color: red;
     }
+
     table.sportorg-table th, table.sportorg-table td {
         border: 1px solid #ddd;
         text-align: center;
@@ -42,7 +43,6 @@
 
     function getResultsByGroup(group, count) {
         count = +count || 0;
-        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
         var results = [];
         for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
             var result = _a[_i];
@@ -57,7 +57,6 @@
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     trailo_time: result.trailo_time / 1000,
-                    penalty: penalty
                     result: result.result_current,
                     result_msec: result.result_msec,
                     place: result.place,
@@ -86,34 +85,23 @@
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0) {
+                        if (split.course_index > 0 || split.code.slice(-2, -1) == "T") {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct){
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' incorrect'
                             }
                             if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
-                                tbl.appendChild(getTrBlock(toHHMMSS(split.time)));
+                                tbl.appendChild(getTrBlock(split.time/1000));
                             }
                             r[control_index + '_' + split.code.slice(0,-1)] = tbl;
                             control_index++;
                         }
-                    }
-
-                    var finishMsec = r.trailo_time + r.penalty;
-
-                    if (r.status === 1 && finishMsec > 0) {
-                        var tblF = document.createElement('table');
-                        tblF.className = 'table-split';
-                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
-                        var place_str = r.place > 0 ? r.place : 'o/c';
-                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec) + ' (' + place_str + ')', r.place));
-                        r.finish_split = tblF;
                     }
                 }
 
@@ -131,19 +119,6 @@
             }
         }
         results.sort(function (a, b) {
-            if (isRelay) {
-                if (a.place < 1) {
-                    return 1
-                }
-                if (b.place < 1) {
-                    return -1
-                }
-                if (a.place === b.place) {
-                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
-                }
-                return a.place - b.place
-
-            } else {
                 if (a.status !== 1 && b.status !== 1) {
                     return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
                 }
@@ -157,7 +132,7 @@
                     if (a.trailo_score != b.trailo_score) {
                         return -(a.trailo_score - b.trailo_score);
                     }
-                    return a.trailo_time + a.penalty - b.trailo_time - b.penalty;
+                    return a.trailo_time - b.trailo_time;
                 }
                 if (a.place < 1) {
                     return 1
@@ -166,34 +141,18 @@
                     return -1
                 }
                 return a.place - b.place
-            }
         });
         var index = 0;
-        if (isRelay) {
-            var prevBib = 0;
-            var resultsList = results.slice();
-            results = [];
-            for (var _i = 0, resultsList_ = resultsList; _i < resultsList_.length; _i++) {
-                var r = resultsList_[_i];
-                r.index = '';
-                if (r.bib % 1000 !== prevBib) {
-                    index++;
-                    results.push({index: index});
-                    prevBib = r.bib % 1000;
-                }
-                results.push(r);
-            }
-        } else {
-            results.forEach(function (elem) {
-                index++;
-                elem.index = index;
-            })
-        }
+
+        results.forEach(function (elem) {
+            index++;
+            elem.index = index;
+        })
+
         return results;
     }
 	function getResultsByCourse(group, count) {
 		count = +count || 0;
-        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
         var results = [];
         for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
             var result = _a[_i];
@@ -235,35 +194,23 @@
                     };
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
-
-                        if (split.course_index > 0) {
+                        if (split.course_index > 0 || split.code.slice(-2, -1) == "T") {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct){
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' incorrect'
                             }
                             if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
-                                tbl.appendChild(getTrBlock(toHHMMSS(split.time)));
+                                tbl.appendChild(getTrBlock(split.time));
                             }
                             r[control_index + '_' + split.code.slice(0,-1)] = tbl;
                             control_index++;
                         }
-                    }
-
-                    var finishMsec = r.trailo_time + r.penalty;
-
-                    if (r.status === 1 && finishMsec > 0) {
-                        var tblF = document.createElement('table');
-                        tblF.className = 'table-split';
-                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
-                        var place_str = r.place > 0 ? r.place : 'o/c';
-                        tblF.appendChild(getTrBlock(finishMsec + ' (' + place_str + ')', r.place));
-                        r.finish_split = tblF;
                     }
                 }
 
@@ -299,44 +246,31 @@
             }
         }
         results.sort(function (a, b) {
-            if (isRelay) {
-                if (a.place < 1) {
-                    return 1
-                }
-                if (b.place < 1) {
-                    return -1
-                }
-                if (a.place === b.place) {
-                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
-                }
-                return a.place - b.place
-            } else {
-                if (a.status !== 1 && b.status !== 1) {
-                    return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
-                }
-                if (a.status !== 1) {
-                    return 1
-                }
-                if (b.status !== 1) {
-                    return -1
-                }
-                if (a.is_out_of_competition || b.is_out_of_competition) {
-                    if (isTrailo && a.trailo_score != b.trailo_score) {
-                        return -(a.trailo_score - b.trailo_score);
-                    }
-                    return a.result_msec - b.result_msec;
-                }
-                if (a.place < 1) {
-                    return 1
-                }
-                if (b.place < 1) {
-                    return -1
-                }
-                if (a.trailo_score != b.trailo_score) {
+            if (a.status !== 1 && b.status !== 1) {
+                return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+            }
+            if (a.status !== 1) {
+                return 1
+            }
+            if (b.status !== 1) {
+                return -1
+            }
+            if (a.is_out_of_competition || b.is_out_of_competition) {
+                if (isTrailo && a.trailo_score != b.trailo_score) {
                     return -(a.trailo_score - b.trailo_score);
                 }
-                return a.trailo_time + a.penalty - b.trailo_time - b.penalty;
+                return a.result_msec - b.result_msec;
             }
+            if (a.place < 1) {
+                return 1
+            }
+            if (b.place < 1) {
+                return -1
+            }
+            if (a.trailo_score != b.trailo_score) {
+                return -(a.trailo_score - b.trailo_score);
+            }
+            return a.trailo_time - b.trailo_time;
         });
         var sort_splits_recalc_fnc = function(a,b){
             return a-b;
@@ -387,7 +321,7 @@
                     return tr;
                 };
 
-                var finishMsec = elem.trailo_time + elem.penalty;
+                var finishMsec = elem.trailo_time;
 
                 if (elem.status === 1 && finishMsec > 0) {
                     var tblF = document.createElement('table');
@@ -412,7 +346,7 @@
             {key: 'bib', title: 'Номер', size: 6},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
             {key: 'trailo_score', title: 'Очки', size: 4, active: isTrailo},
-            {key: 'result', title: 'Время', size: 14},
+            {key: 'trailo_time', title: 'Время', size: 14},
             {key: 'place_show', title: 'Место', size: 6}
         ],
         active: function (key, val) {
