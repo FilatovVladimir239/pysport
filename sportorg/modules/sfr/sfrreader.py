@@ -168,7 +168,7 @@ class ResultProcessorThread(QThread):
             if cmd.command == "card_data":
                 self._process_card_data(cmd.data)
         except Empty:
-            pass  # Таймаут - нормальная ситуация
+            pass
 
     def _process_card_data(self, card_data: dict):
         result = self._card_processor.process_card_data(card_data)
