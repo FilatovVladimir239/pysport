@@ -93,6 +93,7 @@ class ResultCalculation:
                 if is_rogaine:
                     res.diff_scores = array[0].rogaine_score - res.rogaine_score
                 elif is_trailo:
+                    res.diff = array[0].trailo_time - res.trailo_time
                     res.diff_scores = array[0].trailo_score - res.trailo_score
                 elif is_ardf:
                     res.diff_scores = array[0].scores_ardf - res.scores_ardf

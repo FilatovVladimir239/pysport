@@ -41,16 +41,25 @@ class ResultChecker:
 
     def _process_trailo_mode(self, result):
         trailo_mode = race().get_setting("trailo_mode", "preo_sprint")
+
         if trailo_mode != "tempo":
             scores = self.calculate_scores_trailo(result)
             penalty = self.calculate_rogaine_penalty(result, scores, 1)
-            result.trailo_score_penalty = penalty
-            result.trailo_score = scores - penalty
+            trailo_score_penalty = penalty
+            trailo_score = scores - penalty
+        else:
+            trailo_score_penalty = 0
+            trailo_score = 0
+
+        result.trailo_score_penalty = trailo_score_penalty
+        result.trailo_score = trailo_score
 
         if trailo_mode != "preo_sprint":
             time = self.calculate_time_trailo(result)
             time_penalty = ResultChecker._calculate_trailo_penalty(result)
             result.trailo_time = OTime(msec=time.to_msec() + time_penalty.to_msec())
+        else:
+            result.trailo_time = result.get_result_otime()
 
     def _process_scores_mode(self, result):
         allow_duplicates = race().get_setting(
@@ -95,21 +104,19 @@ class ResultChecker:
             ResultStatus.MISS_PENALTY_LAP,
             ResultStatus.MULTI_DAY_ISSUE,
         ]:
+            result.status = ResultStatus.OK
+            check_flag = o.check_result(result)
+
+            cls.calculate_penalty(result)
+            cls.calculate_credit_time(result)
+
+            cls._validate_result_status(result, check_flag)
+
+            result.status_comment = StatusComments().get_status_default_comment(
+                result.status
+            )
+
             return o
-
-        result.status = ResultStatus.OK
-        check_flag = o.check_result(result)
-
-        cls.calculate_penalty(result)
-        cls.calculate_credit_time(result)
-
-        cls._validate_result_status(result, check_flag)
-
-        result.status_comment = StatusComments().get_status_default_comment(
-            result.status
-        )
-
-        return o
 
     @classmethod
     def _validate_result_status(cls, result, check_flag):

@@ -37,7 +37,7 @@
 <script>
     var race = {% endraw %}{{race|tojson}}{%raw %};
     var selected = {% endraw %}{{selected|tojson}}{%raw %};
-
+    var trailo_mode = race.settings?.trailo_mode;
     const Fields = {
         fields: [
             { key: 'index',          title: '№',           size: 4 },
@@ -47,7 +47,7 @@
             { key: 'year',           title: 'Г.Р.',        size: 5 },
             { key: 'bib',            title: 'Номер',       size: 6 },
             { key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false },
-            { key: 'trailo_score',   title: 'Очки',        size: 4,  active: true  },  // по умолчанию видно в trailo
+            { key: 'trailo_score',   title: 'Очки',        size: 4,  active: true  },
             { key: 'trailo_time',    title: 'Время',       size: 14 },
             { key: 'place_show',     title: 'Место',       size: 6 }
         ],
@@ -134,7 +134,7 @@
                 year: person.birth_date ? new Date(person.birth_date).getFullYear() : '',
                 trailo_score_penalty: res.trailo_score_penalty,
                 trailo_score: res.trailo_score,
-                trailo_time: res.trailo_time / 1000,
+                trailo_time: trailo_mode != "preo_sprint" ? res.trailo_time / 1000 : toHHMMSS(res.trailo_time),
                 result: res.result_current,
                 result_msec: res.result_msec,
                 place: res.place,
