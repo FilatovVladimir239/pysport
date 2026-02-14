@@ -39,8 +39,8 @@ class CardDataProcessor:
             return self._process_standard_card(card_data, card_number)
 
     def _process_trailo_card(self, card_data: dict, card_number: int) -> ResultSFR:
-        trailo_ans = card_number % 10
-        card_number = card_number // 10
+        trailo_ans = int(card_number) % 10
+        card_number = int(card_number) // 10
 
         result = self._create_result(card_number)
         self._add_splits(result, card_data["punches"], trailo_ans)
@@ -74,13 +74,12 @@ class CardDataProcessor:
             if trailo_ans is not None:
                 if int(code) < 50:
                     code = code + TrailOAns(trailo_ans).name
-                else:
+                elif int(code) < 240:
                     if int(code) % 10 == 0:
                         code = code + "TT"
                     else:
                         punch_time = time_to_otime(punch_time)
-                        trailo_ans = punch_time.hour
-                        code = code + "T" + TrailOAns(trailo_ans).name
+                        code = code + "T" + TrailOAns(punch_time.hour).name
                         punch_time = OTime()
 
             split = self._create_split(code, punch_time)

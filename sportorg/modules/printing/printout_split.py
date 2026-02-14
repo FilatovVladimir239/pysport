@@ -227,13 +227,13 @@ class SportorgPrinter:
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
-            elif split.is_correct or is_trailo:
+            elif is_trailo:
                 line = (
                         ("  " + str(split.code[:-1]))[-3:]
                         + " "
                         + (" " + split.code[-1])[-3:]
                         + " "
-                        + split.relative_time.to_str()[-7:]
+                        + split.time.to_str()[-8:]
                 )
                 self.print_line(line, fn, fs_main)
             elif split.is_correct:
@@ -260,14 +260,6 @@ class SportorgPrinter:
                             line += " +"
                             break
 
-                self.print_line(line, fn, fs_main)
-            elif is_trailo:
-                line = (
-                        " " * 4
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                )
                 self.print_line(line, fn, fs_main)
             else:
                 line = (
