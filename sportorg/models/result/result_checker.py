@@ -367,10 +367,10 @@ class ResultChecker:
         for control_point in controls:
             if control_point.code[-2] != "T":
                 continue
-
             control_point_code = int(control_point.code[:-2])
-
             for cur_split in splits:
+                if cur_split.code[-2] != "T":
+                    continue
                 cur_code = int(cur_split.code[:-2])
                 if (
                         cur_code == control_point_code
@@ -552,6 +552,7 @@ class ResultChecker:
                 if (
                         cur_code == int(control_point.code[:-1])
                         and cur_split.code[-1] == control_point.code[-1]
+                        and cur_split.course_index != -1
                 ):
                     ret += 1
                     break

@@ -227,10 +227,18 @@ class SportorgPrinter:
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
-            elif is_trailo:
+            elif is_trailo and (split.course_index != -1 or split.code[-2] == "T"):
                 line = (
                         ("  " + str(split.code[:-1]))[-3:]
                         + " "
+                        + (" " + split.code[-1])[-3:]
+                        + " "
+                        + split.time.to_str()[-8:]
+                )
+                self.print_line(line, fn, fs_main)
+            elif is_trailo:
+                line = (
+                        "  - "
                         + (" " + split.code[-1])[-3:]
                         + " "
                         + split.time.to_str()[-8:]

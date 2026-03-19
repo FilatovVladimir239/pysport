@@ -228,7 +228,7 @@ class Widget(QtWidgets.QWidget):
         result.splits = sorted(result.splits, key=lambda elem: (int(''.join(filter(str.isdigit, elem.code))), elem.time))
 
         for split in result.splits:
-            str_fmt = str_fmt_incorrect if split.course_index == -1 else str_fmt_correct
+            str_fmt = str_fmt_incorrect if split.course_index == -1 and split.code[-2] != "T" else str_fmt_correct
             s = str_fmt.format(
                 code="(" + "{:0>2}".format(str(split.code[:-1])) + ")",
                 answer=split.code[-1],
