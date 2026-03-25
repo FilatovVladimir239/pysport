@@ -1401,6 +1401,9 @@ msgstr "Штр.круги"
 msgid "points"
 msgstr "очк."
 
+msgid "sec"
+msgstr "сек"
+
 msgid "Credit"
 msgstr "Отсечка"
 

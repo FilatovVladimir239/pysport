@@ -4,13 +4,15 @@
 {% block content %}
 <div class="text-center">
     <h3>{{ race.data.description }} <br>{{ race.data.start_datetime|date }} {{ race.data.location }}</h3>
-    <h2>Предварительный протокол ответов</h2>
+    <h3>Предварительный протокол ответов</h3>
 </div>
 <div id="results-tables"></div>
 {% raw %}
 <style>
     table.table-split {
-        margin: 0;
+        margin: 0 !important;
+        margin-bottom: 0 !important; /* bootstrap table { margin-bottom: 1rem } */
+        display: inline-table;
     }
     table.table-split td{
         border: 0 ! important;

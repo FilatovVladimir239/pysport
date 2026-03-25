@@ -755,7 +755,11 @@ class Result(ABC):
 
         time_accuracy = race().get_setting("time_accuracy", 0)
         if result_processing_mode == "trailo" and trailo_mode != "preo_sprint":
-            ret += str(self.get_result_otime_trailo().to_sec())
+            ret += (
+                str(self.get_result_otime_trailo().to_sec())
+                + " "
+                + translate("sec")
+            )
         else:
             ret += self.get_result_otime().to_str(time_accuracy)
         return ret
