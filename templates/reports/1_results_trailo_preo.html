@@ -4,7 +4,7 @@
 {% block content %}
 <div class="text-center">
     <h3>{{ race.data.description }} <br>{{ race.data.start_datetime|date }} {{ race.data.location }}</h3>
-    <h2>Предварительный протокол Результатов</h2>
+    <h2>Предварительный протокол ответов</h2>
 </div>
 <div id="results-tables"></div>
 {% raw %}
@@ -15,28 +15,161 @@
     table.table-split td{
         border: 0 ! important;
         padding: 0;
+        text-align: center;
     }
     table.table-split.correct {
         color: green;
+        font-weight: 700;
     }
     table.table-split.incorrect {
         color: red;
+        font-weight: 700;
+        background-color: transparent;
+    }
+
+    /* Подсветка всей ячейки с ошибочным ответом (внешний td) */
+    table.sportorg-table td:has(table.table-split.incorrect) {
+        background-color: #fffde8;
+    }
+
+    /* Убираем белый фон у вложенной таблицы внутри подсвеченной ячейки */
+    table.sportorg-table td:has(table.table-split.incorrect) table.table-split,
+    table.sportorg-table td:has(table.table-split.incorrect) table.table-split td {
+        background-color: inherit !important;
+    }
+
+    /* На некоторых темах/браузерах фон может быть задан у вложенных элементов.
+       Принудительно прокрашиваем всё содержимое неправильной ячейки. */
+    table.sportorg-table td:has(table.table-split.incorrect) * {
+        background-color: #fffde8 !important;
+        background: #fffde8 !important;
     }
 
     table.sportorg-table th, table.sportorg-table td {
-        border: 1px solid #ddd;
-        text-align: center;
+        border: 1px solid #000;
+        text-align: center
     }
 
     table.table-split td.result-undefined {
         border: none;
     }
 
+    /* Центрирование времени Тайм-КП и вложенной таблицы в HTML версии */
+    table.sportorg-table th.time-col,
+    table.sportorg-table td.time-col {
+        text-align: center;
+    }
+
+    table.sportorg-table td.time-col table.table-split {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    table.sportorg-table td.time-col table.table-split td {
+        text-align: center;
+    }
+
+    @media print {
+        @page {
+            size: A4 landscape;
+            margin: 8mm;
+        }
+
+        /* Печать: ужимаем под лист */
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 9px;
+        }
+
+        h2, h3 {
+            margin: 6px 0;
+        }
+
+        table.sportorg-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        table.sportorg-table th,
+        table.sportorg-table td {
+            padding: 1px 2px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        table.sportorg-table th.name-col,
+        table.sportorg-table td.name-col {
+            text-align: center;
+            padding-left: 1px;
+            padding-right: 1px;
+        }
+
+        table.sportorg-table th.time-col {
+            font-size: 9px;
+        }
+
+        table.sportorg-table th.time-col,
+        table.sportorg-table td.time-col {
+            text-align: center;
+        }
+
+        table.sportorg-table td.time-col table.table-split {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table.sportorg-table td.time-col table.table-split td {
+            text-align: center;
+        }
+
+        table.sportorg-table th.answer-col,
+        table.sportorg-table td.answer-col {
+            text-align: center;
+        }
+
+        /* В ответах часто вложенная table.table-split — центрируем и её */
+        table.sportorg-table td.answer-col table.table-split {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table.sportorg-table td.answer-col table.table-split td {
+            text-align: center;
+        }
+
+        /* Печать: не оставлять "пустую" страницу с одним заголовком.
+           Большие таблицы должны иметь право разбиваться по страницам. */
+        .results-block {
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+
+        .results-block > h2 {
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        table.sportorg-table {
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+
+        table.sportorg-table thead { display: table-header-group; }
+        table.sportorg-table tfoot { display: table-footer-group; }
+
+        table.sportorg-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+    }
 
 </style>
+{% endraw %}<script type="application/json" id="race-json">{{ race|tojson }}</script>
+<script type="application/json" id="selected-json">{{ selected|tojson }}</script>{% raw %}
 <script>
-    var race = {% endraw %}{{race|tojson}}{%raw %};
-    var selected = {% endraw %}{{selected|tojson}}{%raw %};
+    var race = JSON.parse(document.getElementById('race-json').textContent);
+    var selected = JSON.parse(document.getElementById('selected-json').textContent);
     var trailo_mode = race.settings?.trailo_mode;
     const Fields = {
         fields: [
@@ -127,6 +260,7 @@
 
             const row = {
                 index: 0,
+                group: person.group?.name || '',
                 name: `${person.surname} ${person.name}`.slice(0, MAX_PERSON_NAME),
                 org: person.organization?.name?.slice(0, MAX_ORG_NAME) || '',
                 qual: Qualification?.[person.qual] || '',
@@ -276,20 +410,302 @@
 
         const categories = store.showProtocolByCourse ? race.courses : race.groups;
 
+        function rebuildTrailoSplitsHeader(table) {
+            if (!table) return;
+            const thead = table.querySelector('thead');
+            if (!thead) return;
+
+            const headerRow = thead.querySelector('tr');
+            if (!headerRow) return;
+
+            const ths = Array.from(headerRow.querySelectorAll('th'));
+            if (!ths.length) return;
+
+            const TIME_TITLE = 'Время Тайм-КП';
+            const timeIdxs = [];
+            for (let i = 0; i < ths.length; i++) {
+                if ((ths[i].textContent || '').trim() === TIME_TITLE) timeIdxs.push(i);
+            }
+            const hasSplits = timeIdxs.length > 0;
+
+            function setColumnWidths() {
+                // Ширины особенно важны при печати (table-layout: fixed).
+                // Делаем ответы узкими, а ФИО/Команду — шире.
+                const PLACE_TITLE = 'Место';
+                const NAME_TITLE = 'Фамилия Имя';
+                const ORG_TITLE = 'Команда';
+
+                // Индексы по исходной (одно-строчной) шапке
+                let placeIdx = -1;
+                let nameIdx = -1;
+                let orgIdx = -1;
+                for (let i = 0; i < ths.length; i++) {
+                    const t = (ths[i].textContent || '').trim();
+                    if (t === PLACE_TITLE) placeIdx = i;
+                    if (t === NAME_TITLE) nameIdx = i;
+                    if (t === ORG_TITLE) orgIdx = i;
+                }
+
+                // Базовые поля (до ответов) в верхней строке будут rowspan=2
+                const firstTimeIdx = timeIdxs[0];
+                const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
+                const baseEndExclusive = Math.min(answersStart, firstTimeIdx);
+
+                const topRowThs = Array.from(thead.querySelectorAll('tr:first-child th'));
+                const midRowThs = Array.from(thead.querySelectorAll('tr:nth-child(2) th'));
+                const numRowThs = Array.from(thead.querySelectorAll('tr:nth-child(3) th'));
+
+                // Пробуем поставить ширины базовых столбцов по заголовкам
+                for (const th of topRowThs) {
+                    const t = (th.textContent || '').trim();
+                    if (t === NAME_TITLE) {
+                        th.style.width = '170px';
+                        th.classList.add('name-col');
+                    }
+                    else if (t === ORG_TITLE) th.style.width = '160px';
+                    else if (t === 'Группа') th.style.width = '95px';
+                    else if (t === '№') th.style.width = '34px';
+                    else if (t === 'Г.Р.') th.style.width = '36px';
+                    else if (t === 'Номер') th.style.width = '40px';
+                    else if (t === 'ШтрафКВ') th.style.width = '64px';
+                    else if (t === PLACE_TITLE) th.style.width = '42px';
+                }
+
+                // Для 2-й и 3-й строки: результат/время тайм-кп/ответы/нумерация
+                for (const th of [...midRowThs, ...numRowThs]) {
+                    const t = (th.textContent || '').trim();
+                    if (th.classList.contains('overall-time-col')) {
+                        th.style.width = '50px';
+                    } else if (th.classList.contains('time-col')) {
+                        th.style.width = '70px';
+                    } else if (t === 'Очки') {
+                        th.style.width = '34px';
+                    } else {
+                        th.style.width = '14px';
+                        th.classList.add('answer-col');
+                    }
+                }
+            }
+
+            function markAnswerColumns() {
+                // Отцентровать значения ответов в tbody по индексам исходной шапки
+                const PLACE_TITLE = 'Место';
+                let placeIdx = -1;
+                for (let i = 0; i < ths.length; i++) {
+                    if ((ths[i].textContent || '').trim() === PLACE_TITLE) {
+                        placeIdx = i;
+                        break;
+                    }
+                }
+
+                const firstTimeIdx = timeIdxs[0];
+                const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
+
+                const timeIdxSet = new Set(timeIdxs);
+                const answerIdxs = [];
+                for (let i = answersStart; i < ths.length; i++) {
+                    if (!timeIdxSet.has(i)) answerIdxs.push(i);
+                }
+
+                if (!answerIdxs.length) return;
+                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
+                for (const tr of tbodyRows) {
+                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
+                    for (const idx of answerIdxs) {
+                        const td = tds[idx];
+                        if (!td) continue;
+                        td.classList.add('answer-col');
+                        td.style.width = '14px';
+                    }
+                }
+            }
+
+            function markTimeColumns() {
+                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
+                if (!tbodyRows.length) return;
+
+                for (const tr of tbodyRows) {
+                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
+                    for (const idx of timeIdxs) {
+                        const td = tds[idx];
+                        if (!td) continue;
+                        td.classList.add('time-col');
+                        td.style.width = '70px';
+                    }
+                }
+            }
+
+            function markNameColumn() {
+                const NAME_TITLE = 'Фамилия Имя';
+                let nameIdx = -1;
+                for (let i = 0; i < ths.length; i++) {
+                    if ((ths[i].textContent || '').trim() === NAME_TITLE) {
+                        nameIdx = i;
+                        break;
+                    }
+                }
+                if (nameIdx < 0) return;
+
+                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
+                for (const tr of tbodyRows) {
+                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
+                    const td = tds[nameIdx];
+                    if (!td) continue;
+                    td.classList.add('name-col');
+                }
+            }
+
+            // В этом шаблоне сплиты добавляются в конец таблицы, поэтому всё до первого TIME_TITLE
+            // разбиваем на: базовые поля (rowspan=2), затем "ответы" (если есть),
+            // а дальше группируем блоки "тайм-кп".
+            const firstTimeIdx = hasSplits ? timeIdxs[0] : ths.length;
+            const topTr = document.createElement('tr');      // группирующие заголовки
+            const midTr = document.createElement('tr');      // подписи столбцов
+            const numTr = document.createElement('tr');      // порядковые номера ответов
+
+            // Ищем "Место" — после него идут ответы до первого "Время Тайм-КП"
+            const PLACE_TITLE = 'Место';
+            let placeIdx = -1;
+            for (let i = 0; i < ths.length; i++) {
+                if ((ths[i].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx = i;
+                    break;
+                }
+            }
+
+            const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
+            const answersEndExclusive = firstTimeIdx;
+            const answersLen = Math.max(0, answersEndExclusive - answersStart);
+
+            // Индексы "Очки" и базового "Время" (общее время участника)
+            const SCORE_TITLE = 'Очки';
+            const OVERALL_TIME_TITLE = 'Время';
+            let scoreIdx = -1;
+            let overallTimeIdx = -1;
+            for (let i = 0; i < answersStart; i++) {
+                const t = (ths[i].textContent || '').trim();
+                if (t === SCORE_TITLE) scoreIdx = i;
+                if (t === OVERALL_TIME_TITLE) overallTimeIdx = i;
+            }
+            const hasResultGroup = scoreIdx >= 0 && overallTimeIdx >= 0;
+
+            // Базовые колонки: до "Место" включительно (или до начала ответов) — rowspan=3
+            const baseEndExclusive = Math.min(answersStart, firstTimeIdx);
+            for (let i = 0; i < baseEndExclusive; i++) {
+                if (hasResultGroup && i === Math.min(scoreIdx, overallTimeIdx)) {
+                    const topResTh = document.createElement('th');
+                    topResTh.textContent = 'Результат';
+                    topResTh.colSpan = 2;
+                    topTr.appendChild(topResTh);
+
+                    const scoreTh = ths[scoreIdx].cloneNode(true);
+                    scoreTh.textContent = SCORE_TITLE;
+                    scoreTh.rowSpan = 2;
+                    midTr.appendChild(scoreTh);
+
+                    const overallTimeTh = ths[overallTimeIdx].cloneNode(true);
+                    overallTimeTh.textContent = OVERALL_TIME_TITLE;
+                    overallTimeTh.classList.add('overall-time-col');
+                    overallTimeTh.rowSpan = 2;
+                    midTr.appendChild(overallTimeTh);
+
+                    i = Math.max(scoreIdx, overallTimeIdx);
+                    continue;
+                }
+
+                if (hasResultGroup && (i === scoreIdx || i === overallTimeIdx)) {
+                    continue;
+                }
+
+                const cloned = ths[i].cloneNode(true);
+                cloned.rowSpan = 3;
+                topTr.appendChild(cloned);
+            }
+
+            // Ответы: верхняя строка "Ответы" (colspan), 2-я строка — номера, 3-я — подписи
+            if (answersLen > 0) {
+                const topAnswersTh = document.createElement('th');
+                topAnswersTh.textContent = 'Ответы';
+                topAnswersTh.colSpan = answersLen;
+                topTr.appendChild(topAnswersTh);
+
+                let n = 1;
+                for (let i = answersStart; i < answersEndExclusive; i++, n++) {
+                    const nth = document.createElement('th');
+                    nth.textContent = String(n);
+                    nth.classList.add('answer-col');
+                    midTr.appendChild(nth);
+
+                    const labelTh = ths[i].cloneNode(true);
+                    labelTh.classList.add('answer-col');
+                    numTr.appendChild(labelTh);
+                }
+            }
+
+            // Сплиты: для каждого time-столбца берём его + ответы до следующего time-столбца
+            if (hasSplits) {
+                for (let t = 0; t < timeIdxs.length; t++) {
+                    const start = timeIdxs[t];
+                    const endExclusive = (t + 1 < timeIdxs.length) ? timeIdxs[t + 1] : ths.length;
+                    const blockLen = Math.max(0, endExclusive - start);
+                    if (blockLen <= 0) continue;
+
+                    const topTh = document.createElement('th');
+                    topTh.textContent = `Тайм КП ${t + 1}`;
+                    topTh.colSpan = blockLen;
+                    topTr.appendChild(topTh);
+
+                    // 2-я строка: "Время"(rowspan=2) + номера ответов, 3-я строка: подписи ответов
+                    const timeTh = ths[start].cloneNode(true);
+                    timeTh.textContent = 'Время';
+                    timeTh.classList.add('time-col');
+                    timeTh.rowSpan = 2;
+                    midTr.appendChild(timeTh);
+
+                    let n = 1;
+                    for (let i = start + 1; i < endExclusive; i++, n++) {
+                        const nth = document.createElement('th');
+                        nth.textContent = String(n);
+                        nth.classList.add('answer-col');
+                        midTr.appendChild(nth);
+
+                        const labelTh = ths[i].cloneNode(true);
+                        labelTh.classList.add('answer-col');
+                        numTr.appendChild(labelTh);
+                    }
+                }
+            }
+
+            thead.innerHTML = '';
+            thead.appendChild(topTr);
+            thead.appendChild(midTr);
+            thead.appendChild(numTr);
+
+            setColumnWidths();
+            if (hasSplits) {
+                markAnswerColumns();
+                markTimeColumns();
+            }
+            markNameColumn();
+        }
+
         categories.forEach(category => {
             const rows = getResultsForCategory(category, store.count, store.showProtocolByCourse);
             if (!rows.length) return;
+
+            const block = document.createElement('div');
+            block.className = 'results-block';
 
             // Заголовок
             const h2 = document.createElement('h2');
             h2.id = category.name.replace(/\s+/g, '-');
             h2.textContent = getCategoryName(category);
-            container.appendChild(h2);
+            block.appendChild(h2);
 
             // Ссылки на группы (если режим по группам)
             if (!store.showProtocolByCourse && store.showLinkForGroups) {
                 const linksBlock = getGroupsBlockElement?.(race);
-                if (linksBlock) container.appendChild(linksBlock);
+                if (linksBlock) block.appendChild(linksBlock);
             }
 
             // Поля таблицы
@@ -301,7 +717,7 @@
                 if (course?.controls) {
                     course.controls.forEach((ctrl, idx) => {
                         const isTime = ctrl.code.slice(-1) === 'T';
-                        const title = isTime ? 'Время' : ctrl.code.slice(-1);
+                        const title = isTime ? 'Время Тайм-КП' : ctrl.code.slice(-1);
                         fields.push({
                             key: `${idx}_${ctrl.code.slice(0, -1)}`,
                             title: title,
@@ -315,7 +731,9 @@
                 className: 'sportorg-table'
             });
 
-            container.appendChild(table);
+            rebuildTrailoSplitsHeader(table);
+            block.appendChild(table);
+            container.appendChild(block);
         });
 
         // Обновляем строку запроса

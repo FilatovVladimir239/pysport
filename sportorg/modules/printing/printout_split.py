@@ -10,6 +10,18 @@ if platform.system() == "Windows":  # current realisation works on Windows only
     import win32ui
 
 
+def _is_trailo_time_control_code(code: str) -> bool:
+    code = code or ""
+    return len(code) >= 2 and code[-2] == "T"
+
+
+def _trailo_sort_key(split) -> tuple:
+    code = getattr(split, "code", "") or ""
+    digits = "".join(ch for ch in code if ch.isdigit())
+    num = int(digits) if digits else 10**9
+    return (num, code, getattr(split, "time", 0))
+
+
 class SportorgPrinter:
     def __init__(self, printer_name, scale_factor=60, x_offset=5, y_offset=5):
         if not printer_name:
@@ -201,7 +213,7 @@ class SportorgPrinter:
         # Splits
         splits = result.splits.copy()
         if is_trailo:
-            splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
+            splits.sort(key=_trailo_sort_key)
 
         index = 1
         for split in splits:
@@ -227,23 +239,28 @@ class SportorgPrinter:
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
-            elif is_trailo and (split.course_index != -1 or split.code[-2] == "T"):
-                line = (
-                        ("  " + str(split.code[:-1]))[-3:]
-                        + " "
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.time.to_str()[-8:]
-                )
-                self.print_line(line, fn, fs_main)
             elif is_trailo:
-                line = (
-                        "  - "
-                        + (" " + split.code[-1])[-3:]
-                        + " "
-                        + split.time.to_str()[-8:]
-                )
-                self.print_line(line, fn, fs_main)
+                code = getattr(split, "code", "") or ""
+                course_index = getattr(split, "course_index", -1)
+                is_time_ctrl = _is_trailo_time_control_code(code)
+
+                if course_index != -1 or is_time_ctrl:
+                    line = (
+                            ("  " + str(code[:-1]))[-3:]
+                            + " "
+                            + (" " + code[-1])[-3:]
+                            + " "
+                            + split.time.to_str()[-8:]
+                    )
+                    self.print_line(line, fn, fs_main)
+                else:
+                    line = (
+                            "  - "
+                            + (" " + code[-1])[-3:]
+                            + " "
+                            + split.time.to_str()[-8:]
+                    )
+                    self.print_line(line, fn, fs_main)
             elif split.is_correct:
                 line = (
                         ("  " + str(split.course_index + 1))[-3:]
@@ -279,8 +296,12 @@ class SportorgPrinter:
                 self.print_line(line, fn, fs_main)
 
         finish_split = ""
-        if len(splits) > 0:
-            finish_split = (result.get_finish_time() - splits[-1].time).to_str()
+        if len(result.splits) > 0:
+            times = [getattr(s, "time", None) for s in result.splits]
+            times = [t for t in times if t is not None]
+            if times:
+                last_split_time = max(times)
+                finish_split = (result.get_finish_time() - last_split_time).to_str()
 
         # Finish
         self.print_line(
@@ -415,6 +436,9 @@ class SportorgPrinter:
 
             # Short result list
             if is_relay:
+                pass
+            elif is_trailo:
+                # Для трейло не печатаем "протокол"/список результатов внизу
                 pass
             else:
                 res = ResultCalculation(obj).get_group_finishes(group)
