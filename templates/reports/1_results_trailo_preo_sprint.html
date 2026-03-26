@@ -29,27 +29,38 @@
         background-color: transparent;
     }
 
-    /* Подсветка всей ячейки с ошибочным ответом (внешний td) */
-    table.sportorg-table td:has(table.table-split.incorrect) {
-        background-color: #fffde8;
-    }
-
-    /* Убираем белый фон у вложенной таблицы внутри подсвеченной ячейки */
-    table.sportorg-table td:has(table.table-split.incorrect) table.table-split,
-    table.sportorg-table td:has(table.table-split.incorrect) table.table-split td {
-        background-color: inherit !important;
-    }
-
-    /* На некоторых темах/браузерах фон может быть задан у вложенных элементов.
-       Принудительно прокрашиваем всё содержимое неправильной ячейки. */
-    table.sportorg-table td:has(table.table-split.incorrect) * {
+    /* Подсветка ячейки с ошибочным ответом (стабильно: класс ставится JS-ом) */
+    table.sportorg-table td.incorrect-answer {
         background-color: #fffde8 !important;
-        background: #fffde8 !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split,
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split * {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split {
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        padding: 0 !important;
     }
 
     table.sportorg-table th, table.sportorg-table td {
         border: 1px solid #000;
         text-align: center
+    }
+
+    table.sportorg-table td.name-col {
+        text-align: left;
     }
 
     table.table-split td.result-undefined {
@@ -95,16 +106,41 @@
 
         table.sportorg-table th,
         table.sportorg-table td {
-            padding: 1px 2px;
+            padding: 0 1px;
             word-break: break-word;
             overflow-wrap: anywhere;
         }
 
         table.sportorg-table th.name-col,
         table.sportorg-table td.name-col {
-            text-align: center;
+            text-align: left;
             padding-left: 1px;
             padding-right: 1px;
+            width: 95px !important;
+        }
+
+        table.sportorg-table th.group-col,
+        table.sportorg-table td.group-col {
+            width: 60px !important;
+        }
+
+        table.sportorg-table th.org-col,
+        table.sportorg-table td.org-col {
+            width: 130px !important;
+        }
+
+        table.sportorg-table th.index-col,
+        table.sportorg-table td.index-col {
+            width: 20px !important;
+        }
+
+        table.sportorg-table th.place-col,
+        table.sportorg-table td.place-col {
+            width: 24px !important;
+        }
+
+        table.sportorg-table th.place-col {
+            font-size: 8px;
         }
 
         table.sportorg-table th.time-col {
@@ -114,6 +150,37 @@
         table.sportorg-table th.time-col,
         table.sportorg-table td.time-col {
             text-align: center;
+            width: 190px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.overall-time-col,
+        table.sportorg-table td.overall-time-col {
+            width: 190px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.penalty-col,
+        table.sportorg-table td.penalty-col {
+            width: 30px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.penalty-col {
+            font-size: 6px;
+            line-height: 0.95;
         }
 
         table.sportorg-table td.time-col table.table-split {
@@ -128,6 +195,17 @@
         table.sportorg-table th.answer-col,
         table.sportorg-table td.answer-col {
             text-align: center;
+            width: 9px !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            font-size: 8px;
+            line-height: 1.0;
+        }
+
+        /* Печать: верхний отступ в заголовках "Ответы" (номер и правильный ответ) */
+        table.sportorg-table thead tr:nth-child(2) th.answer-col,
+        table.sportorg-table thead tr:nth-child(3) th.answer-col {
+            padding-top: 2px !important;
         }
 
         /* В ответах часто вложенная table.table-split — центрируем и её */
@@ -626,6 +704,7 @@
             var PLACE_TITLE = 'Место';
             var NAME_TITLE = 'Фамилия Имя';
             var ORG_TITLE = 'Команда';
+            var PENALTY_TITLE = 'ШтрафКВ';
 
             var placeIdx = -1;
             for (var pi = 0; pi < ths.length; pi++) {
@@ -646,13 +725,29 @@
                 if (t === NAME_TITLE) {
                     th.style.width = '170px';
                     th.classList.add('name-col');
-                } else if (t === ORG_TITLE) th.style.width = '160px';
-                else if (t === 'Группа') th.style.width = '95px';
-                else if (t === '№') th.style.width = '34px';
+                } else if (t === ORG_TITLE) {
+                    th.style.width = '160px';
+                    th.classList.add('org-col');
+                }
+                else if (t === 'Группа') {
+                    th.style.width = '95px';
+                    th.classList.add('group-col');
+                }
+                else if (t === '№') {
+                    th.style.width = '34px';
+                    th.classList.add('index-col');
+                }
                 else if (t === 'Г.Р.') th.style.width = '36px';
                 else if (t === 'Номер') th.style.width = '40px';
-                else if (t === 'ШтрафКВ') th.style.width = '64px';
-                else if (t === PLACE_TITLE) th.style.width = '42px';
+                else if (t === PENALTY_TITLE) {
+                    th.style.width = '64px';
+                    th.classList.add('penalty-col');
+                    th.innerHTML = 'Штраф<br>КВ';
+                }
+                else if (t === PLACE_TITLE) {
+                    th.style.width = '42px';
+                    th.classList.add('place-col');
+                }
             }
 
             var midNum = midRowThs.concat(numRowThs);
@@ -707,6 +802,9 @@
                     if (!td) continue;
                     td.classList.add('answer-col');
                     td.style.width = '14px';
+                    if (td.querySelector && td.querySelector('table.table-split.incorrect')) {
+                        td.classList.add('incorrect-answer');
+                    }
                 }
             }
         }
@@ -731,6 +829,24 @@
             }
         }
 
+        function markOverallTimeColumn() {
+            if (overallTimeIdx < 0) return;
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            if (!tbodyRows.length) return;
+
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[overallTimeIdx];
+                if (!td) continue;
+                td.classList.add('overall-time-col');
+                td.style.width = '50px';
+            }
+        }
+
         function markNameColumn() {
             var NAME_TITLE = 'Фамилия Имя';
             var nameIdx = -1;
@@ -752,6 +868,140 @@
                 var td3 = tds3[nameIdx];
                 if (!td3) continue;
                 td3.classList.add('name-col');
+            }
+        }
+
+        function markIndexColumn() {
+            var INDEX_TITLE = '№';
+            var idx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === INDEX_TITLE) {
+                    idx = ni;
+                    break;
+                }
+            }
+            if (idx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[idx];
+                if (!td) continue;
+                td.classList.add('index-col');
+            }
+        }
+
+        function markOrgColumn() {
+            var ORG_TITLE = 'Команда';
+            var orgIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === ORG_TITLE) {
+                    orgIdx = ni;
+                    break;
+                }
+            }
+            if (orgIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[orgIdx];
+                if (!td) continue;
+                td.classList.add('org-col');
+            }
+        }
+
+        function markGroupColumn() {
+            var GROUP_TITLE = 'Группа';
+            var groupIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === GROUP_TITLE) {
+                    groupIdx = ni;
+                    break;
+                }
+            }
+            if (groupIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[groupIdx];
+                if (!td) continue;
+                td.classList.add('group-col');
+            }
+        }
+
+        function markPlaceColumn() {
+            var PLACE_TITLE = 'Место';
+            var placeIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx = ni;
+                    break;
+                }
+            }
+            if (placeIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[placeIdx];
+                if (!td) continue;
+                td.classList.add('place-col');
+            }
+        }
+
+        function markPenaltyColumn() {
+            var PENALTY_TITLE = 'ШтрафКВ';
+            var penaltyIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PENALTY_TITLE) {
+                    penaltyIdx = ni;
+                    break;
+                }
+            }
+            if (penaltyIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[penaltyIdx];
+                if (!td) continue;
+                td.classList.add('penalty-col');
+            }
+        }
+
+        function markIncorrectCells() {
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var r = 0; r < tbodyRows.length; r++) {
+                var tr = tbodyRows[r];
+                for (var c = 0; c < tr.children.length; c++) {
+                    var cell = tr.children[c];
+                    if (!cell || cell.tagName !== 'TD') continue;
+                    if (cell.querySelector && cell.querySelector('table.table-split.incorrect')) {
+                        cell.classList.add('incorrect-answer');
+                    }
+                }
             }
         }
 
@@ -877,7 +1127,14 @@
             markAnswerColumns();
             markTimeColumns();
         }
+        markOverallTimeColumn();
         markNameColumn();
+        markIndexColumn();
+        markOrgColumn();
+        markGroupColumn();
+        markPlaceColumn();
+        markPenaltyColumn();
+        markIncorrectCells();
     }
 
     function render() {
