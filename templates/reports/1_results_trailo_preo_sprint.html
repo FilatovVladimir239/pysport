@@ -114,7 +114,7 @@
         table.sportorg-table th.name-col,
         table.sportorg-table td.name-col {
             text-align: left;
-            padding-left: 3px;
+            padding-left: 1px;
             padding-right: 1px;
             width: 95px !important;
         }
@@ -200,6 +200,14 @@
             padding-right: 1px !important;
             font-size: 8px;
             line-height: 1.0;
+            vertical-align: middle;
+        }
+
+        table.sportorg-table td.incorrect-answer,
+        table.sportorg-table td.incorrect-answer table.table-split,
+        table.sportorg-table td.incorrect-answer table.table-split td {
+            vertical-align: middle;
+            line-height: 1.0;
         }
 
         /* Печать: верхний отступ в заголовках "Ответы" (номер и правильный ответ) */
@@ -252,6 +260,9 @@
     var selected = JSON.parse(document.getElementById('selected-json').textContent);
     racePreparation(race);
 
+    var trailoMode = race.settings && race.settings.trailo_mode ? String(race.settings.trailo_mode) : '';
+    var isPreoMode = trailoMode === 'preo';
+    var isPreoSprintMode = !isPreoMode;
     var isTrailo = race.settings.result_processing_mode === 'trailo';
 
     function getResultsByGroup(group, count) {
@@ -270,6 +281,7 @@
                     year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
+                    trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
                     result: result.result_current,
                     result_msec: result.result_msec,
                     place: result.place,
@@ -280,7 +292,9 @@
                 };
                 if (result.status !== 1) {
                     r.place_show = '';
-                    r.trailo_score = '';
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
                 }
 
                 // SPLITS
@@ -298,19 +312,19 @@
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0) {
+                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct){
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' incorrect'
                             }
                             if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
-                                tbl.appendChild(getTrBlock(toHHMMSS(split.time)));
+                                tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
                             }
                             r[control_index + '_' + split.code.slice(0,-1)] = tbl;
                             control_index++;
@@ -425,6 +439,7 @@
                     year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
+                    trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
                     result: result.result_current,
                     result_msec: result.result_msec,
                     place: result.place,
@@ -437,7 +452,9 @@
                 if (result.status !== 1) {
                     r.diff = '';
                     r.place_show = '';
-                    r.trailo_score = '';
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
                 }
 
                 // SPLITS
@@ -454,19 +471,19 @@
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0) {
+                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct){
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
                                 tbl.className += ' incorrect'
                             }
                             if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
-                                tbl.appendChild(getTrBlock(toHHMMSS(split.time)));
+                                tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
                             }
                             r[control_index + '_' + split.code.slice(0,-1)] = tbl;
                             control_index++;
@@ -542,6 +559,9 @@
                     if (isTrailo && a.trailo_score != b.trailo_score) {
                         return -(a.trailo_score - b.trailo_score);
                     }
+                    if (isPreoMode) {
+                        return a.trailo_time - b.trailo_time;
+                    }
                     return a.result_msec - b.result_msec;
                 }
                 if (a.place < 1) {
@@ -552,6 +572,9 @@
                 }
                 if (a.trailo_score != b.trailo_score) {
                     return -(a.trailo_score - b.trailo_score);
+                }
+                if (isPreoMode) {
+                    return a.trailo_time - b.trailo_time;
                 }
                 return a.result_msec - b.result_msec;
             }
@@ -634,7 +657,7 @@
             {key: 'bib', title: 'Номер', size: 6},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
             {key: 'trailo_score', title: 'Очки', size: 4, active: true},
-            {key: 'result', title: 'Время', size: 14},
+            {key: isPreoMode ? 'trailo_time' : 'result', title: 'Время', size: 14},
             {key: 'place_show', title: 'Место', size: 6}
         ],
         active: function (key, val) {
@@ -668,7 +691,7 @@
         },
         init: function () {
             try {
-                this.getField('trailo_score_penalty').active = true;
+                this.getField('trailo_score_penalty').active = !isPreoMode;
             } catch (e){}
             return this;
         }
