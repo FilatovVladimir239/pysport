@@ -40,11 +40,14 @@ def load(file, *, compress=False):
     new_event(event)
     set_current_race_index(current_race)
 
-    for obj in races():
+    for i, obj in enumerate(races()):
+        set_current_race_index(i)
+        obj.rebuild_indexes(True, True)
         recalculate_results(race_object=obj)
         obj.set_setting(
             "live_enabled", False
         )  # force user to activate Live broadcast manually (not to lose live results)
+    set_current_race_index(current_race)
 
 
 def get_races_from_file(file, *, compress=False):

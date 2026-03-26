@@ -3,7 +3,14 @@ import time
 from functools import wraps
 
 from sportorg.common.otime import OTime
-from sportorg.models.memory import Group, Race, race
+from sportorg.models.memory import (
+    Group,
+    Race,
+    get_current_race_index,
+    race,
+    races,
+    set_current_race_index,
+)
 from sportorg.models.result.result_calculation import ResultCalculation
 from sportorg.models.result.result_checker import ResultChecker
 from sportorg.models.result.score_calculation import ScoreCalculation
@@ -74,14 +81,39 @@ def recalculate_results(
     5. Calculates scores
     """
 
+    restore_index = None
     if race_object is None:
         race_object = race()
+    else:
+        # Many calculations use global race() settings. Ensure they match
+        # the explicit race_object passed into this function.
+        try:
+            target_index = races().index(race_object)
+            current_index = get_current_race_index()
+            if target_index != current_index:
+                restore_index = current_index
+                set_current_race_index(target_index)
+        except ValueError:
+            # race_object is not in current event list.
+            pass
 
-    _clear_results(race_object)
-    _check_all(recheck_results)
-    _process_results(race_object)
-    _generate_race_splits(race_object, group)
-    _calculate_scores(race_object)
+    try:
+        _clear_results(race_object)
+        _check_all(race_object, recheck_results)
+        _process_results(race_object)
+        _generate_race_splits(race_object, group)
+        if (
+            recheck_results
+            and race_object.get_setting("result_processing_mode", "time") == "trailo"
+        ):
+            # TrailO score calculation relies on split course indexes that are
+            # prepared during race split generation.
+            _check_all(race_object, True)
+            _process_results(race_object)
+        _calculate_scores(race_object)
+    finally:
+        if restore_index is not None:
+            set_current_race_index(restore_index)
 
 
 @_register("Clear")
@@ -92,9 +124,12 @@ def _clear_results(race_object: Race) -> None:
 
 @_register("Check")
 @_measure_calc_performance
-def _check_all(recheck_results: bool) -> None:
-    if recheck_results:
-        ResultChecker.check_all()
+def _check_all(race_object: Race, recheck_results: bool) -> None:
+    if not recheck_results:
+        return
+    for result in race_object.results:
+        if result.person:
+            ResultChecker.checking(result)
 
 
 @_register("Process")
