@@ -1316,6 +1316,9 @@ class ResultSportident(Result):
         if is_trailo and self.finish_time > new_result.finish_time:
             self.finish_time = new_result.finish_time
 
+        if is_trailo:
+            is_changed = True
+
         # backup old start as punch
         if self.start_time and new_result.start_time and self.start_time > OTime():
             if (
