@@ -78,9 +78,9 @@ class CardDataProcessor:
                     if int(code) % 10 == 0:
                         code = code + "TT"
                     else:
-                        punch_time = time_to_otime(punch_time)
-                        code = code + "T" + TrailOAns(punch_time.hour).name
-                        punch_time = OTime()
+                        otime = time_to_otime(punch_time)
+                        code = code + "T" + TrailOAns(otime.hour).name
+                        punch_time = None
 
             split = self._create_split(code, punch_time)
             if split.code not in ("0", ""):
