@@ -387,7 +387,9 @@ class SportorgPrinter:
                 fs_main,
                 )
 
-        if result.is_status_ok():
+        if is_trailo:
+            pass
+        elif result.is_status_ok():
             self.print_line(
                 translate("Result")
                 + ": "
@@ -457,7 +459,9 @@ class SportorgPrinter:
                         self.print_line(translate("Result is final"), fn, fs_main)
 
         # Punch checking info
-        if is_group_existed:
+        if is_trailo:
+            pass
+        elif is_group_existed:
             if result.is_status_ok():
                 self.print_line(translate("Status: OK"), fn, fs_large, 700)
             else:
