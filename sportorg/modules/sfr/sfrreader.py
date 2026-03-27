@@ -90,9 +90,7 @@ class CardDataProcessor:
         split = Split()
         split.code = code
         split.time = time_to_otime(punch_time)
-        logging.info("afterTimeSplit" + str(punch_time))
-        # split.days = memory.race().get_days(punch_time)
-        logging.info("afterCreateSplit" + str(punch_time))
+        split.days = memory.race().get_days(punch_time)
         return split
 
     def _add_times(self, result: ResultSFR, card_data: dict):
