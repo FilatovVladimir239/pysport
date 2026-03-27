@@ -183,6 +183,21 @@
             line-height: 0.95;
         }
 
+        table.sportorg-table th.pass-time-col,
+        table.sportorg-table td.pass-time-col {
+            width: 52px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.pass-time-col {
+            font-size: 6px;
+            line-height: 0.95;
+        }
+
         table.sportorg-table td.time-col table.table-split {
             margin-left: auto;
             margin-right: auto;
@@ -265,6 +280,17 @@
     var isPreoSprintMode = !isPreoMode;
     var isTrailo = race.settings.result_processing_mode === 'trailo';
 
+    function preoPassTime(result) {
+        if (!isPreoMode || !result) return '';
+        // Разница между finish_time и start_time, формат чч:мм:сс
+        var start = result.start_time != null ? result.start_time : result.start_msec;
+        var finish = result.finish_time != null ? result.finish_time : result.finish_msec;
+        if (start == null || finish == null) return '';
+        var diff = finish - start;
+        if (diff < 0) diff += 24 * 60 * 60 * 1000;
+        return toHHMMSS(diff);
+    }
+
     function getResultsByGroup(group, count) {
         count = +count || 0;
         var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
@@ -279,6 +305,7 @@
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
                     year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    preo_pass_time: preoPassTime(result),
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
@@ -437,6 +464,7 @@
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
                     year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    preo_pass_time: preoPassTime(result),
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
@@ -655,6 +683,7 @@
             {key: 'org', title: 'Команда', size: 20},
             {key: 'year', title: 'Г.Р.', size: 5},
             {key: 'bib', title: 'Номер', size: 6},
+            {key: 'preo_pass_time', title: 'Время прохождения', size: 12, active: false},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
             {key: 'trailo_score', title: 'Очки', size: 4, active: true},
             {key: isPreoMode ? 'trailo_time' : 'result', title: 'Время', size: 14},
@@ -691,7 +720,8 @@
         },
         init: function () {
             try {
-                this.getField('trailo_score_penalty').active = !isPreoMode;
+                this.getField('trailo_score_penalty').active = isPreoMode;
+                this.getField('preo_pass_time').active = isPreoMode;
             } catch (e){}
             return this;
         }
@@ -728,6 +758,7 @@
             var NAME_TITLE = 'Фамилия Имя';
             var ORG_TITLE = 'Команда';
             var PENALTY_TITLE = 'ШтрафКВ';
+            var PASS_TIME_TITLE = 'Время прохождения';
 
             var placeIdx = -1;
             for (var pi = 0; pi < ths.length; pi++) {
@@ -762,6 +793,11 @@
                 }
                 else if (t === 'Г.Р.') th.style.width = '36px';
                 else if (t === 'Номер') th.style.width = '40px';
+                else if (t === PASS_TIME_TITLE) {
+                    th.style.width = '52px';
+                    th.classList.add('pass-time-col');
+                    th.innerHTML = 'Время<br>прохождения';
+                }
                 else if (t === PENALTY_TITLE) {
                     th.style.width = '64px';
                     th.classList.add('penalty-col');
@@ -1014,6 +1050,30 @@
             }
         }
 
+        function markPassTimeColumn() {
+            var PASS_TIME_TITLE = 'Время прохождения';
+            var passIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PASS_TIME_TITLE) {
+                    passIdx = ni;
+                    break;
+                }
+            }
+            if (passIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[passIdx];
+                if (!td) continue;
+                td.classList.add('pass-time-col');
+            }
+        }
+
         function markIncorrectCells() {
             var tbodyRows = table.querySelectorAll('tbody tr');
             for (var r = 0; r < tbodyRows.length; r++) {
@@ -1156,6 +1216,7 @@
         markOrgColumn();
         markGroupColumn();
         markPlaceColumn();
+        markPassTimeColumn();
         markPenaltyColumn();
         markIncorrectCells();
     }
