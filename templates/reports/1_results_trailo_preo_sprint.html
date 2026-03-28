@@ -84,7 +84,6 @@
 
     @media print {
         @page {
-            size: A4 landscape;
             margin: 8mm;
         }
 
@@ -100,7 +99,8 @@
         }
 
         table.sportorg-table {
-            width: 100%;
+            width: auto;
+            max-width: 100%;
             table-layout: fixed;
         }
 
@@ -150,7 +150,7 @@
         table.sportorg-table th.time-col,
         table.sportorg-table td.time-col {
             text-align: center;
-            width: 190px !important;
+            width: 70px !important;
             white-space: nowrap;
             word-break: normal;
             overflow-wrap: normal;
@@ -160,7 +160,7 @@
 
         table.sportorg-table th.overall-time-col,
         table.sportorg-table td.overall-time-col {
-            width: 190px !important;
+            width: 50px !important;
             white-space: nowrap;
             word-break: normal;
             overflow-wrap: normal;
@@ -264,6 +264,61 @@
         table.sportorg-table tr {
             break-inside: avoid;
             page-break-inside: avoid;
+        }
+
+        /* Печать без колонок ответов (портрет): крупнее шрифт для читаемости */
+        html.sportorg-print-no-answers body {
+            font-size: 11px;
+        }
+
+        html.sportorg-print-no-answers h2,
+        html.sportorg-print-no-answers h3 {
+            font-size: 1.12em;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th,
+        html.sportorg-print-no-answers table.sportorg-table td {
+            padding: 1px 3px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.name-col,
+        html.sportorg-print-no-answers table.sportorg-table td.name-col {
+            width: 132px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.org-col,
+        html.sportorg-print-no-answers table.sportorg-table td.org-col {
+            width: 172px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.place-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.overall-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.overall-time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.penalty-col,
+        html.sportorg-print-no-answers table.sportorg-table td.penalty-col {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.pass-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.pass-time-col {
+            font-size: 9px;
+            line-height: 1.1;
         }
     }
 
@@ -730,7 +785,9 @@
     window.store = window.store || {
         showProtocolByCourse: location.href.indexOf('by_course=1') > -1,
         splitsShow: true,
+        showAnswers: location.href.indexOf('show_answers=0') === -1,
         showLinkForGroups: true,
+        showPodiumOnly: location.href.indexOf('podium_only=1') > -1,
         count: 0
     };
     var store = window.store;
@@ -1221,11 +1278,26 @@
         markIncorrectCells();
     }
 
+    function updatePrintPageOrientation() {
+        var styleId = 'sportorg-print-page-style';
+        var styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            styleEl.type = 'text/css';
+            document.head.appendChild(styleEl);
+        }
+        var orientation = store.showAnswers ? 'landscape' : 'portrait';
+        styleEl.textContent = '@media print { @page { size: A4 ' + orientation + '; margin: 8mm; } }';
+    }
+
     function render() {
         var resultBlock = document.getElementById('results-tables');
         if (!resultBlock) return;
         resultBlock.innerHTML = '';
         Fields.active('group', store.showProtocolByCourse);
+        var effectiveCount = store.showPodiumOnly ? 3 : store.count;
+        var showControlColumns = !!store.splitsShow && !!store.showAnswers;
         if (store.showProtocolByCourse){
             var _a = race.courses;
         } else {
@@ -1234,11 +1306,11 @@
         for (var _i = 0; _i < _a.length; _i++) {
             if (store.showProtocolByCourse){
                 var course = _a[_i];
-                var rows = getResultsByCourse(course, store.count);
+                var rows = getResultsByCourse(course, effectiveCount);
                 var groupName = course.name;
             } else {
                 var group = _a[_i];
-                var rows = getResultsByGroup(group, store.count);
+                var rows = getResultsByGroup(group, effectiveCount);
                 var course = group.course;
                 var groupName = group.name;
             }
@@ -1257,7 +1329,7 @@
                 block.appendChild(getGroupsBlockElement(race));
             }
             var fields = Fields.getCopyFields();
-            if (store.splitsShow && course) {
+            if (showControlColumns && course) {
                 course.controls.forEach(function (control, index) {
                     var isTime = control.code.slice(-1) === 'T';
                     var title = isTime ? 'Время Тайм-КП' : control.code.slice(-1);
@@ -1269,9 +1341,13 @@
             block.appendChild(table);
             resultBlock.appendChild(block);
         }
+        updatePrintPageOrientation();
+        document.documentElement.classList.toggle('sportorg-print-no-answers', !store.showAnswers);
         var params = new URLSearchParams();
         params.set('s_splits', store.splitsShow ? '1' : '0');
         params.set('by_course', store.showProtocolByCourse ? '1' : '0');
+        params.set('podium_only', store.showPodiumOnly ? '1' : '0');
+        params.set('show_answers', store.showAnswers ? '1' : '0');
         params.set('sportorg', '1');
         try {
             var base = location.pathname;
@@ -1339,6 +1415,14 @@
             }
         },
         {
+            title: 'Показывать ответы',
+            value: !!store.showAnswers,
+            change: function (checked) {
+                store.showAnswers = checked;
+                render();
+            }
+        },
+        {
             title: 'Показывать первых:',
             value: [
                 {text: 'Все', value: 0},
@@ -1351,6 +1435,14 @@
             ],
             change: function (arr) {
                 store.count = arr[0];
+                render();
+            }
+        },
+        {
+            title: 'Только призёры (1-3)',
+            value: !!store.showPodiumOnly,
+            change: function (checked) {
+                store.showPodiumOnly = checked;
                 render();
             }
         },
