@@ -737,7 +737,6 @@ class MainWindow(QMainWindow):
                 self.set_title()
                 self.add_recent_file(self.file)
                 self.init_model()
-                recalculate_results(race_object=race())
                 self.last_update = time.time()
             except Exception as e:
                 logging.exception(e)
