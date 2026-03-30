@@ -19,7 +19,7 @@ def _trailo_sort_key(split) -> tuple:
     code = getattr(split, "code", "") or ""
     digits = "".join(ch for ch in code if ch.isdigit())
     num = int(digits) if digits else 10**9
-    return (num, code, getattr(split, "time", 0))
+    return (num, getattr(split, "time", 0), code)
 
 
 class SportorgPrinter:

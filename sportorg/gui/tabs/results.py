@@ -21,7 +21,7 @@ def _trailo_splits_sort_key(split):
     code = getattr(split, "code", "") or ""
     digits = "".join(ch for ch in code if ch.isdigit())
     num = int(digits) if digits else 10**9
-    return (num, code, getattr(split, "time", 0))
+    return (num, getattr(split, "time", 0), code)
 
 
 class TrailoResultSplitsDisplay:
