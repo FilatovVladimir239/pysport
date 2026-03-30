@@ -133,7 +133,7 @@ class ReportDialog(QDialog):
         _settings["save_to_last_file"] = self.item_save_to_last_file.isChecked()
         _settings["selected"] = self.item_selected.isChecked()
 
-        recalculate_results()
+        recalculate_results(recheck_results=False)
 
         races_dict = []
         if _settings["selected"]:
