@@ -7,7 +7,7 @@ from sportorg.language import translate
 from sportorg.models.memory import Course, Group, Organization, Result, race
 from sportorg.models.result.split_calculation import GroupSplits
 from sportorg.modules.printing.printing import print_html
-from sportorg.modules.printing.printout_split import SportorgPrinter
+from sportorg.modules.printing.printout_split import SportorgPrinter, TrailOSportorgPrinter
 
 
 class NoResultToPrintException(Exception):
@@ -51,7 +51,11 @@ def split_printout(results: List[Result]):
             if scale.isdecimal():
                 size = int(scale) * size // 100
 
-        pr = SportorgPrinter(
+        printer_cls = SportorgPrinter
+        if obj.get_setting("result_processing_mode", "time") == "trailo":
+            printer_cls = TrailOSportorgPrinter
+
+        pr = printer_cls(
             printer,
             size,
             int(obj.get_setting("print_margin_left", 5.0)),

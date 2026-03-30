@@ -381,6 +381,9 @@ msgstr "Старт"
 msgid "Finish"
 msgstr "Финиш"
 
+msgid "Time"
+msgstr "Время"
+
 msgid "Penalty"
 msgstr "Штраф"
 

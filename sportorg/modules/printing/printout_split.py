@@ -67,15 +67,10 @@ class SportorgPrinter:
         self.dc.TextOut(self.x, self.y, str(text))
         self.move_cursor(font_size * 1.3)
 
-    def _trailo_vertical_gap(self, lines=2):
-        """Пустые строки в распечатке трейло: отделить тайм‑КП от ответов и от финиша/результата."""
-        for _ in range(lines):
-            self.print_line(" ", "Lucida Console", 2)
-
     def print_split(self, result):
         if not (
-                race().get_setting("marked_route_if_counting_lap", False)
-                and race().get_setting("marked_route_mode", "laps") == "laps"
+            race().get_setting("marked_route_if_counting_lap", False)
+            and race().get_setting("marked_route_mode", "laps") == "laps"
         ):
             # Normal split printout
             self.print_split_normal(result)
@@ -180,7 +175,6 @@ class SportorgPrinter:
         is_penalty_used = obj.get_setting("marked_route_mode", "off") != "off"
         is_relay = group.is_relay()
         is_credit_time_used = race().get_setting("credit_time_enabled", False)
-        is_trailo = obj.get_setting("result_processing_mode", "time") == "trailo"
 
         fn = "Lucida Console"
         fs_small = 2.5
@@ -210,102 +204,48 @@ class SportorgPrinter:
             + str(person.card_number),
             fn,
             fs_main,
-            )
+        )
         self.print_line(
             translate("Start") + ": " + result.get_start_time().to_str(), fn, fs_main
         )
 
         # Splits
-        splits = result.splits.copy()
-        if is_trailo:
-            splits.sort(key=_trailo_sort_key)
-
         index = 1
-        trailo_block_no = 0
-        trailo_answer_no = 0
-        trailo_had_pre_tt = False
-        for split in splits:
+        for split in result.splits:
             if not is_group_existed:
                 line = (
-                        ("  " + str(index))[-3:]
-                        + " "
-                        + ("  " + split.code)[-3:]
-                        + " "
-                        + split.time.to_str()[-7:]
+                    ("  " + str(index))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.time.to_str()[-7:]
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
             elif not course:
                 line = (
-                        ("  " + str(index))[-3:]
-                        + " "
-                        + ("  " + split.code)[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                        + " "
-                        + split.leg_time.to_str()[-5:]
+                    ("  " + str(index))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.relative_time.to_str()[-7:]
+                    + " "
+                    + split.leg_time.to_str()[-5:]
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
-            elif is_trailo:
-                code = getattr(split, "code", "") or ""
-                if code.endswith("TT"):
-                    if trailo_block_no > 0:
-                        self._trailo_vertical_gap(2)
-                    elif trailo_had_pre_tt:
-                        self._trailo_vertical_gap(2)
-                    trailo_block_no += 1
-                    trailo_answer_no = 0
-
-                    self.print_line(
-                        f"Тайм КП {trailo_block_no}  {split.time.to_str()}",
-                        fn,
-                        fs_main,
-                    )
-                    self._trailo_vertical_gap(2)
-                elif trailo_block_no > 0:
-                    # Ответ внутри текущего тайм-КП
-                    trailo_answer_no += 1
-                    answer = code[-1] if code else ""
-                    self.print_line(
-                        f"  {trailo_answer_no}. {answer}",
-                        fn,
-                        fs_main,
-                    )
-                else:
-                    trailo_had_pre_tt = True
-                    course_index = getattr(split, "course_index", -1)
-                    is_time_ctrl = _is_trailo_time_control_code(code)
-
-                    if course_index != -1 or is_time_ctrl:
-                        line = (
-                                ("  " + str(code[:-1]))[-3:]
-                                + " "
-                                + (" " + code[-1])[-3:]
-                                + " "
-                                + split.time.to_str()[-8:]
-                        )
-                        self.print_line(line, fn, fs_main)
-                    else:
-                        line = (
-                                "  - "
-                                + (" " + code[-1])[-3:]
-                                + " "
-                                + split.time.to_str()[-8:]
-                        )
-                        self.print_line(line, fn, fs_main)
             elif split.is_correct:
                 line = (
-                        ("  " + str(split.course_index + 1))[-3:]
-                        + " "
-                        + ("  " + split.code)[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
-                        + " "
-                        + split.leg_time.to_str()[-5:]
-                        + " "
-                        + split.speed
-                        + " "
+                    ("  " + str(split.course_index + 1))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.relative_time.to_str()[-7:]
+                    + " "
+                    + split.leg_time.to_str()[-5:]
+                    + " "
+                    + split.speed
+                    + " "
                 )
 
                 if not is_relay:
@@ -321,23 +261,16 @@ class SportorgPrinter:
                 self.print_line(line, fn, fs_main)
             else:
                 line = (
-                        " " * 4
-                        + (" " + split.code)[-3:]
-                        + " "
-                        + split.relative_time.to_str()[-7:]
+                    " " * 4
+                    + (" " + split.code)[-3:]
+                    + " "
+                    + split.relative_time.to_str()[-7:]
                 )
                 self.print_line(line, fn, fs_main)
 
-        if is_trailo and trailo_block_no > 0:
-            self._trailo_vertical_gap(2)
-
         finish_split = ""
-        if not is_trailo and len(result.splits) > 0:
-            times = [getattr(s, "time", None) for s in result.splits]
-            times = [t for t in times if t is not None]
-            if times:
-                last_split_time = max(times)
-                finish_split = (result.get_finish_time() - last_split_time).to_str()
+        if len(result.splits) > 0:
+            finish_split = (result.get_finish_time() - result.splits[-1].time).to_str()
 
         # Finish
         self.print_line(
@@ -348,7 +281,7 @@ class SportorgPrinter:
             + finish_split,
             fn,
             fs_main,
-            )
+        )
 
         # Result
         if is_penalty_used:
@@ -357,20 +290,20 @@ class SportorgPrinter:
                     translate("Penalty") + ": " + result.get_penalty_time().to_str(),
                     fn,
                     fs_main,
-                    )
+                )
             elif obj.get_setting("marked_route_mode") == "laps":
                 self.print_line(
                     translate("Penalty") + ": " + str(result.penalty_laps),
                     fn,
                     fs_main,
-                    )
+                )
 
         if is_credit_time_used:
             self.print_line(
                 translate("Credit") + ": " + result.get_credit_time().to_str(),
                 fn,
                 fs_main,
-                )
+            )
 
         is_rogaine = race().get_setting("result_processing_mode", "time") == "scores"
         if is_rogaine and result.rogaine_penalty > 0:
@@ -380,16 +313,14 @@ class SportorgPrinter:
                 translate("Points gained") + ": " + str(total_score),
                 fn,
                 fs_main,
-                )
+            )
             self.print_line(
                 translate("Penalty for finishing late") + ": " + str(penalty),
                 fn,
                 fs_main,
-                )
+            )
 
-        if is_trailo:
-            pass
-        elif result.is_status_ok():
+        if result.is_status_ok():
             self.print_line(
                 translate("Result")
                 + ": "
@@ -398,7 +329,7 @@ class SportorgPrinter:
                 + result.speed,
                 fn,
                 fs_main,
-                )
+            )
         else:
             self.print_line(
                 translate("Result") + ": " + result.get_result(), fn, fs_main
@@ -410,21 +341,19 @@ class SportorgPrinter:
             )
 
         # Place
-        if is_trailo:
-            pass
-        elif result.place > 0 and is_group_existed:
+        if result.place > 0 and is_group_existed:
             place = translate("Place") + ": " + str(result.place)
             if not is_relay:
                 place += (
-                        " "
-                        + translate("from")
-                        + " "
-                        + str(group.count_finished)
-                        + " ("
-                        + translate("total")
-                        + " "
-                        + str(group.count_person)
-                        + ")"
+                    " "
+                    + translate("from")
+                    + " "
+                    + str(group.count_finished)
+                    + " ("
+                    + translate("total")
+                    + " "
+                    + str(group.count_person)
+                    + ")"
                 )
             self.print_line(place, fn, fs_main)
         elif result.person.is_out_of_competition:
@@ -433,10 +362,10 @@ class SportorgPrinter:
 
         # Info about competitors, who can win current person
         if (
-                result.is_status_ok()
-                and not is_relay
-                and not is_rogaine
-                and is_group_existed
+            result.is_status_ok()
+            and not is_relay
+            and not is_rogaine
+            and is_group_existed
         ):
             if obj.get_setting("system_start_source", "protocol") == "protocol":
                 if hasattr(result, "can_win_count"):
@@ -447,21 +376,19 @@ class SportorgPrinter:
                             + str(result.can_win_count),
                             fn,
                             fs_main,
-                            )
+                        )
                         self.print_line(
                             translate("Final result will be known")
                             + ": "
                             + result.final_result_time.to_str(),
                             fn,
                             fs_main,
-                            )
+                        )
                     else:
                         self.print_line(translate("Result is final"), fn, fs_main)
 
         # Punch checking info
-        if is_trailo:
-            pass
-        elif is_group_existed:
+        if is_group_existed:
             if result.is_status_ok():
                 self.print_line(translate("Status: OK"), fn, fs_large, 700)
             else:
@@ -479,9 +406,6 @@ class SportorgPrinter:
             # Short result list
             if is_relay:
                 pass
-            elif is_trailo:
-                # Для трейло не печатаем "протокол"/список результатов внизу
-                pass
             else:
                 res = ResultCalculation(obj).get_group_finishes(group)
                 self.print_line(translate("Draft results"), fn, fs_main)
@@ -494,8 +418,156 @@ class SportorgPrinter:
                         + cur_res.get_result(),
                         fn,
                         fs_main if not is_rogaine else fs_small,
-                        )
+                    )
 
         self.print_line(obj.data.url, fn, fs_main)
 
+        self.end_page()
+
+
+class TrailOSportorgPrinter(SportorgPrinter):
+    def _trailo_vertical_gap(self, lines: int = 2) -> None:
+        for _ in range(lines):
+            self.print_line(" ", "Lucida Console", 2)
+
+    def print_split_normal(self, result: Result):
+        obj = race()
+
+        person = result.person
+        if person is None or result.status in [
+            ResultStatus.DID_NOT_START,
+            ResultStatus.DID_NOT_FINISH,
+        ]:
+            return
+
+        group = person.group
+        is_group_existed = True
+        if group is None:
+            group = Group()
+            group.name = "-"
+            is_group_existed = False
+
+        course = obj.find_course(result)
+
+        fn = "Lucida Console"
+        fs_main = 3
+        fs_large = 4
+
+        # Information about start
+        self.print_line(obj.data.title, fn, fs_main)
+        self.print_line(
+            str(obj.data.start_datetime)[:10] + ", " + obj.data.location, fn, fs_main
+        )
+
+        # Athlete info, bib, card number, start time
+        self.print_line(person.full_name, fn, fs_large, 700)
+        self.print_line(translate("Group") + ": " + group.name, fn, fs_main)
+        if person.organization:
+            self.print_line(
+                translate("Team") + ": " + person.organization.name, fn, fs_main
+            )
+        self.print_line(
+            translate("Bib")
+            + ": "
+            + str(person.bib)
+            + " " * 5
+            + translate("Card")
+            + ": "
+            + str(person.card_number),
+            fn,
+            fs_main,
+        )
+        self.print_line(
+            translate("Start") + ": " + result.get_start_time().to_str(), fn, fs_main
+        )
+
+        splits = result.splits.copy()
+        splits.sort(key=_trailo_sort_key)
+
+        index = 1
+        trailo_block_no = 0
+        trailo_answer_no = 0
+        trailo_had_pre_tt = False
+        for split in splits:
+            if not is_group_existed:
+                line = (
+                    ("  " + str(index))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.time.to_str()[-7:]
+                )
+                index += 1
+                self.print_line(line, fn, fs_main)
+            elif not course:
+                line = (
+                    ("  " + str(index))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.relative_time.to_str()[-7:]
+                    + " "
+                    + split.leg_time.to_str()[-5:]
+                )
+                index += 1
+                self.print_line(line, fn, fs_main)
+            else:
+                code = getattr(split, "code", "") or ""
+                if code.endswith("TT"):
+                    if trailo_block_no > 0 or trailo_had_pre_tt:
+                        self._trailo_vertical_gap(2)
+
+                    trailo_block_no += 1
+                    trailo_answer_no = 0
+
+                    self.print_line(
+                        f"Тайм КП {trailo_block_no}  {split.time.to_str()}",
+                        fn,
+                        fs_main,
+                    )
+                    self._trailo_vertical_gap(2)
+                elif trailo_block_no > 0:
+                    trailo_answer_no += 1
+                    answer = code[-1] if code else ""
+                    self.print_line(f"  {trailo_answer_no}. {answer}", fn, fs_main)
+                else:
+                    trailo_had_pre_tt = True
+                    course_index = getattr(split, "course_index", -1)
+                    is_time_ctrl = _is_trailo_time_control_code(code)
+
+                    if course_index != -1 or is_time_ctrl:
+                        line = (
+                            ("  " + str(code[:-1]))[-3:]
+                            + " "
+                            + (" " + code[-1])[-3:]
+                            + " "
+                            + split.time.to_str()[-8:]
+                        )
+                        self.print_line(line, fn, fs_main)
+                    else:
+                        line = (
+                            "  - " + (" " + code[-1])[-3:] + " " + split.time.to_str()[-8:]
+                        )
+                        self.print_line(line, fn, fs_main)
+
+        if trailo_block_no > 0:
+            self._trailo_vertical_gap(2)
+
+        # Finish
+        self.print_line(
+            translate("Finish") + ": " + result.get_finish_time().to_str(),
+            fn,
+            fs_main,
+        )
+
+        # Время прохождения
+        self.print_line(
+            translate("Time")
+            + ": "
+            + (result.get_finish_time() - result.get_start_time()).to_str(),
+            fn,
+            fs_main,
+        )
+
+        self.print_line(obj.data.url, fn, fs_main)
         self.end_page()
