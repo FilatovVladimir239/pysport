@@ -29,27 +29,38 @@
         background-color: transparent;
     }
 
-    /* Подсветка всей ячейки с ошибочным ответом (внешний td) */
-    table.sportorg-table td:has(table.table-split.incorrect) {
-        background-color: #fffde8;
-    }
-
-    /* Убираем белый фон у вложенной таблицы внутри подсвеченной ячейки */
-    table.sportorg-table td:has(table.table-split.incorrect) table.table-split,
-    table.sportorg-table td:has(table.table-split.incorrect) table.table-split td {
-        background-color: inherit !important;
-    }
-
-    /* На некоторых темах/браузерах фон может быть задан у вложенных элементов.
-       Принудительно прокрашиваем всё содержимое неправильной ячейки. */
-    table.sportorg-table td:has(table.table-split.incorrect) * {
+    /* Подсветка ячейки с ошибочным ответом (стабильно: класс ставится JS-ом) */
+    table.sportorg-table td.incorrect-answer {
         background-color: #fffde8 !important;
-        background: #fffde8 !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split,
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split * {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split {
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        padding: 0 !important;
     }
 
     table.sportorg-table th, table.sportorg-table td {
         border: 1px solid #000;
         text-align: center
+    }
+
+    table.sportorg-table td.name-col {
+        text-align: left;
     }
 
     table.table-split td.result-undefined {
@@ -73,7 +84,6 @@
 
     @media print {
         @page {
-            size: A4 landscape;
             margin: 8mm;
         }
 
@@ -89,22 +99,48 @@
         }
 
         table.sportorg-table {
-            width: 100%;
+            width: auto;
+            max-width: 100%;
             table-layout: fixed;
         }
 
         table.sportorg-table th,
         table.sportorg-table td {
-            padding: 1px 2px;
+            padding: 0 1px;
             word-break: break-word;
             overflow-wrap: anywhere;
         }
 
         table.sportorg-table th.name-col,
         table.sportorg-table td.name-col {
-            text-align: center;
+            text-align: left;
             padding-left: 1px;
             padding-right: 1px;
+            width: 95px !important;
+        }
+
+        table.sportorg-table th.group-col,
+        table.sportorg-table td.group-col {
+            width: 60px !important;
+        }
+
+        table.sportorg-table th.org-col,
+        table.sportorg-table td.org-col {
+            width: 130px !important;
+        }
+
+        table.sportorg-table th.index-col,
+        table.sportorg-table td.index-col {
+            width: 20px !important;
+        }
+
+        table.sportorg-table th.place-col,
+        table.sportorg-table td.place-col {
+            width: 24px !important;
+        }
+
+        table.sportorg-table th.place-col {
+            font-size: 8px;
         }
 
         table.sportorg-table th.time-col {
@@ -114,6 +150,52 @@
         table.sportorg-table th.time-col,
         table.sportorg-table td.time-col {
             text-align: center;
+            width: 70px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.overall-time-col,
+        table.sportorg-table td.overall-time-col {
+            width: 50px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.penalty-col,
+        table.sportorg-table td.penalty-col {
+            width: 30px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.penalty-col {
+            font-size: 6px;
+            line-height: 0.95;
+        }
+
+        table.sportorg-table th.pass-time-col,
+        table.sportorg-table td.pass-time-col {
+            width: 52px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.pass-time-col {
+            font-size: 6px;
+            line-height: 0.95;
         }
 
         table.sportorg-table td.time-col table.table-split {
@@ -128,6 +210,25 @@
         table.sportorg-table th.answer-col,
         table.sportorg-table td.answer-col {
             text-align: center;
+            width: 9px !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            font-size: 8px;
+            line-height: 1.0;
+            vertical-align: middle;
+        }
+
+        table.sportorg-table td.incorrect-answer,
+        table.sportorg-table td.incorrect-answer table.table-split,
+        table.sportorg-table td.incorrect-answer table.table-split td {
+            vertical-align: middle;
+            line-height: 1.0;
+        }
+
+        /* Печать: верхний отступ в заголовках "Ответы" (номер и правильный ответ) */
+        table.sportorg-table thead tr:nth-child(2) th.answer-col,
+        table.sportorg-table thead tr:nth-child(3) th.answer-col {
+            padding-top: 2px !important;
         }
 
         /* В ответах часто вложенная table.table-split — центрируем и её */
@@ -164,6 +265,61 @@
             break-inside: avoid;
             page-break-inside: avoid;
         }
+
+        /* Печать без колонок ответов (портрет): крупнее шрифт для читаемости */
+        html.sportorg-print-no-answers body {
+            font-size: 11px;
+        }
+
+        html.sportorg-print-no-answers h2,
+        html.sportorg-print-no-answers h3 {
+            font-size: 1.12em;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th,
+        html.sportorg-print-no-answers table.sportorg-table td {
+            padding: 1px 3px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.name-col,
+        html.sportorg-print-no-answers table.sportorg-table td.name-col {
+            width: 132px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.org-col,
+        html.sportorg-print-no-answers table.sportorg-table td.org-col {
+            width: 172px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.place-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.overall-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.overall-time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.penalty-col,
+        html.sportorg-print-no-answers table.sportorg-table td.penalty-col {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.pass-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.pass-time-col {
+            font-size: 9px;
+            line-height: 1.1;
+        }
     }
 
 </style>
@@ -172,606 +328,1080 @@
 <script>
     var race = JSON.parse(document.getElementById('race-json').textContent);
     var selected = JSON.parse(document.getElementById('selected-json').textContent);
-    var trailo_mode = race.settings?.trailo_mode;
-    const Fields = {
-        fields: [
-            { key: 'index',          title: '№',           size: 4 },
-            { key: 'group',          title: 'Группа',      size: 10, active: false },
-            { key: 'name',           title: 'Фамилия Имя', size: 30 },
-            { key: 'org',            title: 'Команда',     size: 20 },
-            { key: 'year',           title: 'Г.Р.',        size: 5 },
-            { key: 'bib',            title: 'Номер',       size: 6 },
-            { key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false },
-            { key: 'trailo_score',   title: 'Очки',        size: 4,  active: true  },
-            { key: 'trailo_time',    title: 'Время',       size: 14 },
-            { key: 'place_show',     title: 'Место',       size: 6 }
-        ],
+    racePreparation(race);
 
-        active: function(key, val) {
-            for (let obj of this.fields) {
-                if (key === obj.key) {
-                    obj.active = val;
-                    return;
+    var trailoMode = race.settings && race.settings.trailo_mode ? String(race.settings.trailo_mode) : '';
+    var isPreoMode = trailoMode === 'preo';
+    var isPreoSprintMode = !isPreoMode;
+    var isTrailo = race.settings.result_processing_mode === 'trailo';
+
+    function preoPassTime(result) {
+        if (!isPreoMode || !result) return '';
+        // Разница между finish_time и start_time, формат чч:мм:сс
+        var start = result.start_time != null ? result.start_time : result.start_msec;
+        var finish = result.finish_time != null ? result.finish_time : result.finish_msec;
+        if (start == null || finish == null) return '';
+        var diff = finish - start;
+        if (diff < 0) diff += 24 * 60 * 60 * 1000;
+        return toHHMMSS(diff);
+    }
+
+    function getResultsByGroup(group, count) {
+        count = +count || 0;
+        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
+        var results = [];
+        for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
+            var result = _a[_i];
+            if (result.status !== 13 && result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
+                var r = {
+                    index: 0,
+                    name: (result.person.surname + ' ' + result.person.name).slice(0, MAX_PERSON_NAME),
+                    org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
+                    qual: Qualification[result.person.qual],
+                    bib: result.person.bib,
+                    year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    preo_pass_time: preoPassTime(result),
+                    trailo_score_penalty: result.trailo_score_penalty,
+                    trailo_score: result.trailo_score,
+                    trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
+                    result: result.result_current,
+                    result_msec: result.result_msec,
+                    place: result.place,
+                    status: result.status,
+                    place_show: result.person.is_out_of_competition ? 'o/c' : result.place === 0 ? '' : result.place === -1 ? '' : result.place,
+                    is_out_of_competition: result.person.is_out_of_competition,
+                    data: result
+                };
+                if (result.status !== 1) {
+                    r.place_show = '';
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
                 }
-            }
-        },
 
-        isActive: function(key) {
-            for (let obj of this.fields) {
-                if (key === obj.key) {
-                    return obj.active !== false;   // undefined → true
-                }
-            }
-            return true;
-        },
+                // SPLITS
+                var control_index = 0;
+                if (result.splits) {
+                    var getTrBlock = function (t, p) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'result-' + p;
+                        td1.appendChild(document.createTextNode(t));
+                        tr.appendChild(td1);
+                        return tr;
+                    };
 
-        getField: function(key) {
-            for (let obj of this.fields) {
-                if (key === obj.key) return obj;
-            }
-            return null;
-        },
+                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                        var split = _c[_b];
 
-        getCopyFields: function() {
-            return JSON.parse(JSON.stringify(this.fields));
-        },
-
-        init: function() {
-            // Можно здесь принудительно включить/выключить какие-то поля
-            // this.active('trailo_score_penalty', true);
-            return this;
-        }
-    }.init();
-
-    function createSingleTdRow(text, className = '') {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        if (className) td.className = className;
-        td.textContent = text;
-        tr.appendChild(td);
-        return tr;
-    }
-
-    function getCategoryId(category) {
-        return category.id;
-    }
-
-    function getCategoryName(category) {
-        return category.name;
-    }
-
-    // ────────────────────────────────────────────────
-    // Единая функция подготовки результатов для категории
-    // ────────────────────────────────────────────────
-
-    function getResultsForCategory(category, count = 0, byCourse = false) {
-        count = Number(count) || 0;
-        const results = [];
-
-        for (const res of race.results) {
-            if (res.status === 13) continue;
-            if (!res.person || !res.person.group) continue;
-
-            const targetId = byCourse
-                ? res.person.group?.course?.id
-                : res.person.group?.id;
-
-            if (targetId !== getCategoryId(category)) continue;
-
-            const person = res.person;
-
-            const row = {
-                index: 0,
-                group: person.group?.name || '',
-                name: `${person.surname} ${person.name}`.slice(0, MAX_PERSON_NAME),
-                org: person.organization?.name?.slice(0, MAX_ORG_NAME) || '',
-                qual: Qualification?.[person.qual] || '',
-                bib: person.bib || '',
-                year: person.birth_date ? new Date(person.birth_date).getFullYear() : '',
-                trailo_score_penalty: res.trailo_score_penalty,
-                trailo_score: res.trailo_score,
-                trailo_time: trailo_mode != "preo_sprint" ? res.trailo_time / 1000 : toHHMMSS(res.trailo_time),
-                result: res.result_current,
-                result_msec: res.result_msec,
-                place: res.place,
-                status: res.status,
-                place_show: person.is_out_of_competition ? 'в/з' :
-                            (res.place > 0 ? res.place : ''),
-                is_out_of_competition: person.is_out_of_competition,
-                data: res
-            };
-
-            if (res.status !== 1) {
-                row.place_show = '';
-                row.trailo_score = '';
-            }
-
-            // ── Сплиты ───────────────────────────────────
-            if (res.splits && store.splitsShow) {
-                let ctrlIndex = 0;
-                for (const split of res.splits) {
-                    if (split.course_index <= 0 && split.code.slice(-2, -1) !== 'T') {
-                        continue;
+                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
+                            var tbl = document.createElement('table');
+                            tbl.className = 'table-split';
+                            if(split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' correct'
+                            }
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' incorrect'
+                            }
+                            if (split.code.slice(-1) != "T"){
+                                tbl.appendChild(getTrBlock(split.code.slice(-1)));
+                            } else {
+                                tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
+                            }
+                            r[control_index + '_' + split.code.slice(0,-1)] = tbl;
+                            control_index++;
+                        }
                     }
 
-                    const isTimeCtrl = split.code.slice(-1) === 'T';
-                    const key = `${ctrlIndex}_${split.code.slice(0, -1)}`;
+                    var finishMsec = r.result_msec;
 
-                    const table = document.createElement('table');
-                    table.className = 'table-split';
+                    if (r.status === 1 && finishMsec > 0) {
+                        var tblF = document.createElement('table');
+                        tblF.className = 'table-split';
+                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                        var place_str = r.place > 0 ? r.place : 'o/c';
+                        tblF.appendChild(getTrBlock(toHHMMSS(r.result_msec) + ' (' + place_str + ')', r.place));
+                        r.finish_split = tblF;
+                    }
+                }
 
-                    if (!isTimeCtrl) {
-                        if (split.is_correct)   table.className += ' correct';
-                        if (!split.is_correct)  table.className += ' incorrect';
-                        table.appendChild(createSingleTdRow(split.code.slice(-1)));
-                    } else {
-                        table.appendChild(createSingleTdRow(split.time / 1000));
+                var getMultipleTrBlock = function () {
+                    var tr = document.createElement('tr');
+                    for (var i = 0; i < arguments.length; i++) {
+                        var td1 = document.createElement('td');
+                        td1.appendChild(document.createTextNode(arguments[i]));
+                        tr.appendChild(td1);
+                    }
+                    return tr;
+                };
+
+                results.push(r);
+            }
+        }
+        results.sort(function (a, b) {
+            if (isRelay) {
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.place === b.place) {
+                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
+                }
+                return a.place - b.place
+
+            } else {
+                if (a.status !== 1 && b.status !== 1) {
+                    return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+                }
+                if (a.status !== 1) {
+                    return 1
+                }
+                if (b.status !== 1) {
+                    return -1
+                }
+                if (a.is_out_of_competition || b.is_out_of_competition) {
+                    if (a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
+                    }
+                    return a.result_msec - b.result_msec;
+                }
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                return a.place - b.place
+            }
+        });
+        var index = 0;
+        if (isRelay) {
+            var prevBib = 0;
+            var resultsList = results.slice();
+            results = [];
+            for (var _i = 0, resultsList_ = resultsList; _i < resultsList_.length; _i++) {
+                var r = resultsList_[_i];
+                r.index = '';
+                if (r.bib % 1000 !== prevBib) {
+                    index++;
+                    results.push({index: index});
+                    prevBib = r.bib % 1000;
+                }
+                results.push(r);
+            }
+        } else {
+            results.forEach(function (elem) {
+                index++;
+                elem.index = index;
+            })
+        }
+        return results;
+    }
+	function getResultsByCourse(group, count) {
+		count = +count || 0;
+        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
+        var results = [];
+        var splits_recalc_times = {};
+        var splits_recalc_times_total = {};
+        group.controls.forEach(function (control, index) {
+            splits_recalc_times[index + '_' + control.code.slice(0,-1)] = [];
+            splits_recalc_times_total[index + '_' + control.code.slice(0,-1)] = [];
+        });
+        for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
+            var result = _a[_i];
+            if (result.status !== 13 && result.person && result.person.group && result.person.group.course && result.person.group.course.id === group.id) { //} && (count ? result.place <= count && result.place > 0 : 1)) {
+                var r = {
+                    index: 0,
+                    name: (result.person.surname + ' ' + result.person.name).slice(0, MAX_PERSON_NAME),
+                    org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
+                    qual: Qualification[result.person.qual],
+                    bib: result.person.bib,
+                    year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    preo_pass_time: preoPassTime(result),
+                    trailo_score_penalty: result.trailo_score_penalty,
+                    trailo_score: result.trailo_score,
+                    trailo_time: isPreoMode ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
+                    result: result.result_current,
+                    result_msec: result.result_msec,
+                    place: result.place,
+                    status: result.status,
+                    place_show: result.person.is_out_of_competition ? 'o/c' : result.place === 0 ? '' : result.place === -1 ? '' : result.place,
+                    is_out_of_competition: result.person.is_out_of_competition,
+					group: result.person.group.name,
+                    data: result
+                };
+                if (result.status !== 1) {
+                    r.diff = '';
+                    r.place_show = '';
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
+                }
+
+                // SPLITS
+                var control_index = 0;
+                if (result.splits) {
+                    var getTrBlock = function (t, p) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'result-' + p;
+                        td1.appendChild(document.createTextNode(t));
+                        tr.appendChild(td1);
+                        return tr;
+                    };
+                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                        var split = _c[_b];
+
+                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
+                            var tbl = document.createElement('table');
+                            tbl.className = 'table-split';
+                            if(split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' correct'
+                            }
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' incorrect'
+                            }
+                            if (split.code.slice(-1) != "T"){
+                                tbl.appendChild(getTrBlock(split.code.slice(-1)));
+                            } else {
+                                tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
+                            }
+                            r[control_index + '_' + split.code.slice(0,-1)] = tbl;
+                            control_index++;
+                        }
                     }
 
-                    row[key] = table;
-                    ctrlIndex++;
+                    var finishMsec = r.result_msec;
+
+                    if (r.status === 1 && finishMsec > 0) {
+                        var tblF = document.createElement('table');
+                        tblF.className = 'table-split';
+                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                        var place_str = r.place > 0 ? r.place : 'o/c';
+                        tblF.appendChild(getTrBlock(toHHMMSS(r.result_msec) + ' (' + place_str + ')', r.place));
+                        r.finish_split = tblF;
+                    }
+                }
+
+                var getMultipleTrBlock = function () {
+                    var tr = document.createElement('tr');
+                    for (var i = 0; i < arguments.length; i++) {
+                        var td1 = document.createElement('td');
+                        td1.appendChild(document.createTextNode(arguments[i]));
+                        tr.appendChild(td1);
+                    }
+                    return tr;
+                };
+
+                // ALL PUNCHES
+                var splitTable = document.createElement('table');
+                splitTable.className = 'table-split';
+                var splitTr = document.createElement('tr');
+                splitTable.appendChild(splitTr);
+                var prevTime = result.start_msec;
+                for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                    var split = _c[_b];
+                    var tbl = document.createElement('table');
+                    tbl.className = 'table-split';
+                    tbl.appendChild(getMultipleTrBlock(split.code.slice(-1)));
+                    var splitTd = document.createElement('td');
+                    splitTd.appendChild(tbl);
+                    splitTr.appendChild(splitTd);
+                    prevTime = split.time;
+                }
+                r.all_splits = splitTable;
+
+                results.push(r);
+            }
+        }
+        results.sort(function (a, b) {
+            if (isRelay) {
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.place === b.place) {
+                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
+                }
+                return a.place - b.place
+            } else {
+                if (a.status !== 1 && b.status !== 1) {
+                    return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+                }
+                if (a.status !== 1) {
+                    return 1
+                }
+                if (b.status !== 1) {
+                    return -1
+                }
+                if (a.is_out_of_competition || b.is_out_of_competition) {
+                    if (isTrailo && a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
+                    }
+                    if (isPreoMode) {
+                        return a.trailo_time - b.trailo_time;
+                    }
+                    return a.result_msec - b.result_msec;
+                }
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.trailo_score != b.trailo_score) {
+                    return -(a.trailo_score - b.trailo_score);
+                }
+                if (isPreoMode) {
+                    return a.trailo_time - b.trailo_time;
+                }
+                return a.result_msec - b.result_msec;
+            }
+        });
+        var sort_splits_recalc_fnc = function(a,b){
+            return a-b;
+        }
+        group.controls.forEach(function (control, index) {
+            splits_recalc_times[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
+            splits_recalc_times_total[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
+        });
+        var index = 0;
+        var get_score = function(res){
+            return res.trailo_score;
+        }
+        var newplace = 1;
+        var doubleplace = -1;
+        var best_score = results[0] ? get_score(results[0]) : 0;
+        var binary_search = function(arr,required){
+            if (!arr){
+                return 0;
+            }
+            var l = -1;
+            var r = arr.length-1;
+            while (r-l>1){
+                var m = Math.floor((l+r)/2);
+                if (arr[m]>=required){
+                    r = m;
+                } else {
+                    l = m;
                 }
             }
-
-            results.push(row);
+            if (arr[r]==required){
+                return r+1;
+            }
+            return 0;
         }
+        results.forEach(function (elem) {
+            index++;
+            elem.index = index;
+            if (!elem.data.person.is_out_of_competition && elem.place !== 0 && elem.place !== -1) {
+                newplace += 1 + doubleplace;
+                doubleplace = 0;
+                elem.place = newplace;
+                elem.place_show = newplace;
+            }
+            var control_index = 0;
+            if (elem.data.splits) {
+                var getTrBlock = function (t, p) {
+                    var tr = document.createElement('tr');
+                    var td1 = document.createElement('td');
+                    td1.className = 'result-' + p;
+                    td1.appendChild(document.createTextNode(t));
+                    tr.appendChild(td1);
+                    return tr;
+                };
 
-        // Сортировка
-        results.sort((a, b) => compareResults(a, b, byCourse));
+                var finishMsec = elem.result_msec;
 
-        // Простановка порядковых номеров
-        results.forEach((r, i) => r.index = i + 1);
-
-        // Пересчёт мест при сортировке по очкам/времени (особенно для byCourse)
-        if (byCourse) {
-            recalculatePlaces(results);
-        }
+                if (elem.status === 1 && finishMsec > 0) {
+                    var tblF = document.createElement('table');
+                    tblF.className = 'table-split';
+                    tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                    elem.finish_split = tblF;
+                }
+            }
+        });
 
         return results;
     }
 
-    // ────────────────────────────────────────────────
-    // Сравнение результатов
-    // ────────────────────────────────────────────────
 
-    function compareResults(a, b, byCourse) {
-        const isTrailo = race.settings?.result_processing_mode === 'trailo';
-
-        // Не финишировавшие / дисквал. и т.п.
-        if (a.status !== 1 || b.status !== 1) {
-            if (a.status !== 1 && b.status !== 1) {
-                return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+    var Fields = {
+        fields: [
+            {key: 'index', title: '№', size: 4},
+            {key: 'group', title: 'Группа', size: 10, active: false},
+            {key: 'name', title: 'Фамилия Имя', size: 30},
+            {key: 'org', title: 'Команда', size: 20},
+            {key: 'year', title: 'Г.Р.', size: 5},
+            {key: 'bib', title: 'Номер', size: 6},
+            {key: 'preo_pass_time', title: 'Время прохождения', size: 12, active: false},
+            {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
+            {key: 'trailo_score', title: 'Очки', size: 4, active: true},
+            {key: isPreoMode ? 'trailo_time' : 'result', title: 'Время', size: 14},
+            {key: 'place_show', title: 'Место', size: 6}
+        ],
+        active: function (key, val) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    obj.active = val;
+                }
             }
-            return a.status !== 1 ? 1 : -1;
+        },
+        isActive: function (key) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    return obj.active !== false;
+                }
+            }
+            return true;
+        },
+        getField: function (key) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    return obj;
+                }
+            }
+            return null;
+        },
+        getCopyFields: function () {
+            return JSON.parse(JSON.stringify(this.fields))
+        },
+        init: function () {
+            try {
+                this.getField('trailo_score_penalty').active = isPreoMode;
+                this.getField('preo_pass_time').active = isPreoMode;
+            } catch (e){}
+            return this;
+        }
+    }.init();
+
+    window.store = window.store || {
+        showProtocolByCourse: location.href.indexOf('by_course=1') > -1,
+        splitsShow: true,
+        showAnswers: location.href.indexOf('show_answers=0') === -1,
+        showLinkForGroups: true,
+        showPodiumOnly: location.href.indexOf('podium_only=1') > -1,
+        count: 0
+    };
+    var store = window.store;
+
+    function rebuildTrailoSplitsHeader(table) {
+        if (!table) return;
+        var thead = table.querySelector('thead');
+        if (!thead) return;
+
+        var headerRow = thead.querySelector('tr');
+        if (!headerRow) return;
+
+        var ths = Array.prototype.slice.call(headerRow.querySelectorAll('th'));
+        if (!ths.length) return;
+
+        var TIME_TITLE = 'Время Тайм-КП';
+        var timeIdxs = [];
+        for (var ti = 0; ti < ths.length; ti++) {
+            if ((ths[ti].textContent || '').trim() === TIME_TITLE) timeIdxs.push(ti);
+        }
+        var hasSplits = timeIdxs.length > 0;
+
+        function setColumnWidths() {
+            var PLACE_TITLE = 'Место';
+            var NAME_TITLE = 'Фамилия Имя';
+            var ORG_TITLE = 'Команда';
+            var PENALTY_TITLE = 'ШтрафКВ';
+            var PASS_TIME_TITLE = 'Время прохождения';
+
+            var placeIdx = -1;
+            for (var pi = 0; pi < ths.length; pi++) {
+                var tt = (ths[pi].textContent || '').trim();
+                if (tt === PLACE_TITLE) placeIdx = pi;
+            }
+
+            var firstTimeIdxW = hasSplits ? timeIdxs[0] : ths.length;
+            var answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdxW;
+
+            var topRowThs = Array.prototype.slice.call(thead.querySelectorAll('tr:first-child th'));
+            var midRowThs = Array.prototype.slice.call(thead.querySelectorAll('tr:nth-child(2) th'));
+            var numRowThs = Array.prototype.slice.call(thead.querySelectorAll('tr:nth-child(3) th'));
+
+            for (var t1 = 0; t1 < topRowThs.length; t1++) {
+                var th = topRowThs[t1];
+                var t = (th.textContent || '').trim();
+                if (t === NAME_TITLE) {
+                    th.style.width = '170px';
+                    th.classList.add('name-col');
+                } else if (t === ORG_TITLE) {
+                    th.style.width = '160px';
+                    th.classList.add('org-col');
+                }
+                else if (t === 'Группа') {
+                    th.style.width = '95px';
+                    th.classList.add('group-col');
+                }
+                else if (t === '№') {
+                    th.style.width = '34px';
+                    th.classList.add('index-col');
+                }
+                else if (t === 'Г.Р.') th.style.width = '36px';
+                else if (t === 'Номер') th.style.width = '40px';
+                else if (t === PASS_TIME_TITLE) {
+                    th.style.width = '52px';
+                    th.classList.add('pass-time-col');
+                    th.innerHTML = 'Время<br>прохождения';
+                }
+                else if (t === PENALTY_TITLE) {
+                    th.style.width = '64px';
+                    th.classList.add('penalty-col');
+                    th.innerHTML = 'Штраф<br>КВ';
+                }
+                else if (t === PLACE_TITLE) {
+                    th.style.width = '42px';
+                    th.classList.add('place-col');
+                }
+            }
+
+            var midNum = midRowThs.concat(numRowThs);
+            for (var t2 = 0; t2 < midNum.length; t2++) {
+                var thm = midNum[t2];
+                var tm = (thm.textContent || '').trim();
+                if (thm.classList.contains('overall-time-col')) {
+                    thm.style.width = '50px';
+                } else if (thm.classList.contains('time-col')) {
+                    thm.style.width = '70px';
+                } else if (tm === 'Очки') {
+                    thm.style.width = '34px';
+                } else {
+                    thm.style.width = '14px';
+                    thm.classList.add('answer-col');
+                }
+            }
         }
 
-        // Вне зачёта
-        if (a.is_out_of_competition || b.is_out_of_competition) {
-            if (isTrailo && a.trailo_score !== b.trailo_score) {
-                return b.trailo_score - a.trailo_score; // больше лучше
-            }
-            return a.trailo_time - b.trailo_time;
-        }
-
-        // Основная сортировка
-        if (byCourse) {
-            if (a.trailo_score !== b.trailo_score) {
-                return b.trailo_score - a.trailo_score;
-            }
-            return a.trailo_time - b.trailo_time;
-        }
-
-        // По группам — по месту
-        if (a.place < 1) return 1;
-        if (b.place < 1) return -1;
-        return a.place - b.place;
-    }
-
-    function recalculatePlaces(results) {
-        if (!results.length) return;
-
-        let place = 1;
-        let prevScore = results[0].trailo_score;
-        let prevTime  = results[0].trailo_time;
-        let ties = 0;
-
-        for (let i = 0; i < results.length; i++) {
-            const r = results[i];
-
-            if (r.is_out_of_competition || r.status !== 1) {
-                r.place_show = r.place_show || '';
-                continue;
-            }
-
-            if (r.trailo_score === prevScore && Math.abs(r.trailo_time - prevTime) < 0.01) {
-                ties++;
-                r.place = place;
-            } else {
-                place += ties + 1;
-                ties = 0;
-                r.place = place;
-                prevScore = r.trailo_score;
-                prevTime  = r.trailo_time;
-            }
-
-            r.place_show = r.place;
-        }
-    }
-
-    // ────────────────────────────────────────────────
-    // Основной рендер
-    // ────────────────────────────────────────────────
-
-    function render() {
-        const container = document.getElementById('results-tables');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        Fields.active('group', store.showProtocolByCourse);
-
-        const categories = store.showProtocolByCourse ? race.courses : race.groups;
-
-        function rebuildTrailoSplitsHeader(table) {
-            if (!table) return;
-            const thead = table.querySelector('thead');
-            if (!thead) return;
-
-            const headerRow = thead.querySelector('tr');
-            if (!headerRow) return;
-
-            const ths = Array.from(headerRow.querySelectorAll('th'));
-            if (!ths.length) return;
-
-            const TIME_TITLE = 'Время Тайм-КП';
-            const timeIdxs = [];
-            for (let i = 0; i < ths.length; i++) {
-                if ((ths[i].textContent || '').trim() === TIME_TITLE) timeIdxs.push(i);
-            }
-            const hasSplits = timeIdxs.length > 0;
-
-            function setColumnWidths() {
-                // Ширины особенно важны при печати (table-layout: fixed).
-                // Делаем ответы узкими, а ФИО/Команду — шире.
-                const PLACE_TITLE = 'Место';
-                const NAME_TITLE = 'Фамилия Имя';
-                const ORG_TITLE = 'Команда';
-
-                // Индексы по исходной (одно-строчной) шапке
-                let placeIdx = -1;
-                let nameIdx = -1;
-                let orgIdx = -1;
-                for (let i = 0; i < ths.length; i++) {
-                    const t = (ths[i].textContent || '').trim();
-                    if (t === PLACE_TITLE) placeIdx = i;
-                    if (t === NAME_TITLE) nameIdx = i;
-                    if (t === ORG_TITLE) orgIdx = i;
-                }
-
-                // Базовые поля (до ответов) в верхней строке будут rowspan=2
-                const firstTimeIdx = timeIdxs[0];
-                const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
-                const baseEndExclusive = Math.min(answersStart, firstTimeIdx);
-
-                const topRowThs = Array.from(thead.querySelectorAll('tr:first-child th'));
-                const midRowThs = Array.from(thead.querySelectorAll('tr:nth-child(2) th'));
-                const numRowThs = Array.from(thead.querySelectorAll('tr:nth-child(3) th'));
-
-                // Пробуем поставить ширины базовых столбцов по заголовкам
-                for (const th of topRowThs) {
-                    const t = (th.textContent || '').trim();
-                    if (t === NAME_TITLE) {
-                        th.style.width = '170px';
-                        th.classList.add('name-col');
-                    }
-                    else if (t === ORG_TITLE) th.style.width = '160px';
-                    else if (t === 'Группа') th.style.width = '95px';
-                    else if (t === '№') th.style.width = '34px';
-                    else if (t === 'Г.Р.') th.style.width = '36px';
-                    else if (t === 'Номер') th.style.width = '40px';
-                    else if (t === 'ШтрафКВ') th.style.width = '64px';
-                    else if (t === PLACE_TITLE) th.style.width = '42px';
-                }
-
-                // Для 2-й и 3-й строки: результат/время тайм-кп/ответы/нумерация
-                for (const th of [...midRowThs, ...numRowThs]) {
-                    const t = (th.textContent || '').trim();
-                    if (th.classList.contains('overall-time-col')) {
-                        th.style.width = '50px';
-                    } else if (th.classList.contains('time-col')) {
-                        th.style.width = '70px';
-                    } else if (t === 'Очки') {
-                        th.style.width = '34px';
-                    } else {
-                        th.style.width = '14px';
-                        th.classList.add('answer-col');
-                    }
-                }
-            }
-
-            function markAnswerColumns() {
-                // Отцентровать значения ответов в tbody по индексам исходной шапки
-                const PLACE_TITLE = 'Место';
-                let placeIdx = -1;
-                for (let i = 0; i < ths.length; i++) {
-                    if ((ths[i].textContent || '').trim() === PLACE_TITLE) {
-                        placeIdx = i;
-                        break;
-                    }
-                }
-
-                const firstTimeIdx = timeIdxs[0];
-                const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
-
-                const timeIdxSet = new Set(timeIdxs);
-                const answerIdxs = [];
-                for (let i = answersStart; i < ths.length; i++) {
-                    if (!timeIdxSet.has(i)) answerIdxs.push(i);
-                }
-
-                if (!answerIdxs.length) return;
-                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
-                for (const tr of tbodyRows) {
-                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
-                    for (const idx of answerIdxs) {
-                        const td = tds[idx];
-                        if (!td) continue;
-                        td.classList.add('answer-col');
-                        td.style.width = '14px';
-                    }
-                }
-            }
-
-            function markTimeColumns() {
-                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
-                if (!tbodyRows.length) return;
-
-                for (const tr of tbodyRows) {
-                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
-                    for (const idx of timeIdxs) {
-                        const td = tds[idx];
-                        if (!td) continue;
-                        td.classList.add('time-col');
-                        td.style.width = '70px';
-                    }
-                }
-            }
-
-            function markNameColumn() {
-                const NAME_TITLE = 'Фамилия Имя';
-                let nameIdx = -1;
-                for (let i = 0; i < ths.length; i++) {
-                    if ((ths[i].textContent || '').trim() === NAME_TITLE) {
-                        nameIdx = i;
-                        break;
-                    }
-                }
-                if (nameIdx < 0) return;
-
-                const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
-                for (const tr of tbodyRows) {
-                    const tds = Array.from(tr.children).filter(el => el.tagName === 'TD');
-                    const td = tds[nameIdx];
-                    if (!td) continue;
-                    td.classList.add('name-col');
-                }
-            }
-
-            // В этом шаблоне сплиты добавляются в конец таблицы, поэтому всё до первого TIME_TITLE
-            // разбиваем на: базовые поля (rowspan=2), затем "ответы" (если есть),
-            // а дальше группируем блоки "тайм-кп".
-            const firstTimeIdx = hasSplits ? timeIdxs[0] : ths.length;
-            const topTr = document.createElement('tr');      // группирующие заголовки
-            const midTr = document.createElement('tr');      // подписи столбцов
-            const numTr = document.createElement('tr');      // порядковые номера ответов
-
-            // Ищем "Место" — после него идут ответы до первого "Время Тайм-КП"
-            const PLACE_TITLE = 'Место';
-            let placeIdx = -1;
-            for (let i = 0; i < ths.length; i++) {
-                if ((ths[i].textContent || '').trim() === PLACE_TITLE) {
-                    placeIdx = i;
+        function markAnswerColumns() {
+            var PLACE_TITLE = 'Место';
+            var placeIdx2 = -1;
+            for (var pj = 0; pj < ths.length; pj++) {
+                if ((ths[pj].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx2 = pj;
                     break;
                 }
             }
 
-            const answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
-            const answersEndExclusive = firstTimeIdx;
-            const answersLen = Math.max(0, answersEndExclusive - answersStart);
+            var firstTimeIdx2 = hasSplits ? timeIdxs[0] : ths.length;
+            var answersStart2 = (placeIdx2 >= 0) ? placeIdx2 + 1 : firstTimeIdx2;
 
-            // Индексы "Очки" и базового "Время" (общее время участника)
-            const SCORE_TITLE = 'Очки';
-            const OVERALL_TIME_TITLE = 'Время';
-            let scoreIdx = -1;
-            let overallTimeIdx = -1;
-            for (let i = 0; i < answersStart; i++) {
-                const t = (ths[i].textContent || '').trim();
-                if (t === SCORE_TITLE) scoreIdx = i;
-                if (t === OVERALL_TIME_TITLE) overallTimeIdx = i;
-            }
-            const hasResultGroup = scoreIdx >= 0 && overallTimeIdx >= 0;
+            var timeIdxSet = {};
+            for (var tk = 0; tk < timeIdxs.length; tk++) timeIdxSet[timeIdxs[tk]] = true;
 
-            // Базовые колонки: до "Место" включительно (или до начала ответов) — rowspan=3
-            const baseEndExclusive = Math.min(answersStart, firstTimeIdx);
-            for (let i = 0; i < baseEndExclusive; i++) {
-                if (hasResultGroup && i === Math.min(scoreIdx, overallTimeIdx)) {
-                    const topResTh = document.createElement('th');
-                    topResTh.textContent = 'Результат';
-                    topResTh.colSpan = 2;
-                    topTr.appendChild(topResTh);
-
-                    const scoreTh = ths[scoreIdx].cloneNode(true);
-                    scoreTh.textContent = SCORE_TITLE;
-                    scoreTh.rowSpan = 2;
-                    midTr.appendChild(scoreTh);
-
-                    const overallTimeTh = ths[overallTimeIdx].cloneNode(true);
-                    overallTimeTh.textContent = OVERALL_TIME_TITLE;
-                    overallTimeTh.classList.add('overall-time-col');
-                    overallTimeTh.rowSpan = 2;
-                    midTr.appendChild(overallTimeTh);
-
-                    i = Math.max(scoreIdx, overallTimeIdx);
-                    continue;
-                }
-
-                if (hasResultGroup && (i === scoreIdx || i === overallTimeIdx)) {
-                    continue;
-                }
-
-                const cloned = ths[i].cloneNode(true);
-                cloned.rowSpan = 3;
-                topTr.appendChild(cloned);
+            var answerIdxs = [];
+            for (var ai = answersStart2; ai < ths.length; ai++) {
+                if (!timeIdxSet[ai]) answerIdxs.push(ai);
             }
 
-            // Ответы: верхняя строка "Ответы" (colspan), 2-я строка — номера, 3-я — подписи
-            if (answersLen > 0) {
-                const topAnswersTh = document.createElement('th');
-                topAnswersTh.textContent = 'Ответы';
-                topAnswersTh.colSpan = answersLen;
-                topTr.appendChild(topAnswersTh);
-
-                let n = 1;
-                for (let i = answersStart; i < answersEndExclusive; i++, n++) {
-                    const nth = document.createElement('th');
-                    nth.textContent = String(n);
-                    nth.classList.add('answer-col');
-                    midTr.appendChild(nth);
-
-                    const labelTh = ths[i].cloneNode(true);
-                    labelTh.classList.add('answer-col');
-                    numTr.appendChild(labelTh);
+            if (!answerIdxs.length) return;
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
                 }
-            }
-
-            // Сплиты: для каждого time-столбца берём его + ответы до следующего time-столбца
-            if (hasSplits) {
-                for (let t = 0; t < timeIdxs.length; t++) {
-                    const start = timeIdxs[t];
-                    const endExclusive = (t + 1 < timeIdxs.length) ? timeIdxs[t + 1] : ths.length;
-                    const blockLen = Math.max(0, endExclusive - start);
-                    if (blockLen <= 0) continue;
-
-                    const topTh = document.createElement('th');
-                    topTh.textContent = `Тайм КП ${t + 1}`;
-                    topTh.colSpan = blockLen;
-                    topTr.appendChild(topTh);
-
-                    // 2-я строка: "Время"(rowspan=2) + номера ответов, 3-я строка: подписи ответов
-                    const timeTh = ths[start].cloneNode(true);
-                    timeTh.textContent = 'Время';
-                    timeTh.classList.add('time-col');
-                    timeTh.rowSpan = 2;
-                    midTr.appendChild(timeTh);
-
-                    let n = 1;
-                    for (let i = start + 1; i < endExclusive; i++, n++) {
-                        const nth = document.createElement('th');
-                        nth.textContent = String(n);
-                        nth.classList.add('answer-col');
-                        midTr.appendChild(nth);
-
-                        const labelTh = ths[i].cloneNode(true);
-                        labelTh.classList.add('answer-col');
-                        numTr.appendChild(labelTh);
+                for (var ax = 0; ax < answerIdxs.length; ax++) {
+                    var idx = answerIdxs[ax];
+                    var td = tds[idx];
+                    if (!td) continue;
+                    td.classList.add('answer-col');
+                    td.style.width = '14px';
+                    if (td.querySelector && td.querySelector('table.table-split.incorrect')) {
+                        td.classList.add('incorrect-answer');
                     }
                 }
             }
-
-            thead.innerHTML = '';
-            thead.appendChild(topTr);
-            thead.appendChild(midTr);
-            thead.appendChild(numTr);
-
-            setColumnWidths();
-            if (hasSplits) {
-                markAnswerColumns();
-                markTimeColumns();
-            }
-            markNameColumn();
         }
 
-        categories.forEach(category => {
-            const rows = getResultsForCategory(category, store.count, store.showProtocolByCourse);
-            if (!rows.length) return;
+        function markTimeColumns() {
+            var tbodyRows2 = table.querySelectorAll('tbody tr');
+            if (!tbodyRows2.length) return;
 
-            const block = document.createElement('div');
-            block.className = 'results-block';
-
-            // Заголовок
-            const h2 = document.createElement('h2');
-            h2.id = category.name.replace(/\s+/g, '-');
-            h2.textContent = getCategoryName(category);
-            block.appendChild(h2);
-
-            // Ссылки на группы (если режим по группам)
-            if (!store.showProtocolByCourse && store.showLinkForGroups) {
-                const linksBlock = getGroupsBlockElement?.(race);
-                if (linksBlock) block.appendChild(linksBlock);
-            }
-
-            // Поля таблицы
-            let fields = Fields.getCopyFields();
-
-            // Добавляем колонки сплитов, если включено
-            if (store.splitsShow) {
-                const course = store.showProtocolByCourse ? category : (category.course || null);
-                if (course?.controls) {
-                    course.controls.forEach((ctrl, idx) => {
-                        const isTime = ctrl.code.slice(-1) === 'T';
-                        const title = isTime ? 'Время Тайм-КП' : ctrl.code.slice(-1);
-                        fields.push({
-                            key: `${idx}_${ctrl.code.slice(0, -1)}`,
-                            title: title,
-                            size: 8
-                        });
-                    });
+            for (var trr2 = 0; trr2 < tbodyRows2.length; trr2++) {
+                var tr2 = tbodyRows2[trr2];
+                var tds2 = [];
+                for (var c2 = 0; c2 < tr2.children.length; c2++) {
+                    if (tr2.children[c2].tagName === 'TD') tds2.push(tr2.children[c2]);
+                }
+                for (var tix = 0; tix < timeIdxs.length; tix++) {
+                    var idx2 = timeIdxs[tix];
+                    var td2 = tds2[idx2];
+                    if (!td2) continue;
+                    td2.classList.add('time-col');
+                    td2.style.width = '70px';
                 }
             }
+        }
 
-            const table = new TableGenerator(rows, fields).getTable({
-                className: 'sportorg-table'
-            });
+        function markOverallTimeColumn() {
+            if (overallTimeIdx < 0) return;
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            if (!tbodyRows.length) return;
 
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[overallTimeIdx];
+                if (!td) continue;
+                td.classList.add('overall-time-col');
+                td.style.width = '50px';
+            }
+        }
+
+        function markNameColumn() {
+            var NAME_TITLE = 'Фамилия Имя';
+            var nameIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === NAME_TITLE) {
+                    nameIdx = ni;
+                    break;
+                }
+            }
+            if (nameIdx < 0) return;
+
+            var tbodyRows3 = table.querySelectorAll('tbody tr');
+            for (var trr3 = 0; trr3 < tbodyRows3.length; trr3++) {
+                var tr3 = tbodyRows3[trr3];
+                var tds3 = [];
+                for (var c3 = 0; c3 < tr3.children.length; c3++) {
+                    if (tr3.children[c3].tagName === 'TD') tds3.push(tr3.children[c3]);
+                }
+                var td3 = tds3[nameIdx];
+                if (!td3) continue;
+                td3.classList.add('name-col');
+            }
+        }
+
+        function markIndexColumn() {
+            var INDEX_TITLE = '№';
+            var idx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === INDEX_TITLE) {
+                    idx = ni;
+                    break;
+                }
+            }
+            if (idx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[idx];
+                if (!td) continue;
+                td.classList.add('index-col');
+            }
+        }
+
+        function markOrgColumn() {
+            var ORG_TITLE = 'Команда';
+            var orgIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === ORG_TITLE) {
+                    orgIdx = ni;
+                    break;
+                }
+            }
+            if (orgIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[orgIdx];
+                if (!td) continue;
+                td.classList.add('org-col');
+            }
+        }
+
+        function markGroupColumn() {
+            var GROUP_TITLE = 'Группа';
+            var groupIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === GROUP_TITLE) {
+                    groupIdx = ni;
+                    break;
+                }
+            }
+            if (groupIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[groupIdx];
+                if (!td) continue;
+                td.classList.add('group-col');
+            }
+        }
+
+        function markPlaceColumn() {
+            var PLACE_TITLE = 'Место';
+            var placeIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx = ni;
+                    break;
+                }
+            }
+            if (placeIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[placeIdx];
+                if (!td) continue;
+                td.classList.add('place-col');
+            }
+        }
+
+        function markPenaltyColumn() {
+            var PENALTY_TITLE = 'ШтрафКВ';
+            var penaltyIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PENALTY_TITLE) {
+                    penaltyIdx = ni;
+                    break;
+                }
+            }
+            if (penaltyIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[penaltyIdx];
+                if (!td) continue;
+                td.classList.add('penalty-col');
+            }
+        }
+
+        function markPassTimeColumn() {
+            var PASS_TIME_TITLE = 'Время прохождения';
+            var passIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PASS_TIME_TITLE) {
+                    passIdx = ni;
+                    break;
+                }
+            }
+            if (passIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[passIdx];
+                if (!td) continue;
+                td.classList.add('pass-time-col');
+            }
+        }
+
+        function markIncorrectCells() {
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var r = 0; r < tbodyRows.length; r++) {
+                var tr = tbodyRows[r];
+                for (var c = 0; c < tr.children.length; c++) {
+                    var cell = tr.children[c];
+                    if (!cell || cell.tagName !== 'TD') continue;
+                    if (cell.querySelector && cell.querySelector('table.table-split.incorrect')) {
+                        cell.classList.add('incorrect-answer');
+                    }
+                }
+            }
+        }
+
+        var firstTimeIdx = hasSplits ? timeIdxs[0] : ths.length;
+        var topTr = document.createElement('tr');
+        var midTr = document.createElement('tr');
+        var numTr = document.createElement('tr');
+
+        var PLACE_TITLE = 'Место';
+        var placeIdx = -1;
+        for (var pi2 = 0; pi2 < ths.length; pi2++) {
+            if ((ths[pi2].textContent || '').trim() === PLACE_TITLE) {
+                placeIdx = pi2;
+                break;
+            }
+        }
+
+        var answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
+        var answersEndExclusive = firstTimeIdx;
+        var answersLen = Math.max(0, answersEndExclusive - answersStart);
+
+        var SCORE_TITLE = 'Очки';
+        var OVERALL_TIME_TITLE = 'Время';
+        var scoreIdx = -1;
+        var overallTimeIdx = -1;
+        for (var bi = 0; bi < answersStart; bi++) {
+            var bt = (ths[bi].textContent || '').trim();
+            if (bt === SCORE_TITLE) scoreIdx = bi;
+            if (bt === OVERALL_TIME_TITLE) overallTimeIdx = bi;
+        }
+        var hasResultGroup = scoreIdx >= 0 && overallTimeIdx >= 0;
+
+        var baseEndExclusive = Math.min(answersStart, firstTimeIdx);
+        for (var i = 0; i < baseEndExclusive; i++) {
+            if (hasResultGroup && i === Math.min(scoreIdx, overallTimeIdx)) {
+                var topResTh = document.createElement('th');
+                topResTh.textContent = 'Результат';
+                topResTh.colSpan = 2;
+                topTr.appendChild(topResTh);
+
+                var scoreTh = ths[scoreIdx].cloneNode(true);
+                scoreTh.textContent = SCORE_TITLE;
+                scoreTh.rowSpan = 2;
+                midTr.appendChild(scoreTh);
+
+                var overallTimeTh = ths[overallTimeIdx].cloneNode(true);
+                overallTimeTh.textContent = OVERALL_TIME_TITLE;
+                overallTimeTh.classList.add('overall-time-col');
+                overallTimeTh.rowSpan = 2;
+                midTr.appendChild(overallTimeTh);
+
+                i = Math.max(scoreIdx, overallTimeIdx);
+                continue;
+            }
+
+            if (hasResultGroup && (i === scoreIdx || i === overallTimeIdx)) {
+                continue;
+            }
+
+            var cloned = ths[i].cloneNode(true);
+            cloned.rowSpan = 3;
+            topTr.appendChild(cloned);
+        }
+
+        if (answersLen > 0) {
+            var topAnswersTh = document.createElement('th');
+            topAnswersTh.textContent = 'Ответы';
+            topAnswersTh.colSpan = answersLen;
+            topTr.appendChild(topAnswersTh);
+
+            var n = 1;
+            for (var j = answersStart; j < answersEndExclusive; j++, n++) {
+                var nth = document.createElement('th');
+                nth.textContent = String(n);
+                nth.classList.add('answer-col');
+                midTr.appendChild(nth);
+
+                var labelTh = ths[j].cloneNode(true);
+                labelTh.classList.add('answer-col');
+                numTr.appendChild(labelTh);
+            }
+        }
+
+        if (hasSplits) {
+            for (var t = 0; t < timeIdxs.length; t++) {
+                var start = timeIdxs[t];
+                var endExclusive = (t + 1 < timeIdxs.length) ? timeIdxs[t + 1] : ths.length;
+                var blockLen = Math.max(0, endExclusive - start);
+                if (blockLen <= 0) continue;
+
+                var topTh = document.createElement('th');
+                topTh.textContent = 'Тайм КП ' + (t + 1);
+                topTh.colSpan = blockLen;
+                topTr.appendChild(topTh);
+
+                var timeTh = ths[start].cloneNode(true);
+                timeTh.textContent = 'Время';
+                timeTh.classList.add('time-col');
+                timeTh.rowSpan = 2;
+                midTr.appendChild(timeTh);
+
+                var n2 = 1;
+                for (var k = start + 1; k < endExclusive; k++, n2++) {
+                    var nth2 = document.createElement('th');
+                    nth2.textContent = String(n2);
+                    nth2.classList.add('answer-col');
+                    midTr.appendChild(nth2);
+
+                    var labelTh2 = ths[k].cloneNode(true);
+                    labelTh2.classList.add('answer-col');
+                    numTr.appendChild(labelTh2);
+                }
+            }
+        }
+
+        thead.innerHTML = '';
+        thead.appendChild(topTr);
+        thead.appendChild(midTr);
+        thead.appendChild(numTr);
+
+        setColumnWidths();
+        if (hasSplits) {
+            markAnswerColumns();
+            markTimeColumns();
+        }
+        markOverallTimeColumn();
+        markNameColumn();
+        markIndexColumn();
+        markOrgColumn();
+        markGroupColumn();
+        markPlaceColumn();
+        markPassTimeColumn();
+        markPenaltyColumn();
+        markIncorrectCells();
+    }
+
+    function updatePrintPageOrientation() {
+        var styleId = 'sportorg-print-page-style';
+        var styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            styleEl.type = 'text/css';
+            document.head.appendChild(styleEl);
+        }
+        var orientation = store.showAnswers ? 'landscape' : 'portrait';
+        styleEl.textContent = '@media print { @page { size: A4 ' + orientation + '; margin: 8mm; } }';
+    }
+
+    function render() {
+        var resultBlock = document.getElementById('results-tables');
+        if (!resultBlock) return;
+        resultBlock.innerHTML = '';
+        Fields.active('group', store.showProtocolByCourse);
+        var effectiveCount = store.showPodiumOnly ? 3 : store.count;
+        var showControlColumns = !!store.splitsShow && !!store.showAnswers;
+        if (store.showProtocolByCourse){
+            var _a = race.courses;
+        } else {
+            var _a = race.groups;
+        }
+        for (var _i = 0; _i < _a.length; _i++) {
+            if (store.showProtocolByCourse){
+                var course = _a[_i];
+                var rows = getResultsByCourse(course, effectiveCount);
+                var groupName = course.name;
+            } else {
+                var group = _a[_i];
+                var rows = getResultsByGroup(group, effectiveCount);
+                var course = group.course;
+                var groupName = group.name;
+            }
+            if (!rows.length) {
+                continue;
+            }
+            var block = document.createElement('div');
+            block.className = 'results-block';
+
+            var titleBlock = document.createElement('h2');
+            titleBlock.id = String(groupName).replace(/\s+/g, '-');
+            titleBlock.appendChild(document.createTextNode(groupName));
+            block.appendChild(titleBlock);
+
+            if (!store.showProtocolByCourse && store.showLinkForGroups) {
+                block.appendChild(getGroupsBlockElement(race));
+            }
+            var fields = Fields.getCopyFields();
+            if (showControlColumns && course) {
+                course.controls.forEach(function (control, index) {
+                    var isTime = control.code.slice(-1) === 'T';
+                    var title = isTime ? 'Время Тайм-КП' : control.code.slice(-1);
+                    fields.push({key: index + '_' + control.code.slice(0,-1), title: title, size: 8});
+                });
+            }
+            var table = new TableGenerator(rows, fields).getTable({className: 'sportorg-table'});
             rebuildTrailoSplitsHeader(table);
             block.appendChild(table);
-            container.appendChild(block);
-        });
-
-        // Обновляем строку запроса
-        const params = new URLSearchParams();
+            resultBlock.appendChild(block);
+        }
+        updatePrintPageOrientation();
+        document.documentElement.classList.toggle('sportorg-print-no-answers', !store.showAnswers);
+        var params = new URLSearchParams();
         params.set('s_splits', store.splitsShow ? '1' : '0');
         params.set('by_course', store.showProtocolByCourse ? '1' : '0');
+        params.set('podium_only', store.showPodiumOnly ? '1' : '0');
+        params.set('show_answers', store.showAnswers ? '1' : '0');
         params.set('sportorg', '1');
-
         try {
-            const base = location.pathname;
-            history.replaceState(null, '', `${base}?${params}`);
+            var base = location.pathname;
+            history.replaceState(null, '', base + '?' + params.toString());
         } catch (e) {}
     }
 
-    // ────────────────────────────────────────────────
-    // Инициализация и запуск
-    // ────────────────────────────────────────────────
-
-    racePreparation(race);
-
-    // Глобальный store (если ещё не определён где-то выше)
-    window.store = window.store || {
-        showProtocolByCourse: location.href.includes('by_course=1'),
-        splitsShow: true,
-        showLinkForGroups: true,
-        count: 0
-    };
-
     render();
 
-    // Настройки (чекбоксы и выбор количества)
+    var Scrolling = {
+        direction: 1,
+        enabled: false,
+        lock: false,
+        prev: 0,
+        intervalTimer: 0,
+        init: function () {
+            var _this = this;
+            if (_this.intervalTimer) {
+                clearInterval(_this.intervalTimer)
+            }
+            _this.intervalTimer = setInterval(function () {
+                _this.lock = !_this.lock;
+            }, 5000);
+            window.onscroll = function () {
+                var d = document.documentElement;
+                var offset = d.scrollTop + window.innerHeight;
+                var height = d.offsetHeight;
+
+                if (offset === height) {
+                    _this.direction = -1;
+                }
+                if (offset <= window.innerHeight) {
+                    _this.direction = 1;
+                }
+            };
+            this.pageScroll();
+            return this;
+        },
+        pageScroll: function () {
+            var _this = this;
+            if (_this.enabled && ! _this.lock) {
+                window.scrollBy(10, _this.direction);
+            }
+            setTimeout(function () {
+                _this.pageScroll();
+            }, 10);
+        }
+    }.init();
+
     new SettingsGenerator([
         {
             title: 'По дистанциям',
             value: !!store.showProtocolByCourse,
-            change: checked => {
+            change: function (checked) {
                 store.showProtocolByCourse = checked;
                 render();
             }
@@ -779,8 +1409,16 @@
         {
             title: 'Разбивки',
             value: !!store.splitsShow,
-            change: checked => {
+            change: function (checked) {
                 store.splitsShow = checked;
+                render();
+            }
+        },
+        {
+            title: 'Показывать ответы',
+            value: !!store.showAnswers,
+            change: function (checked) {
+                store.showAnswers = checked;
                 render();
             }
         },
@@ -788,23 +1426,41 @@
             title: 'Показывать первых:',
             value: [
                 {text: 'Все', value: 0},
-                {text: '1',   value: 1},
-                {text: '3',   value: 3},
-                {text: '5',   value: 5},
-                {text: '10',  value: 10}
+                {text: '1', value: 1},
+                {text: '3', value: 3},
+                {text: '4', value: 4},
+                {text: '5', value: 5},
+                {text: '6', value: 6},
+                {text: '10', value: 10}
             ],
-            change: val => {
-                store.count = val;
+            change: function (arr) {
+                store.count = arr[0];
+                render();
+            }
+        },
+        {
+            title: 'Только призёры (1-3)',
+            value: !!store.showPodiumOnly,
+            change: function (checked) {
+                store.showPodiumOnly = checked;
+                render();
+            }
+        },
+        {
+            title: 'Каждый класс с новой страницы',
+            value: false,
+            change: function (checked) {
+                store.newPage = checked;
                 render();
             }
         },
         {
             title: 'Автопрокрутка',
-            value: false,
-            change: checked => {
-                // логика автопрокрутки, если нужна
+            value: Scrolling.enabled,
+            change: function (checked) {
+                Scrolling.enabled = checked;
             }
-        }
+        },
     ]).show();
 </script>
 {% endraw %}
