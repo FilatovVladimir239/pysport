@@ -8,11 +8,9 @@ from sportorg.utils.time import time_to_otime
 
 
 class TrailoSfrCardProcessor:
-    """Преобразование прошивок и номера в сплиты TrailO."""
 
     @staticmethod
     def decode_bib(bib: Union[int, str]) -> Tuple[int, int]:
-        """(номер без младшей цифры, младшая цифра как ответ TrailO)."""
         n = int(bib)
         return n // 10, n % 10
 
@@ -28,7 +26,7 @@ class TrailoSfrCardProcessor:
             if code == "0":
                 continue
 
-            if int(code) < 50:
+            if int(code) < 100:
                 code = code + TrailOAns(trailo_ans).name
             elif int(code) < 240:
                 if int(code) % 10 == 0:
