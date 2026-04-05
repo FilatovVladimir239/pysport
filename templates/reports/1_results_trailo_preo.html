@@ -335,6 +335,17 @@
     var isPreoSprintMode = !isPreoMode;
     var isTrailo = race.settings.result_processing_mode === 'trailo';
 
+    function isTrailoTimeControlCode(code) {
+        code = String(code || '');
+        // New format: 1TT, 1T2A ...
+        if (/^\d{1,2}TT$/.test(code)) return true;
+        if (/^\d{1,2}T\d+[A-Za-z]$/.test(code)) return true;
+        // Legacy format: 110TT, 111TA ...
+        if (/^\d{3}TT$/.test(code)) return true;
+        if (/^\d{3}T[A-Za-z]$/.test(code)) return true;
+        return false;
+    }
+
     function preoPassTime(result) {
         if (!isPreoMode || !result) return '';
         // Разница между finish_time и start_time, формат чч:мм:сс
@@ -394,7 +405,7 @@
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
+                        if (split.course_index > 0 || (isPreoMode && isTrailoTimeControlCode(split.code))) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
@@ -554,7 +565,7 @@
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0 || (isPreoMode && split.code.slice(-2, -1) === "T")) {
+                        if (split.course_index > 0 || (isPreoMode && isTrailoTimeControlCode(split.code))) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){

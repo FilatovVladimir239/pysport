@@ -3,23 +3,12 @@ import platform
 from sportorg.language import translate
 from sportorg.models.memory import Group, Result, ResultStatus, race
 from sportorg.models.result.result_calculation import ResultCalculation
+from sportorg.modules.trailo.codes import parse_trailo_code, trailo_sort_key
 
 if platform.system() == "Windows":  # current realisation works on Windows only
     import win32con
     import win32print
     import win32ui
-
-
-def _is_trailo_time_control_code(code: str) -> bool:
-    code = code or ""
-    return code.endswith("TT") or (len(code) >= 2 and code[-2] == "T")
-
-
-def _trailo_sort_key(split) -> tuple:
-    code = getattr(split, "code", "") or ""
-    digits = "".join(ch for ch in code if ch.isdigit())
-    num = int(digits) if digits else 10**9
-    return (num, getattr(split, "time", 0), code)
 
 
 class SportorgPrinter:
@@ -481,86 +470,127 @@ class TrailOSportorgPrinter(SportorgPrinter):
             translate("Start") + ": " + result.get_start_time().to_str(), fn, fs_main
         )
 
-        splits = result.splits.copy()
-        splits.sort(key=_trailo_sort_key)
+        splits = sorted(result.splits, key=trailo_sort_key)
 
         index = 1
-        trailo_block_no = 0
-        trailo_answer_no = 0
-        trailo_had_pre_tt = False
-        for split in splits:
-            if not is_group_existed:
-                line = (
-                    ("  " + str(index))[-3:]
-                    + " "
-                    + ("  " + split.code)[-3:]
-                    + " "
-                    + split.time.to_str()[-7:]
-                )
-                index += 1
-                self.print_line(line, fn, fs_main)
-            elif not course:
-                line = (
-                    ("  " + str(index))[-3:]
-                    + " "
-                    + ("  " + split.code)[-3:]
-                    + " "
-                    + split.relative_time.to_str()[-7:]
-                    + " "
-                    + split.leg_time.to_str()[-5:]
-                )
-                index += 1
-                self.print_line(line, fn, fs_main)
-            else:
-                code = getattr(split, "code", "") or ""
-                if code.endswith("TT"):
-                    if trailo_block_no > 0 or trailo_had_pre_tt:
-                        self._trailo_vertical_gap(2)
+        tc_idx_active = None
+        tc_time_line = None
+        tc_answer_lines = []
+        tc_blocks_done = 0
+        finish_printed_after_main = False
 
-                    trailo_block_no += 1
-                    trailo_answer_no = 0
+        def flush_trailo_tc_block() -> None:
+            nonlocal tc_idx_active, tc_time_line, tc_answer_lines, tc_blocks_done
+            if tc_idx_active is None:
+                return
+            if tc_blocks_done > 0:
+                self._trailo_vertical_gap(2)
+            tc_blocks_done += 1
+            passage = tc_time_line if tc_time_line is not None else "—"
+            head = f"{translate('TrailO time control')} #{tc_idx_active}"
+            self.print_line(head + "  " + passage, fn, fs_main, 700)
+            for line in tc_answer_lines:
+                self.print_line(line, fn, fs_main)
+            self._trailo_vertical_gap(1)
+            tc_idx_active = None
+            tc_time_line = None
+            tc_answer_lines = []
 
-                    self.print_line(
-                        f"Тайм КП {trailo_block_no}  {split.time.to_str()}",
-                        fn,
-                        fs_main,
+        if is_group_existed and course:
+            split_i = 0
+            while split_i < len(splits):
+                split = splits[split_i]
+                parsed = parse_trailo_code(getattr(split, "code", None))
+                if parsed.kind in ("tc_time", "tc_answer"):
+                    break
+                raw = parsed.raw
+                if parsed.kind == "main":
+                    mark = "+" if split.is_correct else "-"
+                    line = (
+                        ("  " + str(parsed.main_num))[-3:]
+                        + (" " + str(parsed.main_answer))[-2:]
+                        + " "
+                        + mark
+                        + " "
+                        + split.time.to_str()[-8:]
                     )
-                    self._trailo_vertical_gap(2)
-                elif trailo_block_no > 0:
-                    trailo_answer_no += 1
-                    answer = code[-1] if code else ""
-                    self.print_line(f"  {trailo_answer_no}. {answer}", fn, fs_main)
+                    self.print_line(line, fn, fs_main)
                 else:
-                    trailo_had_pre_tt = True
-                    course_index = getattr(split, "course_index", -1)
-                    is_time_ctrl = _is_trailo_time_control_code(code)
+                    self.print_line(f"{raw} {split.time.to_str()}", fn, fs_main)
+                split_i += 1
 
-                    if course_index != -1 or is_time_ctrl:
-                        line = (
-                            ("  " + str(code[:-1]))[-3:]
-                            + " "
-                            + (" " + code[-1])[-3:]
-                            + " "
-                            + split.time.to_str()[-8:]
-                        )
-                        self.print_line(line, fn, fs_main)
-                    else:
-                        line = (
-                            "  - " + (" " + code[-1])[-3:] + " " + split.time.to_str()[-8:]
-                        )
-                        self.print_line(line, fn, fs_main)
-
-        if trailo_block_no > 0:
+            self.print_line(
+                translate("Finish")
+                + ": "
+                + result.get_finish_time().to_str(),
+                fn,
+                fs_main,
+            )
             self._trailo_vertical_gap(2)
+            finish_printed_after_main = True
 
-        # Finish
-        self.print_line(
-            translate("Finish") + ": " + result.get_finish_time().to_str(),
-            fn,
-            fs_main,
-        )
+            for split in splits[split_i:]:
+                parsed = parse_trailo_code(getattr(split, "code", None))
 
-        # Время прохождения
+                if parsed.kind == "tc_time":
+                    flush_trailo_tc_block()
+                    tc_idx_active = parsed.tc_idx
+                    tc_time_line = split.time.to_str()
+                    tc_answer_lines = []
+                    continue
+
+                if parsed.kind == "tc_answer":
+                    if tc_idx_active is None or tc_idx_active != parsed.tc_idx:
+                        flush_trailo_tc_block()
+                        tc_idx_active = parsed.tc_idx
+                        tc_time_line = None
+                        tc_answer_lines = []
+                    n = len(tc_answer_lines) + 1
+                    mark = "+" if split.is_correct else "-"
+                    letter = (parsed.tc_answer or "?").upper()
+                    tc_answer_lines.append(f"  {n}. {letter} {mark}")
+                    continue
+
+                raw = parsed.raw
+                self.print_line(f"{raw} {split.time.to_str()}", fn, fs_main)
+        else:
+            for split in splits:
+                flush_trailo_tc_block()
+                if not is_group_existed:
+                    line = (
+                        ("  " + str(index))[-3:]
+                        + " "
+                        + ("  " + split.code)[-3:]
+                        + " "
+                        + split.time.to_str()[-7:]
+                    )
+                    index += 1
+                    self.print_line(line, fn, fs_main)
+                else:
+                    line = (
+                        ("  " + str(index))[-3:]
+                        + " "
+                        + ("  " + split.code)[-3:]
+                        + " "
+                        + split.relative_time.to_str()[-7:]
+                        + " "
+                        + split.leg_time.to_str()[-5:]
+                    )
+                    index += 1
+                    self.print_line(line, fn, fs_main)
+
+        flush_trailo_tc_block()
+
+        if not finish_printed_after_main:
+            self.print_line(
+                translate("Finish")
+                + ": "
+                + result.get_finish_time().to_str(),
+                fn,
+                fs_main,
+            )
+
+        self._trailo_vertical_gap(1)
         self.print_line(
             translate("Time")
             + ": "

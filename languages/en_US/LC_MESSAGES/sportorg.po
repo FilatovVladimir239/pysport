@@ -91,3 +91,12 @@ msgstr "Penalty"
 
 msgid "Time settings"
 msgstr "Time"
+
+msgid "TrailO time control"
+msgstr "Time control"
+
+msgid "Passage time"
+msgstr "Passage time"
+
+msgid "Time control responses"
+msgstr "Responses"

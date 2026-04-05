@@ -3,6 +3,7 @@ from typing import Optional
 
 from sportorg.models.memory import Course, Group, Qualification, ResultStatus, Split
 from sportorg.models.result.result_calculation import ResultCalculation
+from sportorg.modules.trailo.codes import parse_trailo_code
 from sportorg.utils.time import get_speed_min_per_km
 
 
@@ -56,37 +57,46 @@ class PersonSplits:
             split.course_index = -1
             split.is_correct = False
 
-        for control in self.course.controls:
-            self._process_trailo_control(control)
+        for course_index, control in enumerate(self.course.controls):
+            self._process_trailo_control(control, course_index)
 
         self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
 
-    def _process_trailo_control(self, control):
+    def _process_trailo_control(self, control, course_index: int):
         control_detected = False
+        code = str(control.code)
 
         for split in self.result.splits:
-            if split.code[:-1] == control.code[:-1]:
+            if split.code[:-1] == code[:-1]:
                 control_detected = True
-                self._update_trailo_split(split, control)
+                self._update_trailo_split(split, control, course_index)
                 break
 
         if not control_detected:
-            self._add_missing_trailo_control(control)
+            self._add_missing_trailo_control(control, course_index)
 
-    def _update_trailo_split(self, split, control):
-        if control.code[-1] == "T":
+    def _trailo_control_is_time_punch(self, control) -> bool:
+        code = str(control.code)
+        if not code:
+            return False
+        parsed = parse_trailo_code(code)
+        if parsed.kind == "tc_time":
+            return True
+        return code[-1] == "T"
+
+    def _update_trailo_split(self, split, control, course_index: int):
+        split.course_index = course_index
+        if self._trailo_control_is_time_punch(control):
             split.leg_time = split.time
         else:
-            if control.code[-2] != "T":
-                split.course_index = int(control.code[:-1])
             split.is_correct = split.code[-1] == control.code[-1]
 
-    def _add_missing_trailo_control(self, control):
+    def _add_missing_trailo_control(self, control, course_index: int):
+        code = str(control.code)
         new_split = Split()
-        new_split.code = control.code[:-1] + "X"
+        new_split.code = code[:-1] + "X" if code else "X"
         new_split.is_correct = False
-        if control.code[-2] != "T":
-            new_split.course_index = int(control.code[:-1])
+        new_split.course_index = course_index
         self.result.splits.append(new_split)
 
     def _generate_standard_splits(self):

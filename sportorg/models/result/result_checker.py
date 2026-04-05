@@ -8,7 +8,7 @@ from sportorg.models.memory import (
     find,
     race,
 )
-from sportorg.models.result.trailo_result_checker import TrailoResultChecker
+from sportorg.modules.trailo.result_checker import TrailoResultChecker
 
 
 class ResultCheckerException(Exception):

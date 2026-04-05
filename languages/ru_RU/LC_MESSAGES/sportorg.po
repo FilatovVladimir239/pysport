@@ -384,6 +384,15 @@ msgstr "Финиш"
 msgid "Time"
 msgstr "Время"
 
+msgid "TrailO time control"
+msgstr "ТаймКП"
+
+msgid "Passage time"
+msgstr "Время прохождения"
+
+msgid "Time control responses"
+msgstr "Ответы на тайм-КП"
+
 msgid "Penalty"
 msgstr "Штраф"
 

@@ -16,7 +16,7 @@ from sportorg.libs.sfr import sfrreader
 from sportorg.libs.sfr.sfrreader import SFRReaderCardChanged, SFRReaderException
 from sportorg.models import memory
 from sportorg.models.memory import ResultSFR, Split
-from sportorg.modules.sfr.trailo_sfr_card import TrailoSfrCardProcessor
+from sportorg.modules.trailo.sfr_card import TrailoSfrCardProcessor
 from sportorg.modules.sportident import backup
 from sportorg.utils.time import time_to_otime
 

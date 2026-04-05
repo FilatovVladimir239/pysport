@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 try:
     from PySide6 import QtCore, QtGui, QtWidgets
@@ -14,43 +15,107 @@ from sportorg.gui.tabs.memory_model import ResultMemoryModel
 from sportorg.gui.tabs.table import TableView
 from sportorg.language import translate
 from sportorg.models.memory import Result, race
+from sportorg.modules.trailo.codes import parse_trailo_code, trailo_sort_key
 from sportorg.utils.time import time_to_hhmmss
-
-
-def _trailo_splits_sort_key(split):
-    code = getattr(split, "code", "") or ""
-    digits = "".join(ch for ch in code if ch.isdigit())
-    num = int(digits) if digits else 10**9
-    return (num, getattr(split, "time", 0), code)
 
 
 class TrailoResultSplitsDisplay:
     """Отображение сплитов на карточке участника в режиме TrailO."""
 
     @staticmethod
-    def append_card_splits(details, result: Result, time_accuracy: int) -> None:
-        str_fmt_correct = "{code} {answer} {time}"
-        str_fmt_incorrect = "--   {answer} {time}"
-        splits = sorted(result.splits, key=_trailo_splits_sort_key)
+    def append_main_splits(details, result: Result, time_accuracy: int) -> None:
+        splits = sorted(result.splits, key=trailo_sort_key)
+        for split in splits:
+            parsed = parse_trailo_code(getattr(split, "code", None))
+            if parsed.kind in ("tc_time", "tc_answer"):
+                break
+            time_str = split.time.to_str(time_accuracy)
+            if parsed.kind == "main":
+                s = f"{parsed.main_num:0>2}{parsed.main_answer}   {time_str}"
+                if not split.is_correct:
+                    s = '<span style="color: red">{}</span>'.format(s)
+                else:
+                    s = '<span style="color: green; font-weight: 700">{}</span>'.format(
+                        s
+                    )
+                details.append(s)
+            else:
+                raw = parsed.raw
+                details.append(f"{raw} {time_str}")
+
+    @staticmethod
+    def append_time_control_blocks(details, result: Result, time_accuracy: int) -> None:
+        splits = sorted(result.splits, key=trailo_sort_key)
+        tc_idx_active = None
+        tc_time_str = None
+        answer_rows: List[str] = []
+        tc_blocks_done = 0
+
+        def flush_tc_block() -> None:
+            nonlocal tc_idx_active, tc_time_str, answer_rows, tc_blocks_done
+            if tc_idx_active is None:
+                return
+            time_disp = tc_time_str if tc_time_str is not None else "—"
+            head = translate("TrailO time control")
+            margin_top = "28px" if tc_blocks_done == 0 else "22px"
+            tc_blocks_done += 1
+            parts = [
+                f'<div style="border-top:1px solid #aaa; margin:{margin_top} 0 16px 0; '
+                f'padding-top:10px; padding-bottom:4px;">',
+                f'<div style="font-weight:700; margin-bottom:8px;">'
+                f"{head} #{tc_idx_active}  {time_disp}</div>",
+            ]
+            for row in answer_rows:
+                parts.append(f'<div style="margin-left:8px; margin-bottom:2px;">{row}</div>')
+            parts.append("</div>")
+            details.append("".join(parts))
+            tc_idx_active = None
+            tc_time_str = None
+            answer_rows = []
 
         for split in splits:
-            code = split.code or ""
-            if len(code) < 2:
-                details.append(
-                    str_fmt_incorrect.format(
-                        answer=code[-1] if code else "",
-                        time=split.time.to_str(time_accuracy),
-                    )
-                )
+            parsed = parse_trailo_code(getattr(split, "code", None))
+            if parsed.kind not in ("tc_time", "tc_answer"):
                 continue
-            is_incorrect_fmt = split.course_index == -1 and code[-2] != "T"
-            str_fmt = str_fmt_incorrect if is_incorrect_fmt else str_fmt_correct
-            s = str_fmt.format(
-                code="(" + "{:0>2}".format(str(code[:-1])) + ")",
-                answer=code[-1],
-                time=split.time.to_str(time_accuracy),
-            )
-            details.append(s)
+            time_str = split.time.to_str(time_accuracy)
+
+            if parsed.kind == "tc_time":
+                flush_tc_block()
+                tc_idx_active = parsed.tc_idx
+                tc_time_str = time_str
+                answer_rows = []
+                continue
+
+            if parsed.kind == "tc_answer":
+                if tc_idx_active is None or tc_idx_active != parsed.tc_idx:
+                    flush_tc_block()
+                    tc_idx_active = parsed.tc_idx
+                    tc_time_str = None
+                    answer_rows = []
+                n = len(answer_rows) + 1
+                letter = (parsed.tc_answer or "?").upper()
+                if not split.is_correct:
+                    body = '<span style="color: red">{}</span>'.format(letter)
+                else:
+                    body = '<span style="color: green; font-weight: 700">{}</span>'.format(
+                        letter
+                    )
+                answer_rows.append(f"{n}. {body}")
+                continue
+
+        flush_tc_block()
+
+    @staticmethod
+    def append_unknown_splits_after_tc(
+        details, result: Result, time_accuracy: int
+    ) -> None:
+        splits = sorted(result.splits, key=trailo_sort_key)
+        for split in splits:
+            parsed = parse_trailo_code(getattr(split, "code", None))
+            if parsed.kind != "unknown":
+                continue
+            time_str = split.time.to_str(time_accuracy)
+            details.append(f"{parsed.raw} {time_str}")
 
 
 class ResultsTable(TableView):
@@ -231,15 +296,25 @@ class Widget(QtWidgets.QWidget):
         self.result_card_details.append(start_str)
 
         if is_trailo:
-            TrailoResultSplitsDisplay.append_card_splits(
+            TrailoResultSplitsDisplay.append_main_splits(
                 self.result_card_details, result, time_accuracy
             )
             finish_time = result.get_finish_time()
-            finish_str = "{name:<8} {time}".format(
-                name=translate("Finish"),
-                time=finish_time.to_str(time_accuracy),
+            self.result_card_details.append(
+                start_fmt.format(
+                    name=translate("Finish"),
+                    time=finish_time.to_str(time_accuracy),
+                )
             )
-            self.result_card_details.append(finish_str)
+            self.result_card_details.append(
+                '<p style="margin:0; line-height:14px;">&nbsp;</p>'
+            )
+            TrailoResultSplitsDisplay.append_time_control_blocks(
+                self.result_card_details, result, time_accuracy
+            )
+            TrailoResultSplitsDisplay.append_unknown_splits_after_tc(
+                self.result_card_details, result, time_accuracy
+            )
         else:
             code = ""
             last_correct_time = OTime()
@@ -274,13 +349,14 @@ class Widget(QtWidgets.QWidget):
 
             finish_time = result.get_finish_time()
             finish_leg = finish_time - last_correct_time
-            finish_fmt = "{name:<8} {time} {diff}"
-            finish_str = finish_fmt.format(
-                name=translate("Finish"),
-                time=finish_time.to_str(time_accuracy),
-                diff=finish_leg.to_str(time_accuracy),
+            self.result_card_details.append("")
+            self.result_card_details.append(translate("Finish"))
+            self.result_card_details.append(
+                "{}  {}".format(
+                    finish_time.to_str(time_accuracy),
+                    finish_leg.to_str(time_accuracy),
+                )
             )
-            self.result_card_details.append(finish_str)
 
         self.result_card_finish_edit.setText(time_to_hhmmss(result.get_finish_time()))
         self.result_card_start_edit.setText(time_to_hhmmss(result.get_start_time()))

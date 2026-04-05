@@ -29,11 +29,15 @@ class TrailoSfrCardProcessor:
             if int(code) < 100:
                 code = code + TrailOAns(trailo_ans).name
             elif int(code) < 240:
-                if int(code) % 10 == 0:
-                    code = code + "TT"
+                n = int(code)
+                tc_idx = (n // 10) - 10
+                task = n % 10
+                if task == 0:
+                    code = f"{tc_idx}TT"
                 else:
                     otime = time_to_otime(punch_time)
-                    code = code + "T" + TrailOAns(otime.hour).name
+                    ans = TrailOAns(otime.hour).name
+                    code = f"{tc_idx}T{task}{ans}"
                     punch_time = None
 
             split = TrailoSfrCardProcessor._create_split(code, punch_time)

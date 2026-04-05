@@ -2,6 +2,7 @@ from typing import Callable
 
 from sportorg.common.otime import OTime
 from sportorg.models.memory import Result, race
+from sportorg.modules.trailo.codes import parse_trailo_code
 
 
 class TrailoResultChecker:
@@ -52,19 +53,19 @@ class TrailoResultChecker:
         penalty_time = OTime(sec=race().get_setting("trailo_time_penalty", 30))
 
         for control_point in controls:
-            code_cp = str(control_point.code)
-            if len(code_cp) < 2 or code_cp[-2] != "T":
+            cp = parse_trailo_code(str(control_point.code))
+            if cp.kind != "tc_answer" or cp.tc_idx is None or cp.tc_task is None:
                 continue
-            control_point_code = int(code_cp[:-2])
             for cur_split in splits:
-                code_sp = str(cur_split.code)
-                if len(code_sp) < 2 or code_sp[-2] != "T":
+                sp = parse_trailo_code(str(cur_split.code))
+                if sp.kind != "tc_answer":
                     continue
-                cur_code = int(code_sp[:-2])
                 if (
-                    cur_code == control_point_code
-                    and code_cp[-1] != "T"
-                    and code_sp[-1] != code_cp[-1]
+                    sp.tc_idx == cp.tc_idx
+                    and sp.tc_task == cp.tc_task
+                    and sp.tc_answer
+                    and cp.tc_answer
+                    and sp.tc_answer != cp.tc_answer
                 ):
                     res += penalty_time
                     break
@@ -77,17 +78,16 @@ class TrailoResultChecker:
             return 0
         ret = 0
         for control_point in course.controls:
-            code_cp = str(control_point.code)
-            if len(code_cp) >= 2 and code_cp[-2] == "T":
+            cp = parse_trailo_code(str(control_point.code))
+            if cp.kind != "main" or cp.main_num is None or not cp.main_answer:
                 continue
             for cur_split in result.splits:
-                code_sp = str(cur_split.code)
-                if len(code_sp) < 2 or code_sp[-2] == "T":
+                sp = parse_trailo_code(str(cur_split.code))
+                if sp.kind != "main" or sp.main_num is None or not sp.main_answer:
                     continue
-                cur_code = int(code_sp[:-1])
                 if (
-                    cur_code == int(code_cp[:-1])
-                    and code_sp[-1] == code_cp[-1]
+                    sp.main_num == cp.main_num
+                    and sp.main_answer == cp.main_answer
                     and cur_split.course_index != -1
                 ):
                     ret += 1
@@ -98,7 +98,7 @@ class TrailoResultChecker:
     def calculate_time_trailo(result: Result) -> OTime:
         ret = 0
         for cur_split in result.splits:
-            code = str(cur_split.code)
-            if code.endswith("TT"):
+            sp = parse_trailo_code(str(cur_split.code))
+            if sp.kind == "tc_time":
                 ret += cur_split.time.to_msec()
         return OTime(msec=ret)
