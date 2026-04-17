@@ -437,6 +437,10 @@ class TrailOSportorgPrinter(SportorgPrinter):
             is_group_existed = False
 
         course = obj.find_course(result)
+        show_trailo_correctness = (
+            course is None
+            or getattr(course, "trailo_show_correct_answers", True)
+        )
 
         fn = "Lucida Console"
         fs_main = 3
@@ -505,15 +509,23 @@ class TrailOSportorgPrinter(SportorgPrinter):
                     break
                 raw = parsed.raw
                 if parsed.kind == "main":
-                    mark = "+" if split.is_correct else "-"
-                    line = (
-                        ("  " + str(parsed.main_num))[-3:]
-                        + (" " + str(parsed.main_answer))[-2:]
-                        + " "
-                        + mark
-                        + " "
-                        + split.time.to_str()[-8:]
-                    )
+                    if show_trailo_correctness:
+                        mark = "+" if split.is_correct else "-"
+                        line = (
+                            ("  " + str(parsed.main_num))[-3:]
+                            + (" " + str(parsed.main_answer))[-2:]
+                            + " "
+                            + mark
+                            + " "
+                            + split.time.to_str()[-8:]
+                        )
+                    else:
+                        line = (
+                            ("  " + str(parsed.main_num))[-3:]
+                            + (" " + str(parsed.main_answer))[-2:]
+                            + "    "
+                            + split.time.to_str()[-8:]
+                        )
                     self.print_line(line, fn, fs_main)
                 else:
                     self.print_line(f"{raw} {split.time.to_str()}", fn, fs_main)
@@ -546,9 +558,12 @@ class TrailOSportorgPrinter(SportorgPrinter):
                         tc_time_line = None
                         tc_answer_lines = []
                     n = len(tc_answer_lines) + 1
-                    mark = "+" if split.is_correct else "-"
                     letter = (parsed.tc_answer or "?").upper()
-                    tc_answer_lines.append(f"  {n}. {letter} {mark}")
+                    if show_trailo_correctness:
+                        mark = "+" if split.is_correct else "-"
+                        tc_answer_lines.append(f"  {n}. {letter} {mark}")
+                    else:
+                        tc_answer_lines.append(f"  {n}. {letter}")
                     continue
 
                 raw = parsed.raw

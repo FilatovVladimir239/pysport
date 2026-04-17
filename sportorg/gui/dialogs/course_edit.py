@@ -1,10 +1,16 @@
 import logging
 from typing import List
 
-from sportorg.gui.dialogs.dialog import BaseDialog, LineField, NumberField, TextField
+from sportorg.gui.dialogs.dialog import (
+    BaseDialog,
+    CheckBoxField,
+    LineField,
+    NumberField,
+    TextField,
+)
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.language import translate
-from sportorg.models.memory import CourseControl, find, race
+from sportorg.models.memory import CourseControl, race
 from sportorg.models.result.result_tools import recalculate_results
 from sportorg.modules.teamwork.teamwork import Teamwork
 
@@ -54,6 +60,17 @@ class CourseEditDialog(BaseDialog):
                 id="controls",
             ),
         ]
+        if race().get_setting("result_processing_mode", "time") == "trailo":
+            self.form.append(
+                CheckBoxField(
+                    title="",
+                    label=translate("Show correct answers"),
+                    object=course,
+                    key="trailo_show_correct_answers",
+                    id="trailo_show_correct_answers",
+                )
+            )
+            self.size = (400, 400)
 
     def before_showing(self) -> None:
         self.on_controls_changed()

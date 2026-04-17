@@ -346,6 +346,108 @@
         return false;
     }
 
+    /**
+     * Колонка «Время Тайм-КП» в шапке — как _trailo_control_is_time_punch в split_calculation.py:
+     * сначала kind==tc_time (…TT), иначе запасной признак code[-1]==='T' (как в Python).
+     * Ответы задач (…T1A) сюда не попадают — последний символ не T.
+     */
+    function trailoControlIsTimePunchColumn(code) {
+        code = String(code != null ? code : '').trim();
+        if (!code) return false;
+        if (/^\d{1,2}TT$/.test(code)) return true;
+        if (/^\d{3}TT$/.test(code)) return true;
+        return code.slice(-1) === 'T';
+    }
+
+    /** Как trailoParse в codes.py (только то, что нужно для expand_trailo_control_code_strings). */
+    function trailoParseForExpand(raw) {
+        if (!raw) return { kind: 'other' };
+        if (/^\d{1,2}TT$/.test(raw)) {
+            var a = raw.match(/^(\d{1,2})TT$/);
+            return { kind: 'tc_time', tc_idx: parseInt(a[1], 10) };
+        }
+        if (/^\d{3}TT$/.test(raw)) {
+            var n = parseInt(raw.slice(0, 3), 10);
+            return { kind: 'tc_time', tc_idx: (n / 10 | 0) - 10 };
+        }
+        var mNew = raw.match(/^(\d{1,2})T(\d+)([A-Za-z])$/);
+        if (mNew) {
+            return { kind: 'tc_answer', tc_idx: parseInt(mNew[1], 10), isLegacyAns: false };
+        }
+        var mLeg = raw.match(/^(\d{3})T([A-Za-z])$/);
+        if (mLeg) {
+            var n2 = parseInt(mLeg[1], 10);
+            return { kind: 'tc_answer', tc_idx: (n2 / 10 | 0) - 10, isLegacyAns: true };
+        }
+        return { kind: 'other' };
+    }
+
+    /** Как expand_trailo_control_code_strings в sportorg.modules.trailo.codes — без строки NTT в файле дистанции. */
+    function expandTrailoControlCodeStrings(controlCodes) {
+        if (!controlCodes || !controlCodes.length) return controlCodes.slice();
+        var out = [];
+        var haveTime = {};
+        var inserted = {};
+        for (var i = 0; i < controlCodes.length; i++) {
+            var raw = String(controlCodes[i] != null ? controlCodes[i] : '').trim();
+            var p = trailoParseForExpand(raw);
+            if (p.kind === 'tc_time' && p.tc_idx != null) {
+                haveTime[p.tc_idx] = true;
+                out.push(raw);
+                continue;
+            }
+            if (p.kind === 'tc_answer' && p.tc_idx != null) {
+                var idx = p.tc_idx;
+                if (!haveTime[idx] && !inserted[idx]) {
+                    var tt = p.isLegacyAns ? String((10 + idx) * 10) + 'TT' : String(idx) + 'TT';
+                    out.push(tt);
+                    inserted[idx] = true;
+                    haveTime[idx] = true;
+                }
+                out.push(raw);
+                continue;
+            }
+            out.push(raw);
+        }
+        return out;
+    }
+
+    /** Строка протокола: основная дистанция по course_index; тайм‑КП — как в печати сплита / вкладке результатов (любой код из isTrailoTimeControlCode). */
+    function trailoProtocolIncludeSplit(split) {
+        var ci = +split.course_index || 0;
+        return ci > 0 || isTrailoTimeControlCode(split.code);
+    }
+
+    /**
+     * Ключ ячейки протокола совпадает с fields: индексКПнаДистанции + '_' + префиксКода
+     * (все символы кода кроме последнего). В JSON split.course_index 1-based, как в Split.to_dict.
+     * Порядковый номер сплита в массиве result.splits НЕ совпадает с индексом КП на дистанции,
+     * из‑за чего ответы и Тайм‑КП попадали не в те колонки (например 21–23).
+     */
+    function trailoProtocolCellKey(split, course) {
+        var code = split.code != null ? String(split.code).trim() : '';
+        if (!code) return null;
+        var base = code.slice(0, -1);
+        var ci = +split.course_index || 0;
+        if (ci >= 1) {
+            return (ci - 1) + '_' + base;
+        }
+        if (course && course.controls) {
+            var rawCodes = [];
+            for (var ri = 0; ri < course.controls.length; ri++) {
+                rawCodes.push(String(course.controls[ri].code != null ? course.controls[ri].code : '').trim());
+            }
+            var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+            for (var ii = 0; ii < expandedCodes.length; ii++) {
+                var cbase = expandedCodes[ii].slice(0, -1);
+                if (cbase === base) {
+                    return ii + '_' + base;
+                }
+            }
+        }
+        return null;
+    }
+
     function preoPassTime(result) {
         if (!isPreoMode || !result) return '';
         // Разница между finish_time и start_time, формат чч:мм:сс
@@ -391,7 +493,6 @@
                 }
 
                 // SPLITS
-                var control_index = 0;
                 if (result.splits) {
                     var getTrBlock = function (t, p) {
                         var tr = document.createElement('tr');
@@ -401,11 +502,12 @@
                         tr.appendChild(td1);
                         return tr;
                     };
+                    var courseForKeys = group.course;
 
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0 || (isPreoMode && isTrailoTimeControlCode(split.code))) {
+                        if (trailoProtocolIncludeSplit(split)) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
@@ -419,8 +521,10 @@
                             } else {
                                 tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
                             }
-                            r[control_index + '_' + split.code.slice(0,-1)] = tbl;
-                            control_index++;
+                            var cellKey = trailoProtocolCellKey(split, courseForKeys);
+                            if (cellKey) {
+                                r[cellKey] = tbl;
+                            }
                         }
                     }
 
@@ -552,7 +656,6 @@
                 }
 
                 // SPLITS
-                var control_index = 0;
                 if (result.splits) {
                     var getTrBlock = function (t, p) {
                         var tr = document.createElement('tr');
@@ -562,10 +665,12 @@
                         tr.appendChild(td1);
                         return tr;
                     };
+                    var courseForKeys = group;
+
                     for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
                         var split = _c[_b];
 
-                        if (split.course_index > 0 || (isPreoMode && isTrailoTimeControlCode(split.code))) {
+                        if (trailoProtocolIncludeSplit(split)) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
                             if(split.is_correct && split.code.slice(-1) != "T"){
@@ -579,8 +684,10 @@
                             } else {
                                 tbl.appendChild(getTrBlock(isPreoMode ? (split.time / 1000) : toHHMMSS(split.time)));
                             }
-                            r[control_index + '_' + split.code.slice(0,-1)] = tbl;
-                            control_index++;
+                            var cellKey = trailoProtocolCellKey(split, courseForKeys);
+                            if (cellKey) {
+                                r[cellKey] = tbl;
+                            }
                         }
                     }
 
@@ -715,7 +822,6 @@
                 elem.place = newplace;
                 elem.place_show = newplace;
             }
-            var control_index = 0;
             if (elem.data.splits) {
                 var getTrBlock = function (t, p) {
                     var tr = document.createElement('tr');
@@ -1341,10 +1447,14 @@
             }
             var fields = Fields.getCopyFields();
             if (showControlColumns && course) {
-                course.controls.forEach(function (control, index) {
-                    var isTime = control.code.slice(-1) === 'T';
-                    var title = isTime ? 'Время Тайм-КП' : control.code.slice(-1);
-                    fields.push({key: index + '_' + control.code.slice(0,-1), title: title, size: 8});
+                var rawCodes = course.controls.map(function (co) {
+                    return String(co.code != null ? co.code : '').trim();
+                });
+                var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+                expandedCodes.forEach(function (cc, index) {
+                    var isTime = trailoControlIsTimePunchColumn(cc);
+                    var title = isTime ? 'Время Тайм-КП' : (cc ? cc.slice(-1) : '');
+                    fields.push({key: index + '_' + cc.slice(0, -1), title: title, size: 8});
                 });
             }
             var table = new TableGenerator(rows, fields).getTable({className: 'sportorg-table'});

@@ -100,3 +100,6 @@ msgstr "Passage time"
 
 msgid "Time control responses"
 msgstr "Responses"
+
+msgid "Show correct answers"
+msgstr "Show correct answers"

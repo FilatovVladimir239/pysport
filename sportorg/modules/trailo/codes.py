@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 
 TrailoKind = Literal["main", "tc_time", "tc_answer", "unknown"]
@@ -80,6 +80,50 @@ def parse_trailo_code(code: str | None) -> ParsedTrailoCode:
         )
 
     return ParsedTrailoCode(kind="unknown", raw=raw)
+
+
+def implicit_tc_time_code_for_tc_answer(parsed: ParsedTrailoCode) -> Optional[str]:
+    """
+    Если в дистанции заданы только ответы тайм‑КП (1T1A, …) без строки отметки времени
+    (1TT / 110TT), возвращает код неявной отметки времени для того же номера ТК.
+    """
+    if parsed.kind != "tc_answer" or parsed.tc_idx is None:
+        return None
+    raw = parsed.raw
+    if _RE_TC_ANSWER_NEW.match(raw):
+        return f"{parsed.tc_idx}TT"
+    if _RE_TC_ANSWER_LEGACY.match(raw):
+        return f"{(10 + parsed.tc_idx) * 10}TT"
+    return None
+
+
+def expand_trailo_control_code_strings(control_codes: List[str]) -> List[str]:
+    """
+    Вставляет перед первым ответом каждого тайм‑КП неявный код отметки времени (NTT),
+    если для этого tc_idx в списке ещё нет tc_time. Исходный список в файле не меняется —
+    используется только при расчёте сплитов и отчётах.
+    """
+    if not control_codes:
+        return list(control_codes)
+    parsed_list = [parse_trailo_code(c) for c in control_codes]
+    have_time_idx = {
+        p.tc_idx
+        for p in parsed_list
+        if p.kind == "tc_time" and p.tc_idx is not None
+    }
+    out: List[str] = []
+    inserted: set[int] = set()
+    for raw, p in zip(control_codes, parsed_list):
+        if p.kind == "tc_answer" and p.tc_idx is not None:
+            idx = p.tc_idx
+            if idx not in have_time_idx and idx not in inserted:
+                tt = implicit_tc_time_code_for_tc_answer(p)
+                if tt:
+                    out.append(tt)
+                    inserted.add(idx)
+                    have_time_idx.add(idx)
+        out.append(raw)
+    return out
 
 
 def trailo_sort_key(split) -> tuple:

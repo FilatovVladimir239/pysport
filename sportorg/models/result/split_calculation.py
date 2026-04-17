@@ -1,9 +1,16 @@
 import logging
 from typing import Optional
 
-from sportorg.models.memory import Course, Group, Qualification, ResultStatus, Split
+from sportorg.models.memory import (
+    Course,
+    CourseControl,
+    Group,
+    Qualification,
+    ResultStatus,
+    Split,
+)
 from sportorg.models.result.result_calculation import ResultCalculation
-from sportorg.modules.trailo.codes import parse_trailo_code
+from sportorg.modules.trailo.codes import expand_trailo_control_code_strings, parse_trailo_code
 from sportorg.utils.time import get_speed_min_per_km
 
 
@@ -57,7 +64,21 @@ class PersonSplits:
             split.course_index = -1
             split.is_correct = False
 
-        for course_index, control in enumerate(self.course.controls):
+        codes_expanded = expand_trailo_control_code_strings(
+            [str(c.code) for c in self.course.controls]
+        )
+        orig_by_code = {str(c.code): c for c in self.course.controls}
+        expanded_controls = []
+        for code in codes_expanded:
+            if code in orig_by_code:
+                expanded_controls.append(orig_by_code[code])
+            else:
+                cc = CourseControl()
+                cc.code = code
+                cc.length = 0
+                expanded_controls.append(cc)
+
+        for course_index, control in enumerate(expanded_controls):
             self._process_trailo_control(control, course_index)
 
         self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))

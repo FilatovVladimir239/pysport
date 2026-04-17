@@ -225,6 +225,7 @@ class Course(Model):
         self.length = 0
         self.climb = 0
         self.controls: List[CourseControl] = []
+        self.trailo_show_correct_answers = True
 
         self.count_person = 0
         self.count_group = 0
@@ -277,6 +278,7 @@ class Course(Model):
             "length": self.length,
             "climb": self.climb,
             "corridor": self.corridor,
+            "trailo_show_correct_answers": self.trailo_show_correct_answers,
         }
 
     def update_data(self, data):
@@ -285,6 +287,9 @@ class Course(Model):
         self.length = int(data["length"])
         self.climb = int(data["climb"])
         self.corridor = int(data["corridor"])
+        self.trailo_show_correct_answers = bool(
+            data.get("trailo_show_correct_answers", True)
+        )
         self.controls = []
         for item in data["controls"]:
             control = CourseControl()
