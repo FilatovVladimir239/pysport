@@ -6,6 +6,9 @@
     <h3>{{ race.data.description }} <br>{{ race.data.start_datetime|date }} {{ race.data.location }}</h3>
     <h3>Предварительный протокол ответов</h3>
 </div>
+<div class="text-center no-print sportorg-excel-export-wrap">
+    <button type="button" id="export-excel-btn">Экспорт в Excel</button>
+</div>
 <div id="results-tables"></div>
 {% raw %}
 <style>
@@ -320,6 +323,23 @@
             font-size: 9px;
             line-height: 1.1;
         }
+    }
+
+    .sportorg-excel-export-wrap {
+        margin: 8px 0 12px;
+    }
+
+    #export-excel-btn {
+        padding: 6px 14px;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #f8f8f8;
+        font-size: 14px;
+    }
+
+    #export-excel-btn:hover {
+        background: #eee;
     }
 
 </style>
@@ -1278,6 +1298,169 @@
         markIncorrectCells();
     }
 
+    function getExcelExportFilename() {
+        var desc = (race.data && race.data.description) ? race.data.description : 'results';
+        var base = String(desc).replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 80);
+        var d = '';
+        if (race.data && race.data.start_datetime) {
+            d = String(race.data.start_datetime).slice(0, 10).replace(/-/g, '');
+        }
+        return 'trailo_preo_sprint_' + base + (d ? '_' + d : '');
+    }
+
+    function escapeHtmlForExcelExport(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function escapeHtmlWithBrAsExcel(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        s = String(s).replace(/\r\n/g, '\n');
+        var chunks = s.split(/<br\s*\/?>|\n/gi);
+        var out = [];
+        for (var ci = 0; ci < chunks.length; ci++) {
+            out.push(escapeHtmlForExcelExport(chunks[ci]));
+        }
+        return out.join('<br>');
+    }
+
+    function buildRaceHeaderHtmlForExcel() {
+        var desc = (race.data && race.data.description) ? String(race.data.description) : '';
+        var when = (race.data && race.data.start_datetime) ? String(race.data.start_datetime) : '';
+        var where = (race.data && race.data.location) ? String(race.data.location) : '';
+        var line2 = [when, where].filter(Boolean).join(' ');
+        var parts = [];
+        parts.push('<div class="sportorg-excel-group-header">');
+        if (desc) {
+            parts.push('<p><strong>' + escapeHtmlWithBrAsExcel(desc) + '</strong></p>');
+        }
+        if (line2) {
+            parts.push('<p>' + escapeHtmlWithBrAsExcel(line2) + '</p>');
+        }
+        parts.push('<p><strong>' + escapeHtmlForExcelExport('Предварительный протокол ответов') + '</strong></p>');
+        parts.push('</div>');
+        return parts.join('');
+    }
+
+    var EXCEL_INCORRECT_BG = '#FFFDE8';
+
+    function cloneTableHtmlForExcelExport(table) {
+        var clone = table.cloneNode(true);
+        var cells = clone.querySelectorAll('td.incorrect-answer');
+        for (var i = 0; i < cells.length; i++) {
+            var td = cells[i];
+            td.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var prev = td.getAttribute('style') || '';
+            td.setAttribute(
+                'style',
+                prev + (prev && !/;\s*$/.test(prev) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        var splitWrong = clone.querySelectorAll('td table.table-split.incorrect');
+        for (var j = 0; j < splitWrong.length; j++) {
+            var outer = splitWrong[j].closest('td');
+            if (!outer || outer.classList.contains('incorrect-answer')) {
+                continue;
+            }
+            outer.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var p2 = outer.getAttribute('style') || '';
+            outer.setAttribute(
+                'style',
+                p2 + (p2 && !/;\s*$/.test(p2) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        return clone.outerHTML;
+    }
+
+    function excelGroupSectionWrapOpen(index) {
+        var tdStyle = 'border:none;padding:0;vertical-align:top;padding-bottom:32px;';
+        if (index > 0) {
+            tdStyle += 'padding-top:28px;';
+        }
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0" ' +
+            'style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">' +
+            '<tr><td style="' + tdStyle + '">'
+        );
+    }
+
+    function excelGroupSectionWrapClose() {
+        return '</td></tr></table>';
+    }
+
+    function excelGroupSectionBetweenSpacer() {
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0">' +
+            '<tr><td style="border:none;height:28pt;mso-height-source:userset;font-size:1px;line-height:28pt">&nbsp;</td></tr>' +
+            '</table>'
+        );
+    }
+
+    function exportResultsToExcel() {
+        var container = document.getElementById('results-tables');
+        if (!container || !container.querySelector('table.sportorg-table')) {
+            alert('Нет данных для экспорта');
+            return;
+        }
+        var parts = [];
+        parts.push(
+            '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+            'xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+            '<head><meta charset="utf-8">' +
+            '<style>' +
+            'table{border-collapse:collapse;}' +
+            'th,td{border:1px solid #000;padding:4px;text-align:center;}' +
+            'td.name-col,th.name-col{text-align:left;}' +
+            'td.incorrect-answer{background-color:#fffde8!important;}' +
+            '.sportorg-excel-group-header{text-align:center;margin-bottom:12px;}' +
+            '.sportorg-excel-group-header p{margin:6px 0;}' +
+            'br{mso-data-placement:same-cell;}' +
+            '</style></head><body>'
+        );
+        var blocks = container.querySelectorAll('.results-block');
+        var nBlocks = blocks.length;
+        for (var bi = 0; bi < nBlocks; bi++) {
+            var block = blocks[bi];
+            parts.push(excelGroupSectionWrapOpen(bi));
+            parts.push(buildRaceHeaderHtmlForExcel());
+            var h2 = block.querySelector('h2');
+            if (h2) {
+                parts.push(
+                    '<h2 style="margin:8px 0 14px;text-align:center;">' +
+                    escapeHtmlWithBrAsExcel(h2.textContent || '') +
+                    '</h2>'
+                );
+            }
+            var tbl = block.querySelector('table.sportorg-table');
+            if (tbl) {
+                parts.push(cloneTableHtmlForExcelExport(tbl));
+                parts.push('<div style="height:20px;line-height:20px;font-size:1px">&nbsp;</div>');
+            }
+            parts.push(excelGroupSectionWrapClose());
+            if (bi < nBlocks - 1) {
+                parts.push(excelGroupSectionBetweenSpacer());
+            }
+        }
+        parts.push('</body></html>');
+        var html = parts.join('');
+        var blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = getExcelExportFilename() + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
     function updatePrintPageOrientation() {
         var styleId = 'sportorg-print-page-style';
         var styleEl = document.getElementById(styleId);
@@ -1462,6 +1645,13 @@
             }
         },
     ]).show();
+
+    (function () {
+        var btn = document.getElementById('export-excel-btn');
+        if (btn) {
+            btn.addEventListener('click', exportResultsToExcel);
+        }
+    })();
 </script>
 {% endraw %}
 {% endblock %}
