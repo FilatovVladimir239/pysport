@@ -1,3 +1,4 @@
+import os
 import sys
 
 from cx_Freeze import Executable, setup
@@ -18,8 +19,10 @@ include_files = [
     config.base_dir("changelog_ru.md"),
     config.base_dir("configs"),
     config.STYLE_DIR,
-    config.COMMIT_VERSION_FILE,
 ]
+# Генерируется CI/скриптами, в .gitignore — для локальной сборки не обязателен
+if os.path.isfile(config.COMMIT_VERSION_FILE):
+    include_files.append(config.COMMIT_VERSION_FILE)
 includes = ["atexit", "codecs", "playsound3", "pyImpinj"]
 excludes = ["Tkinter", "unittest", "test", "pydoc"]
 

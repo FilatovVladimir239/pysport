@@ -323,6 +323,17 @@
             this.toggleHidden();
         };
         SettingsGenerator.prototype.getElBySetting = function (setting) {
+            if (setting.type === 'button') {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.appendChild(document.createTextNode(setting.title));
+                if (setting.click) {
+                    btn.onclick = function (ev) {
+                        setting.click(ev);
+                    };
+                }
+                return btn;
+            }
             if (typeof setting.value === 'boolean') {
                 var i = document.createElement('input');
                 i.type = 'checkbox';

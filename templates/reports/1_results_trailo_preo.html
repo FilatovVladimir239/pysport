@@ -322,6 +322,109 @@
         }
     }
 
+    /* Экран: компактная таблица на всю ширину окна (inline-ширины из JS переопределяем !important) */
+    @media screen {
+        #content {
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        #results-tables {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
+
+        #results-tables .results-block {
+            max-width: 100%;
+        }
+
+        #results-tables .results-block > h2 {
+            font-size: 1.12rem;
+            margin: 0.5rem 0 0.35rem;
+        }
+
+        #results-tables table.sportorg-table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed !important;
+            font-size: 12px !important;
+            margin: 0 auto !important;
+        }
+
+        #results-tables table.sportorg-table th,
+        #results-tables table.sportorg-table td {
+            width: auto !important;
+            min-width: 0 !important;
+            padding: 2px 4px !important;
+            font-size: inherit !important;
+            line-height: 1.22 !important;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        #results-tables table.sportorg-table th.index-col,
+        #results-tables table.sportorg-table td.index-col {
+            width: 2.5em !important;
+        }
+
+        #results-tables table.sportorg-table th.group-col,
+        #results-tables table.sportorg-table td.group-col {
+            width: 7% !important;
+        }
+
+        #results-tables table.sportorg-table th.name-col,
+        #results-tables table.sportorg-table td.name-col {
+            width: 15% !important;
+        }
+
+        #results-tables table.sportorg-table th.org-col,
+        #results-tables table.sportorg-table td.org-col {
+            width: 12% !important;
+        }
+
+        #results-tables table.sportorg-table th.place-col,
+        #results-tables table.sportorg-table td.place-col {
+            width: 2.75em !important;
+        }
+
+        #results-tables table.sportorg-table th.penalty-col,
+        #results-tables table.sportorg-table td.penalty-col,
+        #results-tables table.sportorg-table th.pass-time-col,
+        #results-tables table.sportorg-table td.pass-time-col {
+            width: 3.6em !important;
+            font-size: 11px !important;
+        }
+
+        #results-tables table.sportorg-table th.time-col,
+        #results-tables table.sportorg-table td.time-col,
+        #results-tables table.sportorg-table th.overall-time-col,
+        #results-tables table.sportorg-table td.overall-time-col {
+            width: 4.2em !important;
+            font-size: 11px !important;
+            white-space: nowrap;
+        }
+
+        #results-tables table.sportorg-table th.answer-col,
+        #results-tables table.sportorg-table td.answer-col {
+            width: 1.15em !important;
+            max-width: 1.65em !important;
+            padding: 1px 2px !important;
+            font-size: 11px !important;
+            overflow: hidden;
+            text-overflow: clip;
+        }
+
+        #results-tables table.sportorg-table td.answer-col table.table-split {
+            font-size: inherit;
+        }
+    }
+
 </style>
 {% endraw %}<script type="application/json" id="race-json">{{ race|tojson }}</script>
 <script type="application/json" id="selected-json">{{ selected|tojson }}</script>{% raw %}
@@ -1518,7 +1621,183 @@
         }
     }.init();
 
+    function getExcelExportFilename() {
+        var desc = (race.data && race.data.description) ? race.data.description : 'results';
+        var base = String(desc).replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 80);
+        var d = '';
+        if (race.data && race.data.start_datetime) {
+            d = String(race.data.start_datetime).slice(0, 10).replace(/-/g, '');
+        }
+        var modeTag = isPreoMode ? 'preo' : 'sprint';
+        return 'trailo_preo_' + modeTag + '_' + base + (d ? '_' + d : '');
+    }
+
+    function escapeHtmlForExcelExport(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function escapeHtmlWithBrAsExcel(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        s = String(s).replace(/\r\n/g, '\n');
+        var chunks = s.split(/<br\s*\/?>|\n/gi);
+        var out = [];
+        for (var ci = 0; ci < chunks.length; ci++) {
+            out.push(escapeHtmlForExcelExport(chunks[ci]));
+        }
+        return out.join('<br>');
+    }
+
+    function buildRaceHeaderHtmlForExcel() {
+        var desc = (race.data && race.data.description) ? String(race.data.description) : '';
+        var when = (race.data && race.data.start_datetime) ? String(race.data.start_datetime) : '';
+        var where = (race.data && race.data.location) ? String(race.data.location) : '';
+        var line2 = [when, where].filter(Boolean).join(' ');
+        var parts = [];
+        parts.push('<div class="sportorg-excel-group-header">');
+        if (desc) {
+            parts.push('<p><strong>' + escapeHtmlWithBrAsExcel(desc) + '</strong></p>');
+        }
+        if (line2) {
+            parts.push('<p>' + escapeHtmlWithBrAsExcel(line2) + '</p>');
+        }
+        parts.push('<p><strong>' + escapeHtmlForExcelExport('Предварительный протокол ответов') + '</strong></p>');
+        parts.push('</div>');
+        return parts.join('');
+    }
+
+    var EXCEL_INCORRECT_BG = '#FFFDE8';
+
+    function cloneTableHtmlForExcelExport(table) {
+        var clone = table.cloneNode(true);
+        var cells = clone.querySelectorAll('td.incorrect-answer');
+        for (var i = 0; i < cells.length; i++) {
+            var td = cells[i];
+            td.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var prev = td.getAttribute('style') || '';
+            td.setAttribute(
+                'style',
+                prev + (prev && !/;\s*$/.test(prev) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        var splitWrong = clone.querySelectorAll('td table.table-split.incorrect');
+        for (var j = 0; j < splitWrong.length; j++) {
+            var innerTbl = splitWrong[j];
+            var outer = innerTbl.closest('td');
+            if (!outer || outer.classList.contains('incorrect-answer')) {
+                continue;
+            }
+            outer.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var p2 = outer.getAttribute('style') || '';
+            outer.setAttribute(
+                'style',
+                p2 + (p2 && !/;\s*$/.test(p2) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        return clone.outerHTML;
+    }
+
+    function excelGroupSectionWrapOpen(index) {
+        var tdStyle = 'border:none;padding:0;vertical-align:top;padding-bottom:32px;';
+        if (index > 0) {
+            tdStyle += 'padding-top:28px;';
+        }
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0" ' +
+            'style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">' +
+            '<tr><td style="' + tdStyle + '">'
+        );
+    }
+
+    function excelGroupSectionWrapClose() {
+        return '</td></tr></table>';
+    }
+
+    function excelGroupSectionBetweenSpacer() {
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0">' +
+            '<tr><td style="border:none;height:28pt;mso-height-source:userset;font-size:1px;line-height:28pt">&nbsp;</td></tr>' +
+            '</table>'
+        );
+    }
+
+    function exportResultsToExcel() {
+        var container = document.getElementById('results-tables');
+        if (!container || !container.querySelector('table.sportorg-table')) {
+            alert('Нет данных для экспорта');
+            return;
+        }
+        var parts = [];
+        parts.push(
+            '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+            'xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+            '<head><meta charset="utf-8">' +
+            '<style>' +
+            'table{border-collapse:collapse;}' +
+            'th,td{border:1px solid #000;padding:4px;text-align:center;}' +
+            'td.name-col,th.name-col{text-align:left;}' +
+            'td.incorrect-answer{background-color:#fffde8!important;}' +
+            '.sportorg-excel-group-header{text-align:center;margin-bottom:12px;}' +
+            '.sportorg-excel-group-header p{margin:6px 0;}' +
+            'br{mso-data-placement:same-cell;}' +
+            '</style></head><body>'
+        );
+        var blocks = container.querySelectorAll('.results-block');
+        var nBlocks = blocks.length;
+        for (var bi = 0; bi < nBlocks; bi++) {
+            var block = blocks[bi];
+            parts.push(excelGroupSectionWrapOpen(bi));
+            parts.push(buildRaceHeaderHtmlForExcel());
+            var h2 = block.querySelector('h2');
+            if (h2) {
+                parts.push(
+                    '<h2 style="margin:8px 0 14px;text-align:center;">' +
+                    escapeHtmlWithBrAsExcel(h2.textContent || '') +
+                    '</h2>'
+                );
+            }
+            var tbl = block.querySelector('table.sportorg-table');
+            if (tbl) {
+                parts.push(cloneTableHtmlForExcelExport(tbl));
+                parts.push('<div style="height:20px;line-height:20px;font-size:1px">&nbsp;</div>');
+            }
+            parts.push(excelGroupSectionWrapClose());
+            if (bi < nBlocks - 1) {
+                parts.push(excelGroupSectionBetweenSpacer());
+            }
+        }
+        parts.push('</body></html>');
+        var html = parts.join('');
+        var blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = getExcelExportFilename() + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function exportTrailoTablesToExcel() {
+        exportResultsToExcel();
+    }
+
     new SettingsGenerator([
+        {
+            type: 'button',
+            title: 'Excel',
+            click: function () {
+                exportTrailoTablesToExcel();
+            }
+        },
         {
             title: 'По дистанциям',
             value: !!store.showProtocolByCourse,
