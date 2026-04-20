@@ -2,13 +2,43 @@
 {% block title %}Results{% endblock %}
 {% block head %}{{ super() }}{% endblock %}
 {% block content %}
-<div class="text-center">
-    <h3>{{ race.data.description }} <br>{{ race.data.start_datetime|date }} {{ race.data.location }}</h3>
-    <h3>Предварительный протокол ответов</h3>
+<div class="text-center trailo-preo-heading">
+    {% if race.data.description %}
+    <h3 class="trailo-preo-desc">{{ race.data.description }}</h3>
+    {% endif %}
+    {% if race.data.title %}
+    <h3 class="trailo-preo-title">{{ race.data.title }}</h3>
+    {% endif %}
+    <h3 class="trailo-preo-whenwhere">{{ race.data.start_datetime|date }} {{ race.data.location }}</h3>
+    <h3 class="trailo-preo-protocol">Предварительный протокол ответов</h3>
+</div>
+<div class="text-center no-print sportorg-excel-export-wrap">
+    <button type="button" id="export-excel-btn">Экспорт в Excel</button>
 </div>
 <div id="results-tables"></div>
 {% raw %}
-<style>
+<style id="trailo-preo-export-styles">
+    .trailo-preo-heading h3 {
+        margin: 0.35rem 0;
+        line-height: 1.25;
+    }
+    .trailo-preo-desc {
+        font-size: 1rem;
+        font-weight: 400;
+    }
+    .trailo-preo-title {
+        font-size: 1.22rem;
+        font-weight: 700;
+        margin-top: 0.5rem !important;
+    }
+    .trailo-preo-whenwhere {
+        font-size: 1rem;
+        font-weight: 400;
+    }
+    .trailo-preo-protocol {
+        font-size: 1rem;
+    }
+
     table.table-split {
         margin: 0 !important;
         margin-bottom: 0 !important; /* bootstrap table { margin-bottom: 1rem } */
@@ -425,6 +455,23 @@
         }
     }
 
+    .sportorg-excel-export-wrap {
+        margin: 8px 0 12px;
+    }
+
+    #export-excel-btn {
+        padding: 6px 14px;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #f8f8f8;
+        font-size: 14px;
+    }
+
+    #export-excel-btn:hover {
+        background: #eee;
+    }
+
 </style>
 {% endraw %}<script type="application/json" id="race-json">{{ race|tojson }}</script>
 <script type="application/json" id="selected-json">{{ selected|tojson }}</script>{% raw %}
@@ -562,20 +609,47 @@
         return toHHMMSS(diff);
     }
 
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function formatBirthDate(value) {
+        if (!value) return '';
+
+        var dateString = String(value);
+        var isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+            return isoMatch[3] + '.' + isoMatch[2] + '.' + isoMatch[1];
+        }
+
+        var parsed = new Date(value);
+        if (isNaN(parsed.getTime())) return '';
+        return pad2(parsed.getDate()) + '.' + pad2(parsed.getMonth() + 1) + '.' + parsed.getFullYear();
+    }
+
+    function formatPersonName(person) {
+        if (!person) return '';
+        return [person.surname || '', person.name || '', person.middle_name || '']
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, MAX_PERSON_NAME);
+    }
+
     function getResultsByGroup(group, count) {
         count = +count || 0;
         var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
         var results = [];
         for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
             var result = _a[_i];
-            if (result.status !== 13 && result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
+            if (result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: (result.person.surname + ' ' + result.person.name).slice(0, MAX_PERSON_NAME),
+                    name: formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
-                    year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    year: formatBirthDate(result.person.birth_date),
                     preo_pass_time: preoPassTime(result),
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
@@ -590,6 +664,9 @@
                 };
                 if (result.status !== 1) {
                     r.place_show = '';
+                    if (result.status === 13 && result.status_comment) {
+                        r.preo_pass_time = result.status_comment;
+                    }
                     if (isPreoMode) {
                         r.trailo_score = '';
                     }
@@ -729,14 +806,14 @@
         });
         for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
             var result = _a[_i];
-            if (result.status !== 13 && result.person && result.person.group && result.person.group.course && result.person.group.course.id === group.id) { //} && (count ? result.place <= count && result.place > 0 : 1)) {
+            if (result.person && result.person.group && result.person.group.course && result.person.group.course.id === group.id) { //} && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: (result.person.surname + ' ' + result.person.name).slice(0, MAX_PERSON_NAME),
+                    name: formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
-                    year: result.person.birth_date ? (new Date(result.person.birth_date)).getFullYear() : '',
+                    year: formatBirthDate(result.person.birth_date),
                     preo_pass_time: preoPassTime(result),
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
@@ -753,6 +830,9 @@
                 if (result.status !== 1) {
                     r.diff = '';
                     r.place_show = '';
+                    if (result.status === 13 && result.status_comment) {
+                        r.preo_pass_time = result.status_comment;
+                    }
                     if (isPreoMode) {
                         r.trailo_score = '';
                     }
@@ -956,7 +1036,7 @@
             {key: 'group', title: 'Группа', size: 10, active: false},
             {key: 'name', title: 'Фамилия Имя', size: 30},
             {key: 'org', title: 'Команда', size: 20},
-            {key: 'year', title: 'Г.Р.', size: 5},
+            {key: 'year', title: 'Дата рождения', size: 12},
             {key: 'bib', title: 'Номер', size: 6},
             {key: 'preo_pass_time', title: 'Время прохождения', size: 12, active: false},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
@@ -1054,7 +1134,7 @@
                 var th = topRowThs[t1];
                 var t = (th.textContent || '').trim();
                 if (t === NAME_TITLE) {
-                    th.style.width = '170px';
+                    th.style.width = '220px';
                     th.classList.add('name-col');
                 } else if (t === ORG_TITLE) {
                     th.style.width = '160px';
@@ -1068,7 +1148,7 @@
                     th.style.width = '34px';
                     th.classList.add('index-col');
                 }
-                else if (t === 'Г.Р.') th.style.width = '36px';
+                else if (t === 'Дата рождения') th.style.width = '78px';
                 else if (t === 'Номер') th.style.width = '40px';
                 else if (t === PASS_TIME_TITLE) {
                     th.style.width = '52px';
@@ -1653,22 +1733,247 @@
         return out.join('<br>');
     }
 
-    function buildRaceHeaderHtmlForExcel() {
-        var desc = (race.data && race.data.description) ? String(race.data.description) : '';
-        var when = (race.data && race.data.start_datetime) ? String(race.data.start_datetime) : '';
-        var where = (race.data && race.data.location) ? String(race.data.location) : '';
-        var line2 = [when, where].filter(Boolean).join(' ');
+    function formatRaceDateForExcelOnly(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        s = String(s).trim();
+        var m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m) {
+            return m[1];
+        }
+        m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+        if (m) {
+            return m[1] + '.' + m[2] + '.' + m[3];
+        }
+        m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+        if (m) {
+            return m[1] + '-' + m[2] + '-' + m[3];
+        }
+        var cut = s.split(/[\sT]/)[0];
+        return cut || s;
+    }
+
+    function raceDescriptionPlainForExcel(html) {
+        var s = String(html || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<\/div>/gi, '\n')
+            .replace(/<\/h[1-6]>/gi, '\n')
+            .replace(/<\/li>/gi, '\n')
+            .replace(/<\/tr>/gi, '\n');
+        var div = document.createElement('div');
+        div.innerHTML = s;
+        var t = (div.innerText || div.textContent || '').replace(/\r\n/g, '\n');
+        t = t.replace(/\n[ \t]+\n/g, '\n\n').replace(/\n{3,}/g, '\n\n');
+        return t.trim();
+    }
+
+    function buildBlockHeaderHtmlForExcel(bi) {
         var parts = [];
-        parts.push('<div class="sportorg-excel-group-header">');
-        if (desc) {
-            parts.push('<p><strong>' + escapeHtmlWithBrAsExcel(desc) + '</strong></p>');
+        var wrapClass =
+            'sportorg-excel-group-header' +
+            (bi > 0 ? ' sportorg-excel-group-header-follow' : '');
+        parts.push('<div class="' + wrapClass + '">');
+        var descHtml = race.data && race.data.description ? String(race.data.description) : '';
+        var descPlain = raceDescriptionPlainForExcel(descHtml);
+        if (descPlain.replace(/\s/g, '')) {
+            parts.push('<div class="sportorg-excel-desc">');
+            var descLines = descPlain.split(/\n/);
+            var di;
+            var anyLine = false;
+            for (di = 0; di < descLines.length; di++) {
+                var ln = descLines[di].replace(/\u00a0/g, ' ').replace(/^\s+|\s+$/g, '');
+                if (!ln) {
+                    continue;
+                }
+                anyLine = true;
+                parts.push(
+                    '<p class="sportorg-excel-desc-line"><strong>' +
+                    escapeHtmlForExcelExport(ln) +
+                    '</strong></p>'
+                );
+            }
+            if (!anyLine) {
+                parts.push(
+                    '<p class="sportorg-excel-desc-line"><strong>' +
+                    escapeHtmlForExcelExport(descPlain.trim()) +
+                    '</strong></p>'
+                );
+            }
+            parts.push('</div>');
         }
-        if (line2) {
-            parts.push('<p>' + escapeHtmlWithBrAsExcel(line2) + '</p>');
+        var titleRaw = race.data && race.data.title ? String(race.data.title).trim() : '';
+        if (titleRaw) {
+            parts.push(
+                '<p class="sportorg-excel-line sportorg-excel-race-title"><strong>' +
+                escapeHtmlForExcelExport(titleRaw) +
+                '</strong></p>'
+            );
         }
-        parts.push('<p><strong>' + escapeHtmlForExcelExport('Предварительный протокол ответов') + '</strong></p>');
+        var when = formatRaceDateForExcelOnly(
+            race.data && race.data.start_datetime ? String(race.data.start_datetime) : ''
+        );
+        var where = race.data && race.data.location ? String(race.data.location) : '';
+        var datePlace = [when, where].filter(Boolean).join(', ');
+        if (datePlace) {
+            parts.push(
+                '<p class="sportorg-excel-line">' + escapeHtmlWithBrAsExcel(datePlace) + '</p>'
+            );
+        }
+        parts.push(
+            '<p class="sportorg-excel-doc-title">' +
+            '<strong>' + escapeHtmlForExcelExport('Протокол результатов') + '</strong>' +
+            '</p>'
+        );
+        parts.push('<div class="sportorg-excel-gap">&nbsp;</div>');
         parts.push('</div>');
         return parts.join('');
+    }
+
+    function getSportorgTableColumnCount(table) {
+        if (!table || !table.rows.length) {
+            return 1;
+        }
+        var tr = table.rows[0];
+        var total = 0;
+        var ci;
+        for (ci = 0; ci < tr.cells.length; ci++) {
+            total += tr.cells[ci].colSpan || 1;
+        }
+        return Math.max(1, total);
+    }
+
+    function buildSignatureInnerHtmlString() {
+        var chief = race.data && race.data.chief_referee ? String(race.data.chief_referee).trim() : '';
+        var sec = race.data && race.data.secretary ? String(race.data.secretary).trim() : '';
+        var left = 'Главный судья ________ ' + chief;
+        var right = 'Главный секретарь ________ ' + sec;
+        var gap = '';
+        var gi;
+        for (gi = 0; gi < 32; gi++) {
+            gap += '&nbsp;';
+        }
+        return (
+            '<p class="sportorg-excel-sig-onecell" style="margin:0;line-height:1.45;text-align:center;">' +
+            escapeHtmlForExcelExport(left) +
+            gap +
+            escapeHtmlForExcelExport(right) +
+            '</p>'
+        );
+    }
+
+    var EXCEL_TD_NO_BORDER =
+        'border:none!important;border-style:none!important;border-width:0!important;' +
+        'mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+        'mso-border-left-alt:none;mso-border-right-alt:none;';
+
+    function buildExcelEmptyRowString(colspan) {
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        return (
+            '<tr class="sportorg-excel-empty-row">' +
+            '<td colspan="' +
+            cs +
+            '" style="height:16pt;mso-height-source:userset;line-height:16pt;' +
+            'font-size:1px;padding:3px 4px;' +
+            EXCEL_TD_NO_BORDER +
+            '">&nbsp;</td>' +
+            '</tr>'
+        );
+    }
+
+    function buildGroupRowHtmlString(colspan, groupText) {
+        var gt = String(groupText || '').trim();
+        if (!gt) {
+            return '';
+        }
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        var label =
+            '<strong>' + escapeHtmlForExcelExport('Группа: ') + '</strong>' +
+            escapeHtmlForExcelExport(gt);
+        if (cs === 1) {
+            return (
+                '<tr class="sportorg-excel-group-tr">' +
+                '<td class="sportorg-excel-group-td" colspan="1" style="text-align:center;padding:6px 4px;' +
+                EXCEL_TD_NO_BORDER +
+                '">' +
+                label +
+                '</td></tr>'
+            );
+        }
+        return (
+            '<tr class="sportorg-excel-group-tr">' +
+            '<td class="sportorg-excel-group-cell1" style="padding:4px;' + EXCEL_TD_NO_BORDER + '">&nbsp;</td>' +
+            '<td class="sportorg-excel-group-cell2" colspan="' +
+            (cs - 1) +
+            '" style="text-align:left;padding:6px 4px;' +
+            EXCEL_TD_NO_BORDER +
+            '">' +
+            label +
+            '</td></tr>'
+        );
+    }
+
+    function prependGroupRowToTableHtml(html, colspan, groupText) {
+        var row = buildGroupRowHtmlString(colspan, groupText);
+        if (!row) {
+            return html;
+        }
+        var m = /<thead\b[^>]*>/i.exec(html);
+        if (m) {
+            var afterOpen = m.index + m[0].length;
+            return html.slice(0, afterOpen) + row + html.slice(afterOpen);
+        }
+        m = /<tbody\b[^>]*>/i.exec(html);
+        if (m) {
+            var afterBody = m.index + m[0].length;
+            return html.slice(0, afterBody) + row + html.slice(afterBody);
+        }
+        m = /<table[^>]*>/i.exec(html);
+        if (m) {
+            return html.slice(0, m.index + m[0].length) + row + html.slice(m.index + m[0].length);
+        }
+        return html;
+    }
+
+    function buildSignatureTrString(colspan) {
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        return (
+            '<tr class="sportorg-excel-sig-tr">' +
+            '<td class="sportorg-excel-sig-merged" colspan="' +
+            cs +
+            '" style="padding:10px 8px 8px 8px;vertical-align:middle;' +
+            'border-top:none!important;mso-border-top-alt:none;">' +
+            buildSignatureInnerHtmlString() +
+            '</td>' +
+            '</tr>'
+        );
+    }
+
+    function appendSignatureRowToTableHtml(html, colspan) {
+        var emptyPair =
+            buildExcelEmptyRowString(colspan) + buildExcelEmptyRowString(colspan);
+        var row = buildSignatureTrString(colspan);
+        var lower = html.toLowerCase();
+        var i = lower.lastIndexOf('</tbody>');
+        if (i !== -1) {
+            return html.slice(0, i) + emptyPair + row + html.slice(i);
+        }
+        i = lower.lastIndexOf('</table>');
+        if (i === -1) {
+            return html;
+        }
+        return html.slice(0, i) + emptyPair + row + html.slice(i);
+    }
+
+    function buildExcelTableWithGroupAndSignatures(tbl, block) {
+        var colCount = getSportorgTableColumnCount(tbl);
+        var h2 = block ? block.querySelector('h2') : null;
+        var groupText = h2 ? String(h2.textContent || '').trim() : '';
+        var tableHtml = cloneTableHtmlForExcelExport(tbl);
+        tableHtml = prependGroupRowToTableHtml(tableHtml, colCount, groupText);
+        return appendSignatureRowToTableHtml(tableHtml, colCount);
     }
 
     var EXCEL_INCORRECT_BG = '#FFFDE8';
@@ -1688,8 +1993,7 @@
         }
         var splitWrong = clone.querySelectorAll('td table.table-split.incorrect');
         for (var j = 0; j < splitWrong.length; j++) {
-            var innerTbl = splitWrong[j];
-            var outer = innerTbl.closest('td');
+            var outer = splitWrong[j].closest('td');
             if (!outer || outer.classList.contains('incorrect-answer')) {
                 continue;
             }
@@ -1705,9 +2009,9 @@
     }
 
     function excelGroupSectionWrapOpen(index) {
-        var tdStyle = 'border:none;padding:0;vertical-align:top;padding-bottom:32px;';
+        var tdStyle = 'border:none;padding:0;vertical-align:top;padding-bottom:40px;';
         if (index > 0) {
-            tdStyle += 'padding-top:28px;';
+            tdStyle += 'padding-top:56px;mso-padding-top-alt:56px;';
         }
         return (
             '<table width="100%" border="0" cellpadding="0" cellspacing="0" ' +
@@ -1723,7 +2027,7 @@
     function excelGroupSectionBetweenSpacer() {
         return (
             '<table width="100%" border="0" cellpadding="0" cellspacing="0">' +
-            '<tr><td style="border:none;height:28pt;mso-height-source:userset;font-size:1px;line-height:28pt">&nbsp;</td></tr>' +
+            '<tr><td style="border:none;height:36pt;mso-height-source:userset;font-size:1px;line-height:36pt">&nbsp;</td></tr>' +
             '</table>'
         );
     }
@@ -1744,8 +2048,28 @@
             'th,td{border:1px solid #000;padding:4px;text-align:center;}' +
             'td.name-col,th.name-col{text-align:left;}' +
             'td.incorrect-answer{background-color:#fffde8!important;}' +
-            '.sportorg-excel-group-header{text-align:center;margin-bottom:12px;}' +
-            '.sportorg-excel-group-header p{margin:6px 0;}' +
+            '.sportorg-excel-group-header{text-align:center;margin-bottom:18px;}' +
+            '.sportorg-excel-group-header-follow{padding-top:8px;}' +
+            '.sportorg-excel-line{margin:10px 0;line-height:1.45;text-align:center;}' +
+            '.sportorg-excel-race-title{font-size:16pt;mso-ansi-font-size:16.0pt;line-height:1.3;margin:12px 0;}' +
+            '.sportorg-excel-race-title strong{font-weight:700;}' +
+            '.sportorg-excel-desc{min-height:52pt;mso-height-source:userset;padding:14px 12px 12px 12px;' +
+            'text-align:center;}' +
+            '.sportorg-excel-desc-line{margin:4px 0;line-height:1.55;text-align:center;}' +
+            '.sportorg-excel-desc-line strong{font-weight:700;}' +
+            '.sportorg-excel-group-header-follow .sportorg-excel-desc{min-height:64pt;padding-top:20px;}' +
+            '.sportorg-excel-doc-title{margin:12px 0;text-align:center;}' +
+            '.sportorg-excel-gap{height:12px;line-height:12px;font-size:1px;overflow:hidden;}' +
+            'tr.sportorg-excel-group-tr td{border:none!important;border-style:none!important;' +
+            'border-width:0!important;mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+            'mso-border-left-alt:none;mso-border-right-alt:none;}' +
+            'tr.sportorg-excel-empty-row td{border:none!important;border-style:none!important;' +
+            'border-width:0!important;mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+            'mso-border-left-alt:none;mso-border-right-alt:none;}' +
+            'tr.sportorg-excel-empty-row{height:16pt;mso-height-source:userset;}' +
+            'tr.sportorg-excel-sig-tr td.sportorg-excel-sig-merged{padding:10px 8px 8px 8px!important;' +
+            'vertical-align:middle!important;line-height:1.45;}' +
+            '.sportorg-excel-sig-onecell{margin:0;line-height:1.45;text-align:center;}' +
             'br{mso-data-placement:same-cell;}' +
             '</style></head><body>'
         );
@@ -1754,19 +2078,10 @@
         for (var bi = 0; bi < nBlocks; bi++) {
             var block = blocks[bi];
             parts.push(excelGroupSectionWrapOpen(bi));
-            parts.push(buildRaceHeaderHtmlForExcel());
-            var h2 = block.querySelector('h2');
-            if (h2) {
-                parts.push(
-                    '<h2 style="margin:8px 0 14px;text-align:center;">' +
-                    escapeHtmlWithBrAsExcel(h2.textContent || '') +
-                    '</h2>'
-                );
-            }
+            parts.push(buildBlockHeaderHtmlForExcel(bi));
             var tbl = block.querySelector('table.sportorg-table');
             if (tbl) {
-                parts.push(cloneTableHtmlForExcelExport(tbl));
-                parts.push('<div style="height:20px;line-height:20px;font-size:1px">&nbsp;</div>');
+                parts.push(buildExcelTableWithGroupAndSignatures(tbl, block));
             }
             parts.push(excelGroupSectionWrapClose());
             if (bi < nBlocks - 1) {
@@ -1786,18 +2101,7 @@
         URL.revokeObjectURL(url);
     }
 
-    function exportTrailoTablesToExcel() {
-        exportResultsToExcel();
-    }
-
     new SettingsGenerator([
-        {
-            type: 'button',
-            title: 'Excel',
-            click: function () {
-                exportTrailoTablesToExcel();
-            }
-        },
         {
             title: 'По дистанциям',
             value: !!store.showProtocolByCourse,
@@ -1862,6 +2166,13 @@
             }
         },
     ]).show();
+
+    (function () {
+        var btn = document.getElementById('export-excel-btn');
+        if (btn) {
+            btn.addEventListener('click', exportResultsToExcel);
+        }
+    })();
 </script>
 {% endraw %}
 {% endblock %}
