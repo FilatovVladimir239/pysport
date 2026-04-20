@@ -1037,6 +1037,7 @@
             {key: 'name', title: 'Фамилия Имя', size: 30},
             {key: 'org', title: 'Команда', size: 20},
             {key: 'year', title: 'Дата рождения', size: 12},
+            {key: 'qual', title: 'Разряд', size: 8},
             {key: 'bib', title: 'Номер', size: 6},
             {key: 'preo_pass_time', title: 'Время прохождения', size: 12, active: false},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
@@ -1149,6 +1150,7 @@
                     th.classList.add('index-col');
                 }
                 else if (t === 'Дата рождения') th.style.width = '78px';
+                else if (t === 'Разряд') th.style.width = '52px';
                 else if (t === 'Номер') th.style.width = '40px';
                 else if (t === PASS_TIME_TITLE) {
                     th.style.width = '52px';
