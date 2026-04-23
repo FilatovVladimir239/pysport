@@ -3,7 +3,14 @@ import platform
 from sportorg.language import translate
 from sportorg.models.memory import Group, Result, ResultStatus, race
 from sportorg.models.result.result_calculation import ResultCalculation
-from sportorg.modules.trailo.codes import parse_trailo_code, trailo_sort_key
+from sportorg.modules.trailo.codes import (
+    parse_trailo_code,
+    trailo_correctness_mark,
+    trailo_course_expanded_control_codes,
+    trailo_expected_answer_letter_for_split,
+    trailo_main_control_display_code,
+    trailo_sort_key,
+)
 
 if platform.system() == "Windows":  # current realisation works on Windows only
     import win32con
@@ -501,7 +508,9 @@ class TrailOSportorgPrinter(SportorgPrinter):
             tc_answer_lines = []
 
         if is_group_existed and course:
+            expanded_codes = trailo_course_expanded_control_codes(course)
             split_i = 0
+            prev_main_num = None
             while split_i < len(splits):
                 split = splits[split_i]
                 parsed = parse_trailo_code(getattr(split, "code", None))
@@ -509,11 +518,22 @@ class TrailOSportorgPrinter(SportorgPrinter):
                     break
                 raw = parsed.raw
                 if parsed.kind == "main":
+                    code_disp = trailo_main_control_display_code(parsed, prev_main_num)
+                    prev_main_num = parsed.main_num
+                    if code_disp.startswith("--"):
+                        num_col = (" --")[-3:]
+                        ans_col = (" " + code_disp[2:])[-2:] if len(code_disp) > 2 else " ?"
+                    else:
+                        num_col = ("  " + str(parsed.main_num))[-3:]
+                        ans_col = (" " + str(parsed.main_answer))[-2:]
                     if show_trailo_correctness:
-                        mark = "+" if split.is_correct else "-"
+                        exp = trailo_expected_answer_letter_for_split(
+                            split, expanded_codes
+                        )
+                        mark = trailo_correctness_mark(split.is_correct, exp)
                         line = (
-                            ("  " + str(parsed.main_num))[-3:]
-                            + (" " + str(parsed.main_answer))[-2:]
+                            num_col
+                            + ans_col
                             + " "
                             + mark
                             + " "
@@ -521,13 +541,14 @@ class TrailOSportorgPrinter(SportorgPrinter):
                         )
                     else:
                         line = (
-                            ("  " + str(parsed.main_num))[-3:]
-                            + (" " + str(parsed.main_answer))[-2:]
+                            num_col
+                            + ans_col
                             + "    "
                             + split.time.to_str()[-8:]
                         )
                     self.print_line(line, fn, fs_main)
                 else:
+                    prev_main_num = None
                     self.print_line(f"{raw} {split.time.to_str()}", fn, fs_main)
                 split_i += 1
 
@@ -560,7 +581,10 @@ class TrailOSportorgPrinter(SportorgPrinter):
                     n = len(tc_answer_lines) + 1
                     letter = (parsed.tc_answer or "?").upper()
                     if show_trailo_correctness:
-                        mark = "+" if split.is_correct else "-"
+                        exp = trailo_expected_answer_letter_for_split(
+                            split, expanded_codes
+                        )
+                        mark = trailo_correctness_mark(split.is_correct, exp)
                         tc_answer_lines.append(f"  {n}. {letter} {mark}")
                     else:
                         tc_answer_lines.append(f"  {n}. {letter}")

@@ -15,7 +15,14 @@ from sportorg.gui.tabs.memory_model import ResultMemoryModel
 from sportorg.gui.tabs.table import TableView
 from sportorg.language import translate
 from sportorg.models.memory import Result, race
-from sportorg.modules.trailo.codes import parse_trailo_code, trailo_sort_key
+from sportorg.modules.trailo.codes import (
+    parse_trailo_code,
+    trailo_correctness_mark,
+    trailo_course_expanded_control_codes,
+    trailo_expected_answer_letter_for_split,
+    trailo_main_control_display_code,
+    trailo_sort_key,
+)
 from sportorg.utils.time import time_to_hhmmss
 
 
@@ -28,16 +35,23 @@ class TrailoResultSplitsDisplay:
         result: Result,
         time_accuracy: int,
         show_correctness: bool = True,
+        course=None,
     ) -> None:
         splits = sorted(result.splits, key=trailo_sort_key)
+        expanded_codes = trailo_course_expanded_control_codes(course)
+        prev_main_num = None
         for split in splits:
             parsed = parse_trailo_code(getattr(split, "code", None))
             if parsed.kind in ("tc_time", "tc_answer"):
                 break
             time_str = split.time.to_str(time_accuracy)
             if parsed.kind == "main":
-                s = f"{parsed.main_num:0>2}{parsed.main_answer}   {time_str}"
+                code_disp = trailo_main_control_display_code(parsed, prev_main_num)
+                prev_main_num = parsed.main_num
+                s = f"{code_disp}   {time_str}"
                 if show_correctness:
+                    exp = trailo_expected_answer_letter_for_split(split, expanded_codes)
+                    s = f"{s} {trailo_correctness_mark(split.is_correct, exp)}"
                     if not split.is_correct:
                         s = '<span style="color: red">{}</span>'.format(s)
                     else:
@@ -46,6 +60,7 @@ class TrailoResultSplitsDisplay:
                         )
                 details.append(s)
             else:
+                prev_main_num = None
                 raw = parsed.raw
                 details.append(f"{raw} {time_str}")
 
@@ -55,8 +70,10 @@ class TrailoResultSplitsDisplay:
         result: Result,
         time_accuracy: int,
         show_correctness: bool = True,
+        course=None,
     ) -> None:
         splits = sorted(result.splits, key=trailo_sort_key)
+        expanded_codes = trailo_course_expanded_control_codes(course)
         tc_idx_active = None
         tc_time_str = None
         answer_rows: List[str] = []
@@ -106,15 +123,18 @@ class TrailoResultSplitsDisplay:
                 n = len(answer_rows) + 1
                 letter = (parsed.tc_answer or "?").upper()
                 if show_correctness:
+                    exp = trailo_expected_answer_letter_for_split(split, expanded_codes)
+                    mark = trailo_correctness_mark(split.is_correct, exp)
+                    row = f"{n}. {letter} {mark}"
                     if not split.is_correct:
-                        body = '<span style="color: red">{}</span>'.format(letter)
+                        body = '<span style="color: red">{}</span>'.format(row)
                     else:
                         body = '<span style="color: green; font-weight: 700">{}</span>'.format(
-                            letter
+                            row
                         )
                 else:
-                    body = letter
-                answer_rows.append(f"{n}. {body}")
+                    body = f"{n}. {letter}"
+                answer_rows.append(body)
                 continue
 
         flush_tc_block()
@@ -319,6 +339,7 @@ class Widget(QtWidgets.QWidget):
                 result,
                 time_accuracy,
                 trailo_show_correctness,
+                course=course,
             )
             finish_time = result.get_finish_time()
             self.result_card_details.append(
@@ -335,6 +356,7 @@ class Widget(QtWidgets.QWidget):
                 result,
                 time_accuracy,
                 trailo_show_correctness,
+                course=course,
             )
             TrailoResultSplitsDisplay.append_unknown_splits_after_tc(
                 self.result_card_details, result, time_accuracy

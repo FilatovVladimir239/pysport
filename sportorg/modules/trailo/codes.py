@@ -126,6 +126,75 @@ def expand_trailo_control_code_strings(control_codes: List[str]) -> List[str]:
     return out
 
 
+def trailo_course_expanded_control_codes(course) -> List[str]:
+    if course is None:
+        return []
+    controls = getattr(course, "controls", None) or []
+    if not controls:
+        return []
+    return expand_trailo_control_code_strings([str(c.code) for c in controls])
+
+
+def trailo_expected_answer_letter_for_split(
+    split, expanded_codes: List[str]
+) -> Optional[str]:
+    """
+    Ожидаемая буква ответа с дистанции для сплита (основной КП или задача тайм‑КП).
+    """
+    idx = int(getattr(split, "course_index", -1) or -1)
+    if expanded_codes and 0 <= idx < len(expanded_codes):
+        p_ctrl = parse_trailo_code(expanded_codes[idx])
+        if p_ctrl.kind == "main" and p_ctrl.main_answer:
+            return str(p_ctrl.main_answer).upper()
+        if p_ctrl.kind == "tc_answer" and p_ctrl.tc_answer:
+            return str(p_ctrl.tc_answer).upper()
+    parsed = parse_trailo_code(getattr(split, "code", None))
+    if parsed.kind == "main" and parsed.main_num is not None:
+        for raw in expanded_codes:
+            pc = parse_trailo_code(raw)
+            if pc.kind == "main" and pc.main_num == parsed.main_num and pc.main_answer:
+                return str(pc.main_answer).upper()
+    if (
+        parsed.kind == "tc_answer"
+        and parsed.tc_idx is not None
+        and parsed.tc_task is not None
+    ):
+        for raw in expanded_codes:
+            pc = parse_trailo_code(raw)
+            if (
+                pc.kind == "tc_answer"
+                and pc.tc_idx == parsed.tc_idx
+                and pc.tc_task == parsed.tc_task
+                and pc.tc_answer
+            ):
+                return str(pc.tc_answer).upper()
+    return None
+
+
+def trailo_correctness_mark(is_correct: bool, expected_letter: Optional[str]) -> str:
+    if is_correct:
+        return "(+)"
+    if expected_letter:
+        return f"({str(expected_letter).upper()})"
+    return "(?)"
+
+
+def trailo_main_control_display_code(
+    parsed: ParsedTrailoCode, prev_main_num: Optional[int]
+) -> str:
+    """
+    Main-control label in a split sequence: same CP number as previous punch
+    (another answer) -> '--B'; otherwise full code '12A'.
+    """
+    if parsed.kind != "main":
+        return parsed.raw
+    ans = (parsed.main_answer or "").upper()
+    if prev_main_num is not None and parsed.main_num == prev_main_num:
+        return f"--{ans}"
+    num = parsed.main_num if parsed.main_num is not None else 0
+    return f"{num:02d}{ans}"
+
+
 def trailo_sort_key(split) -> tuple:
     """
     Sort order:

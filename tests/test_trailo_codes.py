@@ -1,6 +1,16 @@
 from types import SimpleNamespace
 
-from sportorg.modules.trailo.codes import parse_trailo_code, trailo_sort_key
+from types import SimpleNamespace
+
+from sportorg.models.memory import Course, CourseControl
+from sportorg.modules.trailo.codes import (
+    parse_trailo_code,
+    trailo_correctness_mark,
+    trailo_course_expanded_control_codes,
+    trailo_expected_answer_letter_for_split,
+    trailo_main_control_display_code,
+    trailo_sort_key,
+)
 
 
 def test_parse_trailo_codes_new_and_legacy() -> None:
@@ -41,4 +51,39 @@ def test_trailo_sort_key_main_then_time_controls() -> None:
 
     sorted_codes = [s.code for s in sorted(splits, key=trailo_sort_key)]
     assert sorted_codes == ["1A", "2B", "1TT", "1T1A", "1T2B", "2TT"]
+
+
+def test_trailo_main_control_display_code_repeat_same_cp() -> None:
+    p12a = parse_trailo_code("12A")
+    p12b = parse_trailo_code("12B")
+    assert trailo_main_control_display_code(p12a, None) == "12A"
+    assert trailo_main_control_display_code(p12b, 12) == "--B"
+    p13c = parse_trailo_code("13C")
+    assert trailo_main_control_display_code(p13c, 12) == "13C"
+
+
+def test_trailo_correctness_mark() -> None:
+    assert trailo_correctness_mark(True, None) == "(+)"
+    assert trailo_correctness_mark(False, "A") == "(A)"
+    assert trailo_correctness_mark(False, None) == "(?)"
+
+
+def test_trailo_expected_answer_letter_for_main() -> None:
+    course = Course()
+    cc = CourseControl()
+    cc.code = "12A"
+    course.controls = [cc]
+    expanded = trailo_course_expanded_control_codes(course)
+    split = SimpleNamespace(course_index=0, code="12B")
+    assert trailo_expected_answer_letter_for_split(split, expanded) == "A"
+
+
+def test_trailo_expected_answer_fallback_by_punched_code() -> None:
+    course = Course()
+    cc = CourseControl()
+    cc.code = "5C"
+    course.controls = [cc]
+    expanded = trailo_course_expanded_control_codes(course)
+    split = SimpleNamespace(course_index=-1, code="5X")
+    assert trailo_expected_answer_letter_for_split(split, expanded) == "C"
 
