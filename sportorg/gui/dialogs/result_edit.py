@@ -47,6 +47,7 @@ from sportorg.models.result.result_tools import recalculate_results
 from sportorg.models.result.split_calculation import GroupSplits
 from sportorg.modules.live.live import live_client
 from sportorg.modules.teamwork.teamwork import Teamwork
+from sportorg.modules.trailo.codes import trailo_sort_key
 from sportorg.utils.time import hhmmss_to_time
 
 
@@ -370,6 +371,8 @@ class SplitsText(SplitsObject):
 
     def show(self):
         splits = self._splits if self._splits else []
+        if race().get_setting("result_processing_mode") == "trailo":
+            splits = sorted(splits, key=trailo_sort_key)
         text = ""
         time_accuracy = race().get_setting("time_accuracy", 0)
         for split in splits:
