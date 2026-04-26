@@ -311,7 +311,8 @@ class ResultEditDialog(QDialog):
             except ResultCheckerException as e:
                 logging.error(str(e))
         group = result.person.group if result.person else None
-        recalculate_results(recheck_results=False, group=group)
+        is_trailo_mode = race().get_setting("result_processing_mode", "time") == "trailo"
+        recalculate_results(recheck_results=is_trailo_mode, group=group)
         live_client.send(result)
         Teamwork().send(result.to_dict())
 
