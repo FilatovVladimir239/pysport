@@ -48,9 +48,22 @@ class TrailoResultChecker:
         )
 
     @staticmethod
+    def get_penalty_time_for_mode() -> OTime:
+        settings = race()
+        if settings.get_setting("trailo_custom_penalty_time_enabled", True):
+            return OTime(sec=settings.get_setting("trailo_time_penalty", 30))
+
+        trailo_mode = settings.get_setting("trailo_mode", "preo")
+        if trailo_mode == "preo":
+            return OTime(sec=60)
+        if trailo_mode == "tempo":
+            return OTime(sec=30)
+        return OTime(sec=0)
+
+    @staticmethod
     def penalty_time_calculation_trailo(splits, controls) -> OTime:
         res = OTime()
-        penalty_time = OTime(sec=race().get_setting("trailo_time_penalty", 30))
+        penalty_time = TrailoResultChecker.get_penalty_time_for_mode()
 
         for control_point in controls:
             cp = parse_trailo_code(str(control_point.code))

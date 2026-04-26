@@ -595,7 +595,12 @@ class MainWindow(QMainWindow):
                 if rg.add_result():
                     result = rg.get_result()
                     group = result.person.group if result.person else None
-                    recalculate_results(recheck_results=False, group=group)
+                    is_trailo_mode = (
+                        race().get_setting("result_processing_mode", "time") == "trailo"
+                    )
+                    recalculate_results(
+                        recheck_results=is_trailo_mode, group=group
+                    )
                     if race().get_setting("split_printout", False):
                         try:
                             split_printout([result])
