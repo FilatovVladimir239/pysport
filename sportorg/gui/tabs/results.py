@@ -415,26 +415,28 @@ class Widget(QtWidgets.QWidget):
         if is_trailo and not trailo_show_correctness:
             course_highlight_vs_splits = False
 
-        start_str = translate("Start")
-        self.result_course_details.append(start_str)
-        if course:
-            index = 1
-            for control in course.controls:
-                s = "{index:02d} ({code}) {length}".format(
-                    index=index,
-                    code=control.code,
-                    length=control.length if control.length else "",
-                )
-                if (
-                    course_highlight_vs_splits
-                    and str(control.code) not in split_codes
-                ):
-                    s = '<span style="background: yellow">{}</span>'.format(s)
-                self.result_course_details.append(s)
-                index += 1
+        hide_course_in_trailo = is_trailo and not trailo_show_correctness
+        if not hide_course_in_trailo:
+            start_str = translate("Start")
+            self.result_course_details.append(start_str)
+            if course:
+                index = 1
+                for control in course.controls:
+                    s = "{index:02d} ({code}) {length}".format(
+                        index=index,
+                        code=control.code,
+                        length=control.length if control.length else "",
+                    )
+                    if (
+                        course_highlight_vs_splits
+                        and str(control.code) not in split_codes
+                    ):
+                        s = '<span style="background: yellow">{}</span>'.format(s)
+                    self.result_course_details.append(s)
+                    index += 1
 
-            self.result_course_name_edit.setText(course.name)
-            self.result_course_name_edit.setCursorPosition(0)
-            self.result_course_length_edit.setText(str(course.length))
-        finish_str = translate("Finish")
-        self.result_course_details.append(finish_str)
+                self.result_course_name_edit.setText(course.name)
+                self.result_course_name_edit.setCursorPosition(0)
+                self.result_course_length_edit.setText(str(course.length))
+            finish_str = translate("Finish")
+            self.result_course_details.append(finish_str)
