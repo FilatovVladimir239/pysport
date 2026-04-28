@@ -17,7 +17,10 @@ class TrailoResultChecker:
 
         if trailo_mode != "tempo":
             scores = TrailoResultChecker.calculate_scores_trailo(result)
-            penalty = calculate_rogaine_penalty(result, scores, 1)
+            penalty_interval_minutes = 5 if trailo_mode == "preo" else 1
+            penalty = calculate_rogaine_penalty(
+                result, scores, 1, penalty_interval_minutes
+            )
             trailo_score_penalty = penalty
             trailo_score = scores - penalty
         else:

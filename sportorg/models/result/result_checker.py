@@ -503,7 +503,10 @@ class ResultChecker:
 
     @staticmethod
     def calculate_rogaine_penalty(
-            result: Result, score: int, penalty_step: int = 1
+            result: Result,
+            score: int,
+            penalty_step: int = 1,
+            penalty_interval_minutes: int = 1,
     ) -> int:
         """
         Calculates the penalty for a given result based on the participant's excess of a race time.
@@ -511,7 +514,9 @@ class ResultChecker:
         Parameters:
             result (Result): The result for which the penalty needs to be calculated.
             score (int): The competitor's score.
-            penalty_step (int, optional): The penalty points for each minute late. Defaults to 1.
+            penalty_step (int, optional): Penalty points per one interval. Defaults to 1.
+            penalty_interval_minutes (int, optional): Interval length in minutes.
+                One started interval adds penalty_step points. Defaults to 1.
 
         Returns:
             int: The calculated penalty for the result.
@@ -525,7 +530,9 @@ class ResultChecker:
                 time_diff = user_time - max_time
                 seconds_diff = time_diff.to_sec()
                 minutes_diff = (seconds_diff + 59) // 60  # note, 1:01 = 2 minutes
-                penalty = minutes_diff * penalty_step
+                interval = max(1, int(penalty_interval_minutes))
+                penalty_units = (minutes_diff + interval - 1) // interval
+                penalty = penalty_units * penalty_step
         return min(penalty, score)
 
     @staticmethod

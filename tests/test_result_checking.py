@@ -425,6 +425,27 @@ def test_calculate_rogaine_penalty(step, score, max_time, finish, expected):
     assert ResultChecker.calculate_rogaine_penalty(result, score, step) == expected
 
 
+def test_calculate_rogaine_penalty_with_five_minute_interval():
+    create_race()
+    race().groups[0].max_time = OTime(0, 1, 0, 0)
+    result = race().results[0]
+
+    result.finish_time = OTime(0, 1, 0, 1)
+    assert ResultChecker.calculate_rogaine_penalty(
+        result, score=10, penalty_step=1, penalty_interval_minutes=5
+    ) == 1
+
+    result.finish_time = OTime(0, 1, 5, 0)
+    assert ResultChecker.calculate_rogaine_penalty(
+        result, score=10, penalty_step=1, penalty_interval_minutes=5
+    ) == 1
+
+    result.finish_time = OTime(0, 1, 5, 1)
+    assert ResultChecker.calculate_rogaine_penalty(
+        result, score=10, penalty_step=1, penalty_interval_minutes=5
+    ) == 2
+
+
 def test_non_obvious_behavior():
     """Document edge cases that may look surprising but are currently expected."""
     c = [31, '*', '*', 34]
