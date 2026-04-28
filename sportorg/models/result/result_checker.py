@@ -177,6 +177,8 @@ class ResultChecker:
             result.splits, _ = ResultChecker.detach_penalty_laps(result.splits, lap_station)
 
         penalty_extra = race().get_setting("penalty_extra_cp", True)
+        splits = result.splits
+        controls = course.controls
         penalty = ResultChecker.penalty_calculation(splits, controls, penalty_extra)
 
         if race().get_setting("marked_route_max_penalty_by_cp", False):
