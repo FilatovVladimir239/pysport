@@ -82,6 +82,8 @@ class TimekeepingPropertiesDialog(QDialog):
         self.punch_system_layout.addRow(self.punch_system_impinj)
         self.punch_system_srpid = QRadioButton(translate("SRPID"))
         self.punch_system_layout.addRow(self.punch_system_srpid)
+        self.punch_system_huichang = QRadioButton(translate("Huichang"))
+        self.punch_system_layout.addRow(self.punch_system_huichang)
         self.punch_system_si.setChecked(True)
         self.punch_system_box.setLayout(self.punch_system_layout)
         self.tk_layout.addRow(self.punch_system_box)
@@ -316,6 +318,8 @@ class TimekeepingPropertiesDialog(QDialog):
         self.mr_max_penalty_by_cp = QCheckBox(translate("Max penalty = quantity of cp"))
         self.mr_max_penalty_by_cp.setToolTip(translate("Max penalty = quantity of cp"))
         self.mr_layout.addRow(self.mr_max_penalty_by_cp)
+        self.penalty_extra_cp_check = QCheckBox(translate("Penalty for extra cp"))
+        self.mr_layout.addRow(self.penalty_extra_cp_check)
         self.marked_route_tab.setLayout(self.mr_layout)
 
         # scores
@@ -482,6 +486,9 @@ class TimekeepingPropertiesDialog(QDialog):
         self.mr_max_penalty_by_cp.setDisabled(
             not (self.mr_laps_radio.isChecked() or self.mr_time_radio.isChecked())
         )
+        self.penalty_extra_cp_check.setDisabled(
+            not (self.mr_laps_radio.isChecked() or self.mr_time_radio.isChecked())
+        )
 
     def get_default_trailo_penalty_time(self) -> int:
         if self.trailo_settings_preo_radio.isChecked():
@@ -533,6 +540,8 @@ class TimekeepingPropertiesDialog(QDialog):
             self.punch_system_impinj.setChecked(True)
         elif punch_system == SystemType.SRPID:
             self.punch_system_srpid.setChecked(True)
+        elif punch_system == SystemType.HUICHANG:
+            self.punch_system_huichang.setChecked(True)
         else:
             self.punch_system_si.setChecked(True)
 
@@ -660,6 +669,7 @@ class TimekeepingPropertiesDialog(QDialog):
         mr_if_max_penalty_by_cp = obj.get_setting(
             "marked_route_max_penalty_by_cp", False
         )
+        penalty_extra_cp = obj.get_setting("penalty_extra_cp", True)
 
         if mr_mode == "off":
             self.mr_off_radio.setChecked(True)
@@ -674,6 +684,7 @@ class TimekeepingPropertiesDialog(QDialog):
         self.mr_lap_station_edit.setValue(mr_station_code)
         self.mr_dont_dqs_check.setChecked(mr_if_dont_dsq_check)
         self.mr_max_penalty_by_cp.setChecked(mr_if_max_penalty_by_cp)
+        self.penalty_extra_cp_check.setChecked(penalty_extra_cp)
 
         # score settings
 
@@ -789,6 +800,8 @@ class TimekeepingPropertiesDialog(QDialog):
             obj.set_setting("punch_system", SystemType.RFID_IMPINJ.value)
         elif self.punch_system_srpid.isChecked():
             obj.set_setting("punch_system", SystemType.SRPID.value)
+        elif self.punch_system_huichang.isChecked():
+            obj.set_setting("punch_system", SystemType.HUICHANG.value)
         else:
             obj.set_setting("punch_system", SystemType.SPORTIDENT.value)
 
@@ -875,6 +888,7 @@ class TimekeepingPropertiesDialog(QDialog):
         mr_station_code = self.mr_lap_station_edit.value()
         mr_if_dont_dsq = self.mr_dont_dqs_check.isChecked()
         mr_if_max_penalty_by_cp = self.mr_max_penalty_by_cp.isChecked()
+        penalty_extra_cp = self.penalty_extra_cp_check.isChecked()
 
         obj.set_setting("marked_route_mode", mr_mode)
         obj.set_setting("marked_route_penalty_time", mr_penalty_time)
@@ -883,6 +897,7 @@ class TimekeepingPropertiesDialog(QDialog):
         obj.set_setting("marked_route_penalty_lap_station_code", mr_station_code)
         obj.set_setting("marked_route_dont_dsq", mr_if_dont_dsq)
         obj.set_setting("marked_route_max_penalty_by_cp", mr_if_max_penalty_by_cp)
+        obj.set_setting("penalty_extra_cp", penalty_extra_cp)
 
         # score settings
 

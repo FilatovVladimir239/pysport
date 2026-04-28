@@ -3,6 +3,7 @@
 ## next
 
 ### Improvements
+
 + Generation of SRB file (SFR results board) on saving
 + New field - middle name (new Russian requirements)
 + Import of full date of birth
@@ -17,8 +18,20 @@
 + Reverse row numbering in the results tab ([#519](https://github.com/sportorg/pysport/issues/519))
 + Templates can compress data (gzip) to reduce the size of html files
 + Punch system selection in timekeeping properties dialog
++ Added support for multi-sport ranking tables and settings simultaneously
++ For ARDF, rank fulfillment according to the requirements of EVSK
++ Live (Online) toolbar button with state indicator and context menu (Enable/Disable, Send Selected, Settings)
++ A button has been added to the participant card for assigning a number (maximum existing number + 1)
++ Added a button in the result card to change the participant's bib to the entered number
++ Added connected clients to teamwork properties
++ Optional Teamwork data encryption (AES-256-GCM) with local key storage and key generation in settings
++ Teamwork host/port/mode/encryption settings moved from race file to app settings; added "Run at startup" and auto-fallback to client on startup if server is already running
++ Teamwork race ID verification on server with client confirmation flow for mismatches and automatic Teamwork shutdown confirmation when switching multi-day race day
++ Added Huichang Timing System support ([#550](https://github.com/sportorg/pysport/pull/550))
++ Changed the principle of penalty calculation for standard course. Now if person just missed 1 point, it gives 1 penalty score
 
 ### Fixes
+
 + Fixed: multi day race processing - all days are refreshed on the file opening
 + Fixed: SRPid readout, error in byte conversion
 + Fixed: Import from WDB with the rubbish in course object (special characters)
@@ -34,6 +47,8 @@
 + Fixed reversed line order when opening the file ([#509](https://github.com/sportorg/pysport/issues/509))
 + Fixed a split printout error when a participant’s group or course was not found ([#526](https://github.com/sportorg/pysport/issues/526))
 + Fixed quick start group input using Alt+number ([#536](https://github.com/sportorg/pysport/issues/536))
++ Fixed: incorrect row deletion when records table are update during confirmation
++ Fixed duplicate results in teamwork
 
 ## 2025-04-01
 
@@ -60,7 +75,6 @@
 ## 2024-10-04 v1.7.0
 
 - New features
-
 - Fix teamwork
 - The program is faster
 
@@ -105,9 +119,11 @@
 + Results by course
 + Results autoscroll
 + Search athlete by name while unknown chip readout
+
 - Relays: set first leg finish as seond leg start etc.
 - Improved SI-6 support
 - Fixing in *.docx template for relays (last teams was missed)
+
 * Data model was changed. Use exchange formats to downgrade (xml, wdb)
 
 ## 2019-01-18 v1.4.0
@@ -115,12 +131,13 @@
 + Added import of CourseData (courses) for IOF xml
 + New status "Forced OK" to recover
 + Mass edit possibility for selected athletes
+
 - Calculating scores from leader time - ignoring mispunched athletes
 - Team work data exchange format changed. Previous: `0{}1`, now: `{}`
 - Search window freezing was fixed
 
-
 ## 2018-10-08 v1.3.0
+
 + Added MSP (mispunch) status, calculated by punches automatically
 + List or electronic cards to rent
 + Reduced row height in tables
@@ -133,7 +150,9 @@
 + File auto-saving
 + Show quantity of results for each athlete
 + Jinja2 templates .docx (MS Word)
+
 - Safe file saving (first write to file.sportorg.tmp, if it written correctly, rename to file.sportorg)
+
 * Introduced custom scripts for online sending
 
 ## 2018-06-13 v1.2.0
@@ -146,6 +165,7 @@
 + Multi day support
 + Dictionary of regions (file `regions.txt`)
 + Dictionary of given names (file `names.txt`)
+
 - Fixed error with last record in SFR card readout
 - Fixed error with mixed toss (all athletes of course)
 

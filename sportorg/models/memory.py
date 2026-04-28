@@ -34,6 +34,7 @@ class SystemType(Enum):
     SPORTIDUINO = 4
     RFID_IMPINJ = 5
     SRPID = 6
+    HUICHANG = 7
 
     def __str__(self) -> str:
         return self._name_
@@ -179,18 +180,18 @@ class CourseControl(Model):
         if not self.code:
             return "0"
 
-        tmp = str(self.code)
-        char = tmp[0]
-        if char == "*" or char == "%":
+        if self.is_free_order():
             return "0"
-        res = ""
 
+        res = ""
         index = 0
-        while char.isdigit() and index <= len(tmp) - 1:
-            res += char
+        tmp = str(self.code).strip()
+        if not tmp:
+            return "0"
+
+        while index < len(tmp) and tmp[index].isdigit():
+            res += tmp[index]
             index += 1
-            if index < len(tmp):
-                char = tmp[index]
         return str(res)
 
     def to_dict(self):
@@ -203,6 +204,16 @@ class CourseControl(Model):
     def update_data(self, data):
         self.code = str(data["code"])
         self.length = int(data["length"])
+
+    def is_free_order(self):
+        code_str = str(self.code).strip()
+        template = code_str.split("(", 1)[0].strip()
+        return (
+            template.startswith("*")
+            or template.startswith("%")
+            or template.endswith("*")
+            or template.endswith("%")
+        )
 
 
 class ControlPoint(Model):
@@ -534,6 +545,7 @@ class Result(ABC):
         self.final_result_time: Optional[OTime] = None  # real time, when nobody can win
 
         self.card_number = 0
+        self.card_battery_level = None  # 0-100%, Huichang contact-less card
         self.splits: List[Split] = []
         self.__start_time = None
         self.__finish_time = None
@@ -647,6 +659,7 @@ class Result(ABC):
             "assigned_rank": self.assigned_rank.value,
             "splits": [split.to_dict() for split in self.splits],
             "card_number": self.card_number,
+            "card_battery_level": self.card_battery_level,
             "speed": self.speed,  # readonly
             "scores": self.scores,  # readonly
             "rogaine_score": self.rogaine_score,  # readonly
@@ -723,6 +736,8 @@ class Result(ABC):
 
         if "card_number" in data:
             self.card_number = int(data["card_number"])
+        if "card_battery_level" in data and data["card_battery_level"] is not None:
+            self.card_battery_level = int(data["card_battery_level"])
         if "splits" in data:
             self.splits = []
             for item in data["splits"]:
@@ -885,7 +900,7 @@ class Result(ABC):
         person_id = self.person.multi_day_id
         sum_result = OTime()
         for day in races():
-            result_tmp = day.find_result_by_person_id(person_id)
+            result_tmp = day.find_result_by_multi_day_id(person_id)
             if result_tmp:
                 if result_tmp.is_status_ok():
                     sum_result += result_tmp.get_result_otime_current_day()
@@ -975,6 +990,7 @@ class Result(ABC):
             or self.is_sportiduino()
             or self.is_rfid_impinj()
             or self.is_srpid()
+            or self.is_huichang()
         )
 
     def is_sportident(self):
@@ -991,6 +1007,9 @@ class Result(ABC):
 
     def is_srpid(self):
         return self.system_type == SystemType.SRPID
+
+    def is_huichang(self):
+        return self.system_type == SystemType.HUICHANG
 
     def is_manual(self):
         return self.system_type == SystemType.MANUAL
@@ -1042,7 +1061,7 @@ class Result(ABC):
         ):
             person_id = self.person.multi_day_id
             for day in races():
-                cur_res: Result = day.find_result_by_person_id(person_id)
+                cur_res: Result = day.find_result_by_multi_day_id(person_id)
                 if cur_res:
                     ret.append(cur_res)
         return ret
@@ -1408,6 +1427,10 @@ class ResultSrpid(ResultSportident):
     system_type = SystemType.SRPID
 
 
+class ResultHuichang(ResultSportident):
+    system_type = SystemType.HUICHANG
+
+
 class Person(Model):
     def __init__(self):
         self.id = uuid.uuid4()
@@ -1719,6 +1742,7 @@ class Race(Model):
         "ResultSportiduino": ResultSportiduino,
         "ResultRfidImpinj": ResultRfidImpinj,
         "ResultSrpid": ResultSrpid,
+        "ResultHuichang": ResultHuichang,
         "Group": Group,
         "Course": Course,
         "Organization": Organization,
@@ -1736,6 +1760,7 @@ class Race(Model):
         self.settings: Dict[str, Any] = {}
         self.controls: List[ControlPoint] = []
         self.result_index: Dict[str, Result] = {}
+        self.result_index_by_multi_day_id: Dict[str, Result] = {}
         self.person_index_bib: Dict[int, Person] = {}
         self.person_index_card: Dict[int, Person] = {}
         self.person_index: Dict[str, Result] = {}
@@ -1758,6 +1783,7 @@ class Race(Model):
             "ResultSportiduino": self.results,
             "ResultRfidImpinj": self.results,
             "ResultSrpid": self.results,
+            "ResultHuichang": self.results,
             "Group": self.groups,
             "Course": self.courses,
             "Organization": self.organizations,
@@ -1774,6 +1800,7 @@ class Race(Model):
             "ResultSportiduino": self.result_index,
             "ResultRfidImpinj": self.result_index,
             "ResultSrpid": self.result_index,
+            "ResultHuichang": self.result_index,
             "Group": self.group_index,
             "Course": self.course_index,
             "Organization": self.organization_index,
@@ -1921,6 +1948,7 @@ class Race(Model):
             "ResultSportiduino",
             "ResultRfidImpinj",
             "ResultSrpid",
+            "ResultHuichang",
         ]:
             obj.person = self.get_obj("Person", dict_obj["person_id"])
         elif dict_obj["object"] == "Group":
@@ -1984,11 +2012,27 @@ class Race(Model):
             del self.persons[i]
         return persons
 
+    def delete_persons_by_id(self, person_ids):
+        person_ids_set = set(person_ids)
+        persons = []
+        i = 0
+        while i < len(self.persons):
+            if self.persons[i].id in person_ids_set:
+                person = self.persons[i]
+                persons.append(person)
+                self.remove_person_from_indexes(person)
+                del self.persons[i]
+            else:
+                i += 1
+        return persons
+
     def remove_person_from_indexes(self, person: Person):
         for result in self.results:
             if result.person is person:
                 result.person = None
                 result.bib = person.bib
+        if person.id in self.person_index:
+            del self.person_index[person.id]
         if (
             person.bib
             and person.bib in self.person_index_bib
@@ -2008,7 +2052,22 @@ class Race(Model):
         for i in indexes:
             result = self.results[i]
             results.append(result)
+            if result.id in self.result_index:
+                del self.result_index[result.id]
             del self.results[i]
+        return results
+
+    def delete_results_by_id(self, result_ids):
+        result_ids_set = set(result_ids)
+        results = []
+        i = 0
+        while i < len(self.results):
+            if self.results[i].id in result_ids_set:
+                result = self.results[i]
+                results.append(result)
+                del self.results[i]
+            else:
+                i += 1
         return results
 
     def delete_groups(self, indexes: List[int]) -> List[Group]:
@@ -2021,7 +2080,24 @@ class Race(Model):
 
         indexes = sorted(indexes, reverse=True)
         for i in indexes:
+            if self.groups[i].id in self.group_index:
+                del self.group_index[self.groups[i].id]
             del self.groups[i]
+        return groups
+
+    def delete_groups_by_id(self, group_ids):
+        group_ids_set = set(group_ids)
+        groups = []
+        i = 0
+        while i < len(self.groups):
+            if self.groups[i].id in group_ids_set:
+                group = self.groups[i]
+                if group.count_person > 0:
+                    raise NotEmptyException("Cannot remove group")
+                groups.append(group)
+                del self.groups[i]
+            else:
+                i += 1
         return groups
 
     def delete_courses(self, indexes: List[int]) -> List[Course]:
@@ -2034,7 +2110,24 @@ class Race(Model):
 
         indexes = sorted(indexes, reverse=True)
         for i in indexes:
+            if self.courses[i].id in self.course_index:
+                del self.course_index[self.courses[i].id]
             del self.courses[i]
+        return courses
+
+    def delete_courses_by_id(self, course_ids):
+        course_ids_set = set(course_ids)
+        courses = []
+        i = 0
+        while i < len(self.courses):
+            if self.courses[i].id in course_ids_set:
+                course = self.courses[i]
+                if course.count_group > 0:
+                    raise NotEmptyException("Cannot remove course")
+                courses.append(course)
+                del self.courses[i]
+            else:
+                i += 1
         return courses
 
     def delete_organizations(self, indexes: List[int]) -> List[Organization]:
@@ -2047,7 +2140,24 @@ class Race(Model):
         indexes = sorted(indexes, reverse=True)
 
         for i in indexes:
+            if self.organizations[i].id in self.organization_index:
+                del self.organization_index[self.organizations[i].id]
             del self.organizations[i]
+        return organizations
+
+    def delete_organizations_by_id(self, organization_ids):
+        organization_ids_set = set(organization_ids)
+        organizations = []
+        i = 0
+        while i < len(self.organizations):
+            if self.organizations[i].id in organization_ids_set:
+                organization = self.organizations[i]
+                if organization.count_person > 0:
+                    raise NotEmptyException("Cannot remove organization")
+                organizations.append(organization)
+                del self.organizations[i]
+            else:
+                i += 1
         return organizations
 
     def find_person_result(self, person: Person) -> Optional[Result]:
@@ -2276,15 +2386,15 @@ class Race(Model):
                 current_name = person.full_name
         return ret
 
-    def find_result_by_person_id(self, person_id) -> Optional[Result]:
-        if len(self.result_index) < 1:
+    def find_result_by_multi_day_id(self, person_id) -> Optional[Result]:
+        if len(self.result_index_by_multi_day_id) < 1:
             for res in self.results:
                 if res.person:
                     id = res.person.multi_day_id
-                    self.result_index[id] = res
+                    self.result_index_by_multi_day_id[id] = res
 
-        if person_id in self.result_index:
-            return self.result_index[person_id]
+        if person_id in self.result_index_by_multi_day_id:
+            return self.result_index_by_multi_day_id[person_id]
         else:
             return None
 
@@ -2344,8 +2454,11 @@ class Qualification(IntEnum):
         return qual[self.value]
 
     # get score for ranking, stored in config.ini file
-    def get_score(self):
-        return float(settings.SETTINGS.ranking.get(self.name.lower(), 0))
+    def get_score(self, is_ardf=False):
+        if is_ardf:
+            return float(settings.SETTINGS.ranking_ardf.get(self.name.lower(), 0))
+        else:
+            return float(settings.SETTINGS.ranking.get(self.name.lower(), 0))
 
     @staticmethod
     def list_qual():

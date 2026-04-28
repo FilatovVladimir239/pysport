@@ -10,19 +10,13 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 include_files = [
-    config.LOCALE_DIR,
-    config.TEMPLATE_DIR,
-    config.IMG_DIR,
-    config.SOUND_DIR,
+    (config.base_dir("sportorg", "data"), "lib/sportorg/data"),
     config.base_dir("LICENSE"),
     config.base_dir("changelog.md"),
     config.base_dir("changelog_ru.md"),
-    config.base_dir("configs"),
-    config.STYLE_DIR,
+    (config.base_dir("configs"), "configs"),
+    config.COMMIT_VERSION_FILE,
 ]
-# Генерируется CI/скриптами, в .gitignore — для локальной сборки не обязателен
-if os.path.isfile(config.COMMIT_VERSION_FILE):
-    include_files.append(config.COMMIT_VERSION_FILE)
 includes = ["atexit", "codecs", "playsound3", "pyImpinj"]
 excludes = ["Tkinter", "unittest", "test", "pydoc"]
 
