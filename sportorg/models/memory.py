@@ -11,8 +11,7 @@ from typing import Any, Dict, List, Optional
 import dateutil.parser
 
 from sportorg import settings
-from sportorg.common.model import Model
-from sportorg.common.otime import OTime, TimeRounding
+from sportorg.common.otime import OTime, parse_time_rounding
 from sportorg.language import translate
 from sportorg.utils.time import date_to_ddmmyyyy, hhmmss_to_time
 
@@ -113,7 +112,7 @@ class ResultStatus(_TitleType):
     MULTI_DAY_ISSUE = 18
 
 
-class Organization(Model):
+class Organization:
     def __init__(self):
         self.id = uuid.uuid4()
         self.name = ""
@@ -155,7 +154,7 @@ class Organization(Model):
         self.contact = str(data["contact"]) if "contact" in data else ""
 
 
-class CourseControl(Model):
+class CourseControl:
     def __init__(self):
         self.code = ""
         self.length = 0
@@ -216,7 +215,7 @@ class CourseControl(Model):
         )
 
 
-class ControlPoint(Model):
+class ControlPoint:
     """Description of independent control point. Used for score calculation in rogain"""
 
     def __init__(self):
@@ -228,7 +227,7 @@ class ControlPoint(Model):
         self.altitude = 0.0
 
 
-class Course(Model):
+class Course:
     def __init__(self):
         self.id = uuid.uuid4()
         self._name = ""
@@ -325,7 +324,7 @@ class Course(Model):
         self._name = new_name
 
 
-class Group(Model):
+class Group:
     def __init__(self):
         self.id = uuid.uuid4()
         self.name = ""
@@ -439,7 +438,7 @@ class Group(Model):
         )
 
 
-class Split(Model):
+class Split:
     def __init__(self):
         self.index = 0
         self.course_index = -1
@@ -520,13 +519,13 @@ class Result(ABC):
         self.id = uuid.uuid4()
         self.days = 0
         self.bib = 0
-        self.start_time: Optional[OTime] = None
+        self.start_time: OTime = OTime()
         self.finish_time: OTime = OTime.now()
         self.person: Optional[Person] = None
         self.status = ResultStatus.OK
         self.status_comment = ""
-        self.penalty_time: Optional[OTime] = None
-        self.credit_time: Optional[OTime] = None
+        self.penalty_time: OTime = OTime()
+        self.credit_time: OTime = OTime()
         self.penalty_laps = 0  # count of penalty legs (marked route)
         self.place = 0
         self.scores = 0
@@ -537,18 +536,18 @@ class Result(ABC):
         self.trailo_score_penalty = 0
         self.scores_ardf = 0
         self.assigned_rank = Qualification.NOT_QUALIFIED
-        self.diff: Optional[OTime] = None  # readonly
+        self.diff: OTime = OTime()  # readonly
         self.diff_scores = 0  # readonly
         self.created_at = time.time()
         self.speed = ""
         self.can_win_count = 0  # quantity of athletes who can win at current time
-        self.final_result_time: Optional[OTime] = None  # real time, when nobody can win
+        self.final_result_time: OTime = OTime()  # real time, when nobody can win
 
         self.card_number = 0
         self.card_battery_level = None  # 0-100%, Huichang contact-less card
         self.splits: List[Split] = []
-        self.__start_time = None
-        self.__finish_time = None
+        self.__start_time = OTime()
+        self.__finish_time = OTime()
 
         self.current_result = (
             None  # Keep current day result (multi day), general result will have sum
@@ -847,10 +846,14 @@ class Result(ABC):
         ret = self.get_result_otime()
         return self.status, ret.to_msec()
 
-    def get_result_otime(self):
-        race_type = RaceType.INDIVIDUAL_RACE
+    def get_race_type(self, fallback: RaceType = RaceType.INDIVIDUAL_RACE) -> RaceType:
+        race_type = fallback
         if self.person and self.person.group:
             race_type = self.person.group.race_type
+        return race_type
+
+    def get_result_otime(self):
+        race_type = self.get_race_type()
 
         if race_type == RaceType.INDIVIDUAL_RACE:
             return self.get_result_otime_current_day()
@@ -865,7 +868,9 @@ class Result(ABC):
         ret_ms = self.get_finish_time().to_msec() - self.get_start_time().to_msec()
         ret_ms += self.get_penalty_time().to_msec()
         ret_ms -= self.get_credit_time().to_msec()
-        return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
+        return OTime(msec=ret_ms).round(
+            time_accuracy, parse_time_rounding(time_rounding)
+        )
 
     def get_result_otime_trailo(self):
         time_accuracy = race().get_setting("time_accuracy", 0)
@@ -894,7 +899,9 @@ class Result(ABC):
                     ret_ms -= res.get_credit_time().to_msec()
                 cur_bib -= 1000
 
-        return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
+        return OTime(msec=ret_ms).round(
+            time_accuracy, parse_time_rounding(time_rounding)
+        )
 
     def get_result_otime_multi_day(self):
         person_id = self.person.multi_day_id
@@ -1076,8 +1083,8 @@ class ResultSportident(Result):
 
     def __init__(self):
         super(ResultSportident, self).__init__()
-        self.__start_time = None
-        self.__finish_time = None
+        self.__start_time = OTime()
+        self.__finish_time = OTime()
 
     def __repr__(self) -> str:
         splits = "\n".join(
@@ -1171,8 +1178,8 @@ class ResultSportident(Result):
         return OTime()
 
     def clear(self):
-        self.__start_time = None
-        self.__finish_time = None
+        self.__start_time = OTime()
+        self.__finish_time = OTime()
 
     def get_course_splits(self, course=None):
         splits = []
@@ -1431,7 +1438,7 @@ class ResultHuichang(ResultSportident):
     system_type = SystemType.HUICHANG
 
 
-class Person(Model):
+class Person:
     def __init__(self):
         self.id = uuid.uuid4()
         self.name = ""
@@ -1670,10 +1677,11 @@ class Person(Model):
             self.middle_name = arr[1]
 
 
-class RaceData(Model):
+class RaceData:
     def __init__(self):
         self.title = ""
         self.description = ""
+        self.short_title: str = ""
         self.location = ""
         self.chief_referee = ""
         self.secretary = ""
@@ -1707,6 +1715,7 @@ class RaceData(Model):
         return {
             "title": self.title,
             "description": self.description,
+            "short_title": self.short_title,
             "location": self.location,
             "chief_referee": self.chief_referee,
             "secretary": self.secretary,
@@ -1720,6 +1729,7 @@ class RaceData(Model):
     def update_data(self, data):
         self.title = str(data["title"])
         self.description = str(data["description"])
+        self.short_title = str(data.get("short_title", ""))
         self.location = str(data["location"])
         self.chief_referee = str(data["chief_referee"])
         self.secretary = str(data["secretary"])
@@ -1732,7 +1742,7 @@ class RaceData(Model):
             self.end_datetime = dateutil.parser.parse(data["end_datetime"])
 
 
-class Race(Model):
+class Race:
     support_obj = {
         "Person": Person,
         "Result": Result,
@@ -2419,7 +2429,6 @@ class Qualification(IntEnum):
     def get_qual_by_name(cls, name):
         qual_reverse = {
             "": 0,
-            " ": 0,
             "б/р": 0,
             "IIIю": 3,
             "IIю": 2,
@@ -2432,10 +2441,33 @@ class Qualification(IntEnum):
             "МСМК": 9,
             "ЗМС": 9,
         }
-        if name not in qual_reverse:
-            return cls(0)
 
-        return cls(qual_reverse[name])
+        def normalize_qual(raw_name: str) -> str:
+            return str(raw_name).strip().casefold().replace(" ", "").replace(".", "")
+
+        aliases = {}
+        for title, code in qual_reverse.items():
+            aliases[normalize_qual(title)] = code
+
+        aliases.update(
+            {
+                "бр": 0,
+                "б\\р": 0,
+                "б-р": 0,
+                "1ю": 1,
+                "2ю": 2,
+                "3ю": 3,
+                "1": 4,
+                "2": 5,
+                "3": 6,
+                "1р": 4,
+                "2р": 5,
+                "3р": 6,
+            }
+        )
+
+        normalized_name = normalize_qual(name)
+        return cls(aliases.get(normalized_name, 0))
 
     def get_title(self):
         qual = {
@@ -2612,7 +2644,7 @@ class RelayLeg:
 
         # get course via group
         person = self.get_person()
-        if person and isinstance(person, Person):
+        if person:
             if person.group:
                 return person.group.course
 
@@ -2702,20 +2734,20 @@ class RelayLeg:
 
     def set_start_time(self, time):
         person = self.get_person()
-        if person and isinstance(person, Person):
+        if person:
             person.start_time = time
 
     def get_finish_time(self):
         res = self.get_result()
         if res:
             return res.get_finish_time()
-        return None
+        return OTime()
 
     def get_start_time(self):
         res = self.get_result()
         if res:
             return res.get_start_time()
-        return None
+        return OTime()
 
     def set_start_time_from_previous(self):
         if self.leg > 1:
@@ -2728,12 +2760,12 @@ class RelayLeg:
 
     def set_place(self, place):
         res = self.get_result()
-        if res and isinstance(res, Result):
+        if res:
             res.place = place
 
     def set_order(self, order):
         res = self.get_result()
-        if res and isinstance(res, Result):
+        if res:
             res.order = order
 
 
@@ -2888,14 +2920,6 @@ class RelayTeam:
             i.set_order(order)
 
 
-def create(obj, **kwargs):
-    return obj.create(**kwargs)
-
-
-def update(obj, **kwargs):
-    obj.update(**kwargs)
-
-
 def find(iterable: list, **kwargs):
     if len(kwargs.items()) == 0:
         return None
@@ -2917,7 +2941,7 @@ def find(iterable: list, **kwargs):
         return None
 
 
-_event = [create(Race)]
+_event = [Race()]
 current_race = 0
 
 
@@ -2928,7 +2952,7 @@ def new_event(event):
 
 
 def add_race():
-    _event.append(create(Race))
+    _event.append(Race())
 
 
 def copy_race():

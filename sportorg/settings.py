@@ -6,6 +6,25 @@ from typing import Any, Dict, Optional, Tuple
 from sportorg import config
 from sportorg.libs.settings import load_settings, save_settings
 
+FEATURE_SFR = "sfr"
+FEATURE_SPORTIDENT = "sportident"
+FEATURE_SPORTIDUINO = "sportiduino"
+FEATURE_RFID_IMPINJ = "rfid_impinj"
+FEATURE_SRPID = "srpid"
+FEATURE_HUICHANG = "huichang"
+FEATURE_WINORIENT = "winorient"
+FEATURE_TELEGRAM = "telegram"
+DEFAULT_FEATURES = {
+    FEATURE_SPORTIDENT: True,
+    FEATURE_SFR: True,
+    FEATURE_SPORTIDUINO: True,
+    FEATURE_RFID_IMPINJ: True,
+    FEATURE_SRPID: True,
+    FEATURE_HUICHANG: True,
+    FEATURE_WINORIENT: True,
+    FEATURE_TELEGRAM: True,
+}
+
 
 @dataclass
 class Settings:
@@ -36,6 +55,7 @@ class Settings:
     ranking: Dict[str, Any] = field(default_factory=dict)
     ranking_ardf: Dict[str, Any] = field(default_factory=dict)
     live_gzip_enabled: bool = True
+    features: Dict[str, bool] = field(default_factory=lambda: DEFAULT_FEATURES.copy())
 
     telegram_token: str = ""
     teamwork_host: str = "localhost"
@@ -48,6 +68,8 @@ class Settings:
 
     source_names_path: str = config.configs_dir("names.txt")
     source_middle_names_path: str = config.configs_dir("middle_names.txt")
+    source_countries_path: str = config.configs_dir("countries.txt")
+    source_groups_path: str = config.configs_dir("groups.txt")
     source_regions_path: str = config.configs_dir("regions.txt")
     source_status_comments_path: str = config.configs_dir("status_comments.txt")
     source_status_default_comments_path: str = config.configs_dir("status_default.txt")
@@ -75,6 +97,22 @@ def load_settings_from_file(path: str = config.SETTINGS_JSON) -> Tuple[Settings,
 
 def save_settings_to_file(path: str = config.SETTINGS_JSON) -> None:
     save_settings(SETTINGS, Path(path))
+
+
+def get_feature_flags() -> Dict[str, bool]:
+    feature_flags = DEFAULT_FEATURES.copy()
+    stored_features = SETTINGS.features if isinstance(SETTINGS.features, dict) else {}
+    feature_flags.update(stored_features)
+    return feature_flags
+
+
+def is_feature_enabled(feature: str) -> bool:
+    return bool(get_feature_flags().get(feature, True))
+
+
+def set_feature_enabled(feature: str, enabled: bool) -> None:
+    SETTINGS.features = get_feature_flags()
+    SETTINGS.features[feature] = bool(enabled)
 
 
 def template_dir(*paths) -> str:

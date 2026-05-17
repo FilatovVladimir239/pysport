@@ -1,5 +1,6 @@
 import os
 import sys
+from importlib.util import find_spec
 
 from cx_Freeze import Executable, setup
 
@@ -18,6 +19,10 @@ include_files = [
     config.COMMIT_VERSION_FILE,
 ]
 includes = ["atexit", "codecs", "playsound3", "pyImpinj"]
+if find_spec("sportorg_rust_example") is not None:
+    includes.append("sportorg_rust_example")
+if find_spec("sportorg_core") is not None:
+    includes.append("sportorg_core")
 excludes = ["Tkinter", "unittest", "test", "pydoc"]
 
 build_exe_options = {

@@ -4,6 +4,12 @@ on:
   push:
     paths:
       - ".github/workflows/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+      - "pyproject.toml"
+      - "rust-toolchain.toml"
+      - "rustfmt.toml"
       - "sportorg/**"
       - "tests/**"
       - "uv.lock"
@@ -11,6 +17,12 @@ on:
   pull_request:
     paths:
       - ".github/workflows/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+      - "pyproject.toml"
+      - "rust-toolchain.toml"
+      - "rustfmt.toml"
       - "sportorg/**"
       - "tests/**"
       - "uv.lock"
@@ -25,14 +37,19 @@ jobs:
         python_version: [3.8, 3.14]
         architecture: [x64]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
           architecture: ${{ matrix.architecture }}
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install python dependencies
         run: pip install uv && uv sync --frozen --extra win --extra gui
+
+      - name: Build Rust extension
+        run: uv run poe build-rust
 
       - name: Run linters
         run: uv run poe lint
@@ -44,14 +61,19 @@ jobs:
         python_version: [3.8, 3.14]
         architecture: [x64]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
           architecture: ${{ matrix.architecture }}
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install python dependencies
         run: pip install uv && uv sync --frozen --extra win --extra gui
+
+      - name: Build Rust extension
+        run: uv run poe develop-rust
 
       - name: Run test
         run: uv run poe test
@@ -65,15 +87,19 @@ jobs:
     name: Build on Windows ${{ matrix.architecture }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Set up Python
         id: set_up_python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
           architecture: ${{ matrix.architecture }}
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
       - name: Install python dependencies
         run: pip install uv && uv sync --frozen --extra win --extra gui
+      - name: Build Rust extension
+        run: uv run poe develop-rust
       - name: Generate mo files
         run: uv run poe generate-mo
       - name: Generate version file

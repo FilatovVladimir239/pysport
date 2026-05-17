@@ -24,7 +24,6 @@ from sportorg.models.memory import (
     ResultSportident,
     ResultStatus,
     Split,
-    create,
     find,
     race,
 )
@@ -88,24 +87,19 @@ def import_from_course_data(courses) -> None:
     for course in courses:
         if "name" in course:
             if find(obj.courses, name=course["name"]) is None:
-                c = create(
-                    Course,
-                    name=course["name"],
-                    length=course["length"],
-                    climb=course["climb"],
-                )
+                c = Course()
+                c.name = course["name"]
+                c.length = course["length"]
+                c.climb = course["climb"]
                 controls = []
                 i = 1
                 for control in course["controls"]:
                     if control["type"] == "Control":
-                        controls.append(
-                            create(
-                                CourseControl,
-                                code=control["control"],
-                                order=i,
-                                length=control["leg_length"],
-                            )
-                        )
+                        course_control = CourseControl()
+                        course_control.code = control["control"]
+                        course_control.order = i
+                        course_control.length = control["leg_length"]
+                        controls.append(course_control)
                         i += 1
                 c.controls = controls
                 obj.courses.append(c)
@@ -122,9 +116,13 @@ def import_from_variation_data(course_assignments) -> None:
                 course = find(obj.courses, name=course_name)
                 if course:
                     new_course = Course()
-                    new_course.name = (
-                        str(course_assignment["bib_number"]) + "." + str(leg_number)
-                    )
+                    if len(course_assignment["legs"]) > 1:
+                        new_course.name = (
+                            f"{course_assignment['bib_number']}.{leg_number}"
+                        )
+                    else:
+                        # one man relay is a kind of relay with 1 leg (Purple Pen)
+                        new_course.name = str(course_assignment["bib_number"])
                     new_course.length = course.length
                     new_course.controls = copy.deepcopy(course.controls)
                     obj.courses.append(new_course)

@@ -1,14 +1,15 @@
 from sportorg.common.otime import OTime
 from sportorg.models.constant import StatusComments
 from sportorg.models.memory import (
+    CourseControl,
     Person,
+    RaceType,
     Result,
     ResultSportident,
     ResultStatus,
+    Split,
     find,
     race,
-    Split,
-    CourseControl,
 )
 from sportorg.modules.trailo.result_checker import TrailoResultChecker
 
@@ -75,7 +76,7 @@ class ResultChecker:
         return race().find_course(result) if result.person else None
 
     @classmethod
-    def checking(cls, result):
+    def checking(cls, result: Result):
         if result.person is None:
             raise ResultCheckerException("Not person")
 
@@ -107,8 +108,9 @@ class ResultChecker:
             result.status = ResultStatus.MISSING_PUNCH
         elif not cls.check_penalty_laps(result):
             result.status = ResultStatus.MISS_PENALTY_LAP
-        else:
-            cls._check_overtime(result)
+
+        elif result.person.group and result.person.group.max_time.to_msec():
+            cls.check_overtime(result)
 
     @classmethod
     def _check_overtime(cls, result):
@@ -194,6 +196,30 @@ class ResultChecker:
                 msec=race().get_setting("marked_route_penalty_time", 60000)
             )
             result.penalty_time = time_for_one_penalty * penalty
+
+    @classmethod
+    def check_overtime(cls, result: Result):
+        rp_mode = race().get_setting("result_processing_mode", "time")
+        race_type = result.get_race_type()
+
+        if race_type == RaceType.MULTI_DAY_RACE:
+            result_time = result.get_result_otime_current_day()
+        else:
+            result_time = result.get_result_otime()
+
+        max_time = result.person.group.max_time
+        if rp_mode in ("time", "ardf"):
+            if result_time > max_time:
+                result.status = ResultStatus.OVERTIME
+        elif rp_mode == "scores":
+            max_overrun_time = OTime(
+                msec=race().get_setting("result_processing_scores_max_overrun_time", 0)
+            )
+            if (
+                max_overrun_time.to_msec() > 0
+                and result_time > max_time + max_overrun_time
+            ):
+                result.status = ResultStatus.OVERTIME
 
     @staticmethod
     def get_marked_route_incorrect_list(controls):

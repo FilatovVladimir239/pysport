@@ -1,5 +1,7 @@
 import logging
 
+from sportorg import settings
+
 try:
     from PySide6.QtCore import QTime
     from PySide6.QtWidgets import (
@@ -33,7 +35,7 @@ from sportorg.common.otime import OTime
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.gui.utils.custom_controls import AdvComboBox, AdvSpinBox, AdvTimeEdit
 from sportorg.language import translate
-from sportorg.models.memory import race, SystemType
+from sportorg.models.memory import SystemType, race
 from sportorg.models.result.result_tools import recalculate_results
 from sportorg.modules.sportident.sireader import SIReaderClient
 
@@ -84,9 +86,15 @@ class TimekeepingPropertiesDialog(QDialog):
         self.punch_system_layout.addRow(self.punch_system_srpid)
         self.punch_system_huichang = QRadioButton(translate("Huichang"))
         self.punch_system_layout.addRow(self.punch_system_huichang)
+        self.punch_system_disabled_label = QLabel(
+            translate("Punch system features are disabled")
+        )
+        self.punch_system_disabled_label.setWordWrap(True)
+        self.punch_system_layout.addRow(self.punch_system_disabled_label)
         self.punch_system_si.setChecked(True)
         self.punch_system_box.setLayout(self.punch_system_layout)
         self.tk_layout.addRow(self.punch_system_box)
+        self._apply_punch_system_feature_visibility()
 
         self.chip_reading_box = QGroupBox(translate("Assigning a chip when reading"))
         self.chip_reading_layout = QFormLayout()
@@ -183,7 +191,9 @@ class TimekeepingPropertiesDialog(QDialog):
         self.rp_scores_layout.addRow(
             self.rp_scores_max_overrun_time_label, self.rp_scores_max_overrun_time
         )
-        self.rp_scores_allow_duplicates = QCheckBox(translate("allow duplicates"))
+        self.rp_scores_allow_duplicates = QCheckBox(
+            translate("allow duplicates") + " 🛈"
+        )
         self.rp_scores_allow_duplicates.setToolTip(
             translate(
                 "Use this option to count one punch several times,"
@@ -278,20 +288,20 @@ class TimekeepingPropertiesDialog(QDialog):
         self.mr_off_radio.setToolTip(translate("No penalty"))
         self.mr_off_radio.toggled.connect(self.penalty_calculation_mode)
         self.mr_layout.addRow(self.mr_off_radio)
-        self.mr_time_radio = QRadioButton(translate("penalty time"))
+        self.mr_time_radio = QRadioButton(translate("penalty time") + " 🛈")
         self.mr_time_radio.setToolTip(
             translate("Penalty calculation mode: penalty time")
         )
         self.mr_time_radio.toggled.connect(self.penalty_calculation_mode)
         self.mr_time_edit = AdvTimeEdit(display_format=self.time_format)
         self.mr_layout.addRow(self.mr_time_radio, self.mr_time_edit)
-        self.mr_laps_radio = QRadioButton(translate("penalty laps"))
+        self.mr_laps_radio = QRadioButton(translate("penalty laps") + " 🛈")
         self.mr_laps_radio.setToolTip(
             translate("Penalty calculation mode: penalty laps")
         )
         self.mr_laps_radio.toggled.connect(self.penalty_calculation_mode)
         self.mr_layout.addRow(self.mr_laps_radio)
-        self.mr_counting_lap_check = QCheckBox(translate("counting lap"))
+        self.mr_counting_lap_check = QCheckBox(translate("counting lap") + " 🛈")
         self.mr_counting_lap_check.setToolTip(
             translate(
                 "Operating mode: evaluation point\n"
@@ -301,7 +311,7 @@ class TimekeepingPropertiesDialog(QDialog):
         )
         self.mr_counting_lap_check.stateChanged.connect(self.penalty_calculation_mode)
         self.mr_layout.addRow(self.mr_counting_lap_check)
-        self.mr_lap_station_check = QCheckBox(translate("lap station"))
+        self.mr_lap_station_check = QCheckBox(translate("lap station") + " 🛈")
         self.mr_lap_station_check.setToolTip(
             translate(
                 "Station number on the penalty lap\n"
@@ -445,6 +455,71 @@ class TimekeepingPropertiesDialog(QDialog):
         self.chip_reading_box.setDisabled(mode)
         self.chip_duplicate_box.setDisabled(mode)
 
+    def _punch_system_options(self):
+        return (
+            (
+                self.punch_system_si,
+                SystemType.SPORTIDENT,
+                settings.FEATURE_SPORTIDENT,
+            ),
+            (self.punch_system_sfr, SystemType.SFR, settings.FEATURE_SFR),
+            (
+                self.punch_system_sportiduino,
+                SystemType.SPORTIDUINO,
+                settings.FEATURE_SPORTIDUINO,
+            ),
+            (
+                self.punch_system_impinj,
+                SystemType.RFID_IMPINJ,
+                settings.FEATURE_RFID_IMPINJ,
+            ),
+            (self.punch_system_srpid, SystemType.SRPID, settings.FEATURE_SRPID),
+            (
+                self.punch_system_huichang,
+                SystemType.HUICHANG,
+                settings.FEATURE_HUICHANG,
+            ),
+        )
+
+    @staticmethod
+    def _is_punch_system_feature_enabled(feature):
+        return feature is None or settings.is_feature_enabled(feature)
+
+    def _apply_punch_system_feature_visibility(self):
+        has_visible_punch_system = False
+        for button, _, feature in self._punch_system_options():
+            is_visible = self._is_punch_system_feature_enabled(feature)
+            button.setVisible(is_visible)
+            has_visible_punch_system = has_visible_punch_system or is_visible
+        self.punch_system_disabled_label.setVisible(not has_visible_punch_system)
+
+    def _set_punch_system_button(self, punch_system):
+        selected = None
+        fallback = None
+        for button, system_type, feature in self._punch_system_options():
+            if not self._is_punch_system_feature_enabled(feature):
+                button.setChecked(False)
+                continue
+            if fallback is None:
+                fallback = button
+            if system_type == punch_system:
+                selected = button
+
+        if selected or fallback:
+            (selected or fallback).setChecked(True)
+
+    def _selected_punch_system(self, default_system):
+        fallback = default_system
+        for button, system_type, feature in self._punch_system_options():
+            if not self._is_punch_system_feature_enabled(feature):
+                continue
+            if fallback == default_system:
+                fallback = system_type
+            if button.isChecked():
+                return system_type
+
+        return fallback
+
     def rp_result_calculation_mode(self):
         if self.rp_scores_radio.isChecked():
             self.rp_scores_group.show()
@@ -532,18 +607,7 @@ class TimekeepingPropertiesDialog(QDialog):
 
         self.item_si_port.setCurrentText(si_port)
 
-        if punch_system == SystemType.SFR:
-            self.punch_system_sfr.setChecked(True)
-        elif punch_system == SystemType.SPORTIDUINO:
-            self.punch_system_sportiduino.setChecked(True)
-        elif punch_system == SystemType.RFID_IMPINJ:
-            self.punch_system_impinj.setChecked(True)
-        elif punch_system == SystemType.SRPID:
-            self.punch_system_srpid.setChecked(True)
-        elif punch_system == SystemType.HUICHANG:
-            self.punch_system_huichang.setChecked(True)
-        else:
-            self.punch_system_si.setChecked(True)
+        self._set_punch_system_button(punch_system)
 
         if start_source == "protocol":
             self.item_start_protocol.setChecked(True)
@@ -792,18 +856,9 @@ class TimekeepingPropertiesDialog(QDialog):
 
         obj.set_setting("system_port", self.item_si_port.currentText())
 
-        if self.punch_system_sfr.isChecked():
-            obj.set_setting("punch_system", SystemType.SFR.value)
-        elif self.punch_system_sportiduino.isChecked():
-            obj.set_setting("punch_system", SystemType.SPORTIDUINO.value)
-        elif self.punch_system_impinj.isChecked():
-            obj.set_setting("punch_system", SystemType.RFID_IMPINJ.value)
-        elif self.punch_system_srpid.isChecked():
-            obj.set_setting("punch_system", SystemType.SRPID.value)
-        elif self.punch_system_huichang.isChecked():
-            obj.set_setting("punch_system", SystemType.HUICHANG.value)
-        else:
-            obj.set_setting("punch_system", SystemType.SPORTIDENT.value)
+        obj.set_setting(
+            "punch_system", self._selected_punch_system(obj.get_punch_system()).value
+        )
 
         obj.set_setting("system_start_source", start_source)
         obj.set_setting("system_finish_source", finish_source)

@@ -198,6 +198,34 @@ class SoundTab(Tab):
         settings.SETTINGS.sound_enter_number_path = self.item_enter_number.currentText()
 
 
+class FunctionsTab(Tab):
+    def __init__(self, parent):
+        self.widget = QWidget()
+        self.layout = QFormLayout(parent)
+
+        self.widget.setLayout(self.layout)
+
+        self.feature_checkboxes = {}
+        for feature, title in (
+            (settings.FEATURE_SPORTIDENT, "SPORTident"),
+            (settings.FEATURE_SFR, "SFR"),
+            (settings.FEATURE_SPORTIDUINO, "Sportiduino (Clever)"),
+            (settings.FEATURE_RFID_IMPINJ, "RFID Impinj"),
+            (settings.FEATURE_SRPID, "SRPID"),
+            (settings.FEATURE_HUICHANG, "Huichang"),
+            (settings.FEATURE_WINORIENT, "Winorient"),
+            (settings.FEATURE_TELEGRAM, "Telegram"),
+        ):
+            checkbox = QCheckBox(translate(title))
+            checkbox.setChecked(settings.is_feature_enabled(feature))
+            self.feature_checkboxes[feature] = checkbox
+            self.layout.addRow(checkbox)
+
+    def save(self):
+        for feature, checkbox in self.feature_checkboxes.items():
+            settings.set_feature_enabled(feature, checkbox.isChecked())
+
+
 class MultidayTab(Tab):
     def __init__(self, parent):
         self.widget = QWidget()
@@ -294,7 +322,9 @@ class MultidayTab(Tab):
 
         self.item_races.clear()
         for cur_race in races():
-            race_list.append(str(cur_race.data.get_start_datetime()))
+            race_list.append(
+                cur_race.data.short_title or str(cur_race.data.get_start_datetime())
+            )
         self.item_races.addItems(race_list)
 
         self.item_races.setCurrentIndex(index)
@@ -378,6 +408,7 @@ class SettingsDialog(QDialog):
         super().__init__(GlobalAccess().get_main_window())
         self.widgets = [
             (MainTab(self), translate("Main settings")),
+            (FunctionsTab(self), translate("Functions")),
             (SoundTab(self), translate("Sounds")),
             (MultidayTab(self), translate("Multi day")),
             (TemplateTab(self), translate("Templates directory")),
@@ -425,5 +456,7 @@ class SettingsDialog(QDialog):
     def apply_changes_impl(self):
         for tab, _ in self.widgets:
             tab.save()
-        GlobalAccess().get_main_window().refresh()
+        main_window = GlobalAccess().get_main_window()
+        main_window.refresh_menu()
+        main_window.refresh()
         settings.save_settings_to_file()

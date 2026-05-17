@@ -9,6 +9,7 @@
 + Import of full date of birth
 + Optional build on Pyside2 (Qt5) / Pyside6 (Qt6)
 + Import form SFRX files (SFR)
++ Export to SFRX files with event data, courses, competitors, results, and splits
 + Course indexing by name
 + New "in list" operator in table filtering
 + Default value for auto-save has been increased from 5 seconds to 5 minutes ([#497](https://github.com/sportorg/pysport/pull/497))
@@ -29,6 +30,9 @@
 + Teamwork race ID verification on server with client confirmation flow for mismatches and automatic Teamwork shutdown confirmation when switching multi-day race day
 + Added Huichang Timing System support ([#550](https://github.com/sportorg/pysport/pull/550))
 + Changed the principle of penalty calculation for standard course. Now if person just missed 1 point, it gives 1 penalty score
++ Added conversion of qualification names in various formats
++ Added short title field in event properties: shown in the window title and multi-day race selector
++ Added feature flags in settings with SFR support toggle for menu visibility
 
 ### Fixes
 
