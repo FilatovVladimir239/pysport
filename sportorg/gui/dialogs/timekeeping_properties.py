@@ -220,7 +220,9 @@ class TimekeepingPropertiesDialog(QDialog):
         )
         self.trailo_settings_layout.addRow(self.trailo_settings_custom_penalty_time)
 
-        self.trailo_settings_penalty_time_label = QLabel(translate("penalty time"))
+        self.trailo_settings_penalty_time_label = QLabel(
+            translate("penalty time at station")
+        )
         self.trailo_settings_penalty_time = AdvSpinBox(max_width=50, value=30)
         self.trailo_settings_layout.addRow(
             self.trailo_settings_penalty_time_label, self.trailo_settings_penalty_time
