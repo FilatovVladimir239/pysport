@@ -671,9 +671,15 @@ class Result(ABC):
             "result": self.get_result(),  # readonly
             "result_relay": self.get_result_relay(),
             "result_current": (
-                self.get_result_otime_current_day().to_str(time_accuracy=accuracy)
-                if self.is_status_ok()
-                else self.get_result()
+                self.get_result_otime_trailo().to_str(time_accuracy=accuracy)
+                if self.is_status_ok() and self.is_trailo_preo_relay_leg()
+                else (
+                    self.get_result_otime_current_day().to_str(
+                        time_accuracy=accuracy
+                    )
+                    if self.is_status_ok()
+                    else self.get_result()
+                )
             ),
             "result_trailo_current": (
                 self.get_result_otime_trailo().to_str(time_accuracy=accuracy)
@@ -831,15 +837,28 @@ class Result(ABC):
                 cur_bib -= 1000
 
         ret = ""
+        relay_team = None
+        if self.person:
+            relay_team = find(race().relay_teams, bib_number=self.person.bib % 1000)
+        is_trailo_preo_relay = self.is_trailo_preo_relay_leg() and relay_team is not None
         if race().get_setting("result_processing_mode", "time") == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
+        elif is_trailo_preo_relay:
+            ret += f"{relay_team.get_trailo_score()} {translate('points')} "
         elif race().get_setting("result_processing_mode", "time") == "trailo":
             ret += f"{self.trailo_score} {translate('points')} "
         elif race().get_setting("result_processing_mode", "time") == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
-        ret += self.get_result_otime_relay().to_str(time_accuracy)
+        if is_trailo_preo_relay:
+            ret += (
+                str(relay_team.get_trailo_time().to_sec())
+                + " "
+                + translate("sec")
+            )
+        else:
+            ret += self.get_result_otime_relay().to_str(time_accuracy)
         return ret
 
     def get_result_for_sort(self):
@@ -852,6 +871,17 @@ class Result(ABC):
             race_type = self.person.group.race_type
         return race_type
 
+    def is_trailo_preo_relay_leg(self) -> bool:
+        if race().get_setting("result_processing_mode", "time") != "trailo":
+            return False
+        if race().get_setting("trailo_mode", "preo") != "preo":
+            return False
+        if self.get_race_type() != RaceType.RELAY:
+            return False
+        if not self.person or not self.person.group:
+            return False
+        return self.person.group.is_relay()
+
     def get_result_otime(self):
         race_type = self.get_race_type()
 
@@ -860,6 +890,8 @@ class Result(ABC):
         if race_type == RaceType.MULTI_DAY_RACE:
             return self.get_result_otime_multi_day()
         if race_type == RaceType.RELAY:
+            if self.is_trailo_preo_relay_leg():
+                return self.get_result_otime_trailo()
             return self.get_result_otime_relay()
 
     def get_result_otime_current_day(self):
@@ -2783,7 +2815,35 @@ class RelayTeam:
         self.place = 0
         self.order = 0
 
+    def _uses_trailo_preo_relay_ranking(self) -> bool:
+        return (
+            self.race.get_setting("result_processing_mode", "time") == "trailo"
+            and self.race.get_setting("trailo_mode", "preo") == "preo"
+        )
+
+    def get_trailo_time(self) -> OTime:
+        total = OTime()
+        for leg in self.legs:
+            result = leg.get_result()
+            if result and result.is_status_ok():
+                total += result.get_trailo_time()
+        return total
+
+    def get_trailo_score(self) -> int:
+        total = 0
+        for leg in self.legs:
+            result = leg.get_result()
+            if result and result.is_status_ok():
+                total += result.trailo_score
+        return total
+
     def __eq__(self, other) -> bool:
+        if self._uses_trailo_preo_relay_ranking():
+            return (
+                self.get_is_status_ok() == other.get_is_status_ok()
+                and self.get_trailo_score() == other.get_trailo_score()
+                and self.get_trailo_time() == other.get_trailo_time()
+            )
         if self.get_is_status_ok() == other.get_is_status_ok():
             if self.get_correct_lap_count() == other.get_correct_lap_count():
                 if self.get_time() == other.get_time():
@@ -2798,6 +2858,15 @@ class RelayTeam:
 
         if not self.get_is_status_ok() and other.get_is_status_ok():
             return True
+
+        if self._uses_trailo_preo_relay_ranking():
+            if not self.get_is_out_of_competition() and other.get_is_out_of_competition():
+                return False
+            if self.get_is_out_of_competition() and not other.get_is_out_of_competition():
+                return True
+            if self.get_trailo_score() != other.get_trailo_score():
+                return self.get_trailo_score() < other.get_trailo_score()
+            return self.get_trailo_time() > other.get_trailo_time()
 
         if self.get_correct_lap_count() != other.get_correct_lap_count():
             return self.get_correct_lap_count() < other.get_correct_lap_count()

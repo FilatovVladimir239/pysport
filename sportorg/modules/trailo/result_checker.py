@@ -4,7 +4,6 @@ from sportorg.common.otime import OTime
 from sportorg.models.memory import Result, race
 from sportorg.modules.trailo.codes import parse_trailo_code
 
-
 class TrailoResultChecker:
     """Проверка и расчёт полей TrailO (очки, время, штрафы по тайм‑КП)."""
 
@@ -33,11 +32,38 @@ class TrailoResultChecker:
         if trailo_mode != "preo_sprint":
             time = TrailoResultChecker.calculate_time_trailo(result)
             time_penalty = TrailoResultChecker.calculate_time_penalty(result)
-            result.trailo_time = OTime(
-                msec=time.to_msec() + time_penalty.to_msec()
-            )
+            trailo_time_msec = time.to_msec() + time_penalty.to_msec()
+            if result.is_trailo_preo_relay_leg():
+                main_errors = TrailoResultChecker.count_main_course_errors(result)
+                wrong_answer_penalty = (
+                    TrailoResultChecker.get_wrong_answer_penalty_for_mode()
+                )
+                trailo_time_msec += wrong_answer_penalty.to_msec() * main_errors
+            result.trailo_time = OTime(msec=trailo_time_msec)
         else:
             result.trailo_time = result.get_result_otime()
+
+    @staticmethod
+    def count_main_course_errors(result: Result) -> int:
+        course = race().find_course(result)
+        if not course:
+            return 0
+        error_count = 0
+        for control_point in course.controls:
+            cp = parse_trailo_code(str(control_point.code))
+            if cp.kind != "main" or cp.main_num is None or not cp.main_answer:
+                continue
+            matched = False
+            for cur_split in result.splits:
+                sp = parse_trailo_code(str(cur_split.code))
+                if sp.kind != "main" or sp.main_num is None:
+                    continue
+                if sp.main_num == cp.main_num and cur_split.is_correct:
+                    matched = True
+                    break
+            if not matched:
+                error_count += 1
+        return error_count
 
     @staticmethod
     def calculate_time_penalty(result: Result) -> OTime:
@@ -51,17 +77,31 @@ class TrailoResultChecker:
         )
 
     @staticmethod
-    def get_penalty_time_for_mode() -> OTime:
-        settings = race()
-        if settings.get_setting("trailo_custom_penalty_time_enabled", True):
-            return OTime(sec=settings.get_setting("trailo_time_penalty", 30))
+    def _custom_penalty_enabled() -> bool:
+        return race().get_setting("trailo_custom_penalty_time_enabled", False)
 
-        trailo_mode = settings.get_setting("trailo_mode", "preo")
+    @staticmethod
+    def get_default_station_penalty_sec() -> int:
+        trailo_mode = race().get_setting("trailo_mode", "preo_sprint")
         if trailo_mode == "preo":
-            return OTime(sec=60)
+            return 60
+        if trailo_mode == "preo_sprint":
+            return 0
         if trailo_mode == "tempo":
-            return OTime(sec=30)
-        return OTime(sec=0)
+            return 30
+        return 0
+
+    @staticmethod
+    def get_penalty_time_for_mode() -> OTime:
+        if not TrailoResultChecker._custom_penalty_enabled():
+            return OTime(sec=TrailoResultChecker.get_default_station_penalty_sec())
+        return OTime(sec=race().get_setting("trailo_time_penalty", 0))
+
+    @staticmethod
+    def get_wrong_answer_penalty_for_mode() -> OTime:
+        if not TrailoResultChecker._custom_penalty_enabled():
+            return OTime()
+        return OTime(sec=race().get_setting("trailo_wrong_answer_penalty", 0))
 
     @staticmethod
     def penalty_time_calculation_trailo(splits, controls) -> OTime:

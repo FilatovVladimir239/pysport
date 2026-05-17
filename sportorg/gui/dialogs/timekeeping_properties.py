@@ -223,9 +223,18 @@ class TimekeepingPropertiesDialog(QDialog):
         self.trailo_settings_penalty_time_label = QLabel(
             translate("penalty time at station")
         )
-        self.trailo_settings_penalty_time = AdvSpinBox(max_width=50, value=30)
+        self.trailo_settings_penalty_time = AdvSpinBox(max_width=50, value=0)
         self.trailo_settings_layout.addRow(
             self.trailo_settings_penalty_time_label, self.trailo_settings_penalty_time
+        )
+
+        self.trailo_settings_wrong_answer_penalty_label = QLabel(
+            translate("penalty time for wrong answer")
+        )
+        self.trailo_settings_wrong_answer_penalty = AdvSpinBox(max_width=50, value=0)
+        self.trailo_settings_layout.addRow(
+            self.trailo_settings_wrong_answer_penalty_label,
+            self.trailo_settings_wrong_answer_penalty,
         )
         self.trailo_settings_preo_radio.toggled.connect(
             self.update_trailo_penalty_time_state
@@ -570,6 +579,8 @@ class TimekeepingPropertiesDialog(QDialog):
     def get_default_trailo_penalty_time(self) -> int:
         if self.trailo_settings_preo_radio.isChecked():
             return 60
+        if self.trailo_settings_preo_sprint_radio.isChecked():
+            return 0
         if self.trailo_settings_tempo_radio.isChecked():
             return 30
         return 0
@@ -577,10 +588,14 @@ class TimekeepingPropertiesDialog(QDialog):
     def update_trailo_penalty_time_state(self):
         custom_penalty_enabled = self.trailo_settings_custom_penalty_time.isChecked()
         self.trailo_settings_penalty_time.setDisabled(not custom_penalty_enabled)
+        self.trailo_settings_wrong_answer_penalty.setDisabled(
+            not custom_penalty_enabled
+        )
         if not custom_penalty_enabled:
             self.trailo_settings_penalty_time.setValue(
                 self.get_default_trailo_penalty_time()
             )
+            self.trailo_settings_wrong_answer_penalty.setValue(0)
 
     def set_values_from_model(self):
         cur_race = race()
@@ -694,7 +709,8 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_scores_radio.setChecked(True)
 
         trailo_mode = obj.get_setting("trailo_mode", "preo")
-        trailo_time_penalty = obj.get_setting("trailo_time_penalty", 30)
+        trailo_time_penalty = obj.get_setting("trailo_time_penalty", 0)
+        trailo_wrong_answer_penalty = obj.get_setting("trailo_wrong_answer_penalty", 0)
         trailo_custom_penalty_time_enabled = obj.get_setting(
             "trailo_custom_penalty_time_enabled", False
         )
@@ -706,6 +722,7 @@ class TimekeepingPropertiesDialog(QDialog):
             self.trailo_settings_tempo_radio.setChecked(True)
 
         self.trailo_settings_penalty_time.setValue(trailo_time_penalty)
+        self.trailo_settings_wrong_answer_penalty.setValue(trailo_wrong_answer_penalty)
         self.trailo_settings_custom_penalty_time.setChecked(
             trailo_custom_penalty_time_enabled
         )
@@ -901,8 +918,10 @@ class TimekeepingPropertiesDialog(QDialog):
             self.trailo_settings_custom_penalty_time.isChecked()
         )
         trailo_time_penalty = self.trailo_settings_penalty_time.value()
+        trailo_wrong_answer_penalty = self.trailo_settings_wrong_answer_penalty.value()
         if not trailo_custom_penalty_time_enabled:
             trailo_time_penalty = self.get_default_trailo_penalty_time()
+            trailo_wrong_answer_penalty = 0
 
         rp_fixed_scores_value = self.rp_fixed_scores_edit.value()
 
@@ -918,6 +937,7 @@ class TimekeepingPropertiesDialog(QDialog):
             "trailo_custom_penalty_time_enabled", trailo_custom_penalty_time_enabled
         )
         obj.set_setting("trailo_time_penalty", trailo_time_penalty)
+        obj.set_setting("trailo_wrong_answer_penalty", trailo_wrong_answer_penalty)
         obj.set_setting("result_processing_mode", rp_mode)
         obj.set_setting("result_processing_score_mode", rp_score_mode)
         obj.set_setting("result_processing_fixed_score_value", rp_fixed_scores_value)

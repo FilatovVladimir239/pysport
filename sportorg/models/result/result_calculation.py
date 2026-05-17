@@ -77,6 +77,14 @@ class ResultCalculation:
         self._group_persons[group] = ret
         return ret
 
+    def _relay_team_place_key(self, team: RelayTeam) -> tuple:
+        if (
+            self.race.get_setting("result_processing_mode", "time") == "trailo"
+            and self.race.get_setting("trailo_mode", "preo") == "preo"
+        ):
+            return (team.get_trailo_score(), team.get_trailo_time().to_msec())
+        return (team.get_time().to_msec(),)
+
     def _place_comparison_key(self, res: Result):
         mode = self.race.get_setting("result_processing_mode", "time")
         if mode == "trailo":
@@ -155,11 +163,17 @@ class ResultCalculation:
 
         place = 1  # place to show
         order = 1  # order for templates
+        last_place = 1
+        last_key = None
         for cur_team in teams_sorted:
             if not cur_team.get_is_status_ok() or cur_team.get_is_out_of_competition():
                 cur_team.set_place(-1)
             else:
-                cur_team.set_place(place)
+                current_key = self._relay_team_place_key(cur_team)
+                if place == 1 or current_key != last_key:
+                    last_key = current_key
+                    last_place = place
+                cur_team.set_place(last_place)
                 place += 1
 
             cur_team.set_order(order)

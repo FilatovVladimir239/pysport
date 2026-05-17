@@ -485,6 +485,7 @@
     var isTempoMode = trailoMode === 'tempo';
     var isPreoSprintMode = !isPreoMode;
     var isTrailo = race.settings.result_processing_mode === 'trailo';
+    var isRelayRace = race.data.race_type === 3;
 
     function isTrailoTimeControlCode(code) {
         code = String(code || '');
@@ -601,6 +602,9 @@
 
     function preoPassTime(result) {
         if (!isPreoMode || !result) return '';
+        if (isRelayRace && result.trailo_time != null) {
+            return String((result.trailo_time || 0) / 1000);
+        }
         // Разница между finish_time и start_time, формат чч:мм:сс
         var start = result.start_time != null ? result.start_time : result.start_msec;
         var finish = result.finish_time != null ? result.finish_time : result.finish_msec;
@@ -651,6 +655,22 @@
         return score + '\x00' + timeMsec;
     }
 
+    function formatRelayLegPrefix(bib) {
+        var leg = Math.floor((+bib || 0) / 1000);
+        return leg > 0 ? ('Эт. ' + leg + '. ') : '';
+    }
+
+    function buildRelayTeamHeaderRow(teamIndex, legRow) {
+        var teamNum = legRow.bib % 1000;
+        var label = legRow.org ? (legRow.org + ' (' + teamNum + ')') : ('Команда ' + teamNum);
+        return {
+            index: teamIndex,
+            name: label,
+            place_show: legRow.place_show,
+            result_relay: legRow.result_relay || ''
+        };
+    }
+
     function assignTrailoCompetitionPlaces(results) {
         var currentPlace = 1;
         var lastPlace = 1;
@@ -685,7 +705,7 @@
             if (result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: formatPersonName(result.person),
+                    name: (isRelay ? formatRelayLegPrefix(result.person.bib) : '') + formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
@@ -695,6 +715,7 @@
                     trailo_score: result.trailo_score,
                     trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
                     result: result.result_current,
+                    result_relay: result.result_relay,
                     result_msec: result.result_msec,
                     place: result.place,
                     status: result.status,
@@ -821,7 +842,7 @@
                 r.index = '';
                 if (r.bib % 1000 !== prevBib) {
                     index++;
-                    results.push({index: index});
+                    results.push(buildRelayTeamHeaderRow(index, r));
                     prevBib = r.bib % 1000;
                 }
                 results.push(r);
@@ -849,7 +870,7 @@
             if (result.person && result.person.group && result.person.group.course && result.person.group.course.id === group.id) { //} && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: formatPersonName(result.person),
+                    name: (isRelay ? formatRelayLegPrefix(result.person.bib) : '') + formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
                     bib: result.person.bib,
@@ -859,6 +880,7 @@
                     trailo_score: result.trailo_score,
                     trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
                     result: result.result_current,
+                    result_relay: result.result_relay,
                     result_msec: result.result_msec,
                     place: result.place,
                     status: result.status,
@@ -1053,6 +1075,7 @@
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
             {key: 'trailo_score', title: 'Очки', size: 4, active: !isTempoMode},
             {key: isTempoMode ? 'trailo_time' : (isPreoMode ? 'trailo_time' : 'result'), title: isTempoMode ? 'Результат' : 'Время', size: 14},
+            {key: 'result_relay', title: 'Результат команды', size: 14, active: false},
             {key: 'place_show', title: 'Место', size: 6}
         ],
         active: function (key, val) {
@@ -1089,6 +1112,7 @@
                 this.getField('trailo_score_penalty').active = isPreoMode;
                 this.getField('preo_pass_time').active = isPreoMode;
                 this.getField('trailo_score').active = !isTempoMode;
+                this.getField('result_relay').active = isRelayRace && isTrailo;
             } catch (e){}
             return this;
         }

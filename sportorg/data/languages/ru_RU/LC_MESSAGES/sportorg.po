@@ -763,6 +763,9 @@ msgstr "Своё штрафное время"
 msgid "penalty time at station"
 msgstr "штрафное время на станции"
 
+msgid "penalty time for wrong answer"
+msgstr "штрафное время за неверный ответ"
+
 msgid "Penalty calculation mode: penalty time"
 msgstr "Режим начисления штрафа: штрафное время"
 

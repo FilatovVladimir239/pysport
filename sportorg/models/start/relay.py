@@ -58,5 +58,10 @@ def get_team_result(person):
     if relay_team:
         if relay_team.get_lap_finished() == get_leg_count():
             if relay_team.get_is_status_ok():
+                if (
+                    race().get_setting("result_processing_mode", "time") == "trailo"
+                    and race().get_setting("trailo_mode", "preo") == "preo"
+                ):
+                    return relay_team.get_trailo_time()
                 return relay_team.get_time()
     return OTime(0)
