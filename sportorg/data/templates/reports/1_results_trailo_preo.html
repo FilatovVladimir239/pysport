@@ -641,6 +641,41 @@
             .slice(0, MAX_PERSON_NAME);
     }
 
+    /** Same tie key as ResultCalculation._place_comparison_key for TrailO. */
+    function trailoPlaceComparisonKey(result) {
+        if (isTempoMode) {
+            return String(result.trailo_time != null ? result.trailo_time : 0);
+        }
+        var score = result.trailo_score != null ? result.trailo_score : 0;
+        var timeMsec = result.trailo_time != null ? result.trailo_time : 0;
+        return score + '\x00' + timeMsec;
+    }
+
+    function assignTrailoCompetitionPlaces(results) {
+        var currentPlace = 1;
+        var lastPlace = 1;
+        var lastKey = null;
+        for (var i = 0; i < results.length; i++) {
+            var elem = results[i];
+            if (
+                elem.data.person.is_out_of_competition ||
+                elem.status !== 1 ||
+                elem.place === 0 ||
+                elem.place === -1
+            ) {
+                continue;
+            }
+            var key = trailoPlaceComparisonKey(elem.data);
+            if (lastKey === null || key !== lastKey) {
+                lastKey = key;
+                lastPlace = currentPlace;
+            }
+            elem.place = lastPlace;
+            elem.place_show = lastPlace;
+            currentPlace += 1;
+        }
+    }
+
     function getResultsByGroup(group, count) {
         count = +count || 0;
         var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
@@ -975,41 +1010,11 @@
             splits_recalc_times[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
             splits_recalc_times_total[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
         });
+        assignTrailoCompetitionPlaces(results);
         var index = 0;
-        var get_score = function(res){
-            return res.trailo_score;
-        }
-        var newplace = 1;
-        var doubleplace = -1;
-        var best_score = results[0] ? get_score(results[0]) : 0;
-        var binary_search = function(arr,required){
-            if (!arr){
-                return 0;
-            }
-            var l = -1;
-            var r = arr.length-1;
-            while (r-l>1){
-                var m = Math.floor((l+r)/2);
-                if (arr[m]>=required){
-                    r = m;
-                } else {
-                    l = m;
-                }
-            }
-            if (arr[r]==required){
-                return r+1;
-            }
-            return 0;
-        }
         results.forEach(function (elem) {
             index++;
             elem.index = index;
-            if (!elem.data.person.is_out_of_competition && elem.place !== 0 && elem.place !== -1) {
-                newplace += 1 + doubleplace;
-                doubleplace = 0;
-                elem.place = newplace;
-                elem.place_show = newplace;
-            }
             if (elem.data.splits) {
                 var getTrBlock = function (t, p) {
                     var tr = document.createElement('tr');

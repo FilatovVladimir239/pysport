@@ -876,7 +876,9 @@ class Result(ABC):
         time_accuracy = race().get_setting("time_accuracy", 0)
         time_rounding = race().get_setting("time_rounding", "math")
         ret_ms = self.get_trailo_time().to_msec()
-        return OTime(msec=ret_ms).round(time_accuracy, TimeRounding[time_rounding])
+        return OTime(msec=ret_ms).round(
+            time_accuracy, parse_time_rounding(time_rounding)
+        )
 
     def get_result_otime_relay(self):
         time_accuracy = race().get_setting("time_accuracy", 0)
