@@ -1,9 +1,9 @@
-from sportorg.models.memory import Race, create, new_event, race
+from sportorg.models.memory import Race, new_event, race
 from sportorg.modules.trailo.result_checker import TrailoResultChecker
 
 
 def create_race() -> None:
-    new_event([create(Race)])
+    new_event([Race()])
 
 
 def test_custom_trailo_penalty_time_used_when_enabled() -> None:

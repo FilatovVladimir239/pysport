@@ -16,7 +16,6 @@ include_files = [
     config.base_dir("changelog.md"),
     config.base_dir("changelog_ru.md"),
     (config.base_dir("configs"), "configs"),
-    config.COMMIT_VERSION_FILE,
 ]
 includes = ["atexit", "codecs", "playsound3", "pyImpinj"]
 if find_spec("sportorg_rust_example") is not None:
