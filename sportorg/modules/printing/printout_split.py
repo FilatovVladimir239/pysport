@@ -630,13 +630,15 @@ class TrailOSportorgPrinter(SportorgPrinter):
             )
 
         self._trailo_vertical_gap(1)
-        self.print_line(
-            translate("Time")
-            + ": "
-            + (result.get_finish_time() - result.get_start_time()).to_str(),
-            fn,
-            fs_main,
-        )
+        trailo_mode = obj.get_setting("trailo_mode", "preo_sprint")
+        if trailo_mode != "tempo":
+            self.print_line(
+                translate("Time")
+                + ": "
+                + (result.get_finish_time() - result.get_start_time()).to_str(),
+                fn,
+                fs_main,
+            )
 
         self.print_line(obj.data.url, fn, fs_main)
         self.end_page()
