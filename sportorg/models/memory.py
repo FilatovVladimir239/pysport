@@ -6,7 +6,7 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import date
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import dateutil.parser
 
@@ -672,7 +672,7 @@ class Result(ABC):
             "result_relay": self.get_result_relay(),
             "result_current": (
                 self.get_result_otime_trailo().to_str(time_accuracy=accuracy)
-                if self.is_status_ok() and self.is_trailo_preo_relay_leg()
+                if self.is_status_ok() and self.is_trailo_relay_leg()
                 else (
                     self.get_result_otime_current_day().to_str(
                         time_accuracy=accuracy
@@ -689,7 +689,7 @@ class Result(ABC):
             "start_msec": self.get_start_time().to_msec(),  # readonly
             "finish_msec": self.get_finish_time().to_msec(),  # readonly
             "result_msec": self.get_result_otime().to_msec(),  # readonly
-            "result_relay_msec": self.get_result_otime_relay().to_msec(),  # readonly
+            "result_relay_msec": self.get_result_relay_otime().to_msec(),  # readonly
             "result_current_msec": self.get_result_otime_current_day().to_msec(),  # readonly
             "result_trailo_current_msec": self.get_result_otime_trailo().to_msec(),  # readonly
             "can_win_count": self.can_win_count,
@@ -769,22 +769,29 @@ class Result(ABC):
 
         ret = ""
         result_processing_mode = race().get_setting("result_processing_mode", "time")
-        trailo_mode = race().get_setting("trailo_mode", "preo_sprint")
 
         if result_processing_mode == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
         elif result_processing_mode == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
-        elif result_processing_mode == "trailo" and trailo_mode !="tempo":
-            ret += f"{self.trailo_score} {translate('points')} "
+        elif result_processing_mode == "trailo":
+            from sportorg.modules.trailo.config import TrailoConfig
+
+            if TrailoConfig.show_points_in_result():
+                ret += f"{self.trailo_score} {translate('points')} "
 
         time_accuracy = race().get_setting("time_accuracy", 0)
-        if result_processing_mode == "trailo" and trailo_mode != "preo_sprint":
-            ret += (
-                str(self.get_result_otime_trailo().to_sec())
-                + " "
-                + translate("sec")
-            )
+        if result_processing_mode == "trailo":
+            from sportorg.modules.trailo.config import TrailoConfig
+
+            if TrailoConfig.show_time_as_seconds():
+                ret += (
+                    str(self.get_result_otime_trailo().to_sec())
+                    + " "
+                    + translate("sec")
+                )
+            else:
+                ret += self.get_result_otime().to_str(time_accuracy)
         else:
             ret += self.get_result_otime().to_str(time_accuracy)
         return ret
@@ -840,24 +847,18 @@ class Result(ABC):
         relay_team = None
         if self.person:
             relay_team = find(race().relay_teams, bib_number=self.person.bib % 1000)
-        is_trailo_preo_relay = self.is_trailo_preo_relay_leg() and relay_team is not None
+        is_trailo_relay = self.is_trailo_relay_leg() and relay_team is not None
         if race().get_setting("result_processing_mode", "time") == "ardf":
             ret += f"{self.scores_ardf} {translate('points')} "
-        elif is_trailo_preo_relay:
-            ret += f"{relay_team.get_trailo_score()} {translate('points')} "
+        elif is_trailo_relay:
+            ret += self._format_trailo_relay_team_result(relay_team)
         elif race().get_setting("result_processing_mode", "time") == "trailo":
             ret += f"{self.trailo_score} {translate('points')} "
         elif race().get_setting("result_processing_mode", "time") == "scores":
             ret += f"{self.rogaine_score} {translate('points')} "
 
-        time_accuracy = race().get_setting("time_accuracy", 0)
-        if is_trailo_preo_relay:
-            ret += (
-                str(relay_team.get_trailo_time().to_sec())
-                + " "
-                + translate("sec")
-            )
-        else:
+        if not is_trailo_relay:
+            time_accuracy = race().get_setting("time_accuracy", 0)
             ret += self.get_result_otime_relay().to_str(time_accuracy)
         return ret
 
@@ -871,16 +872,45 @@ class Result(ABC):
             race_type = self.person.group.race_type
         return race_type
 
-    def is_trailo_preo_relay_leg(self) -> bool:
+    def is_trailo_relay_leg(self) -> bool:
         if race().get_setting("result_processing_mode", "time") != "trailo":
-            return False
-        if race().get_setting("trailo_mode", "preo") != "preo":
             return False
         if self.get_race_type() != RaceType.RELAY:
             return False
         if not self.person or not self.person.group:
             return False
         return self.person.group.is_relay()
+
+    def is_trailo_preo_relay_leg(self) -> bool:
+        return self.is_trailo_relay_leg()
+
+    def _get_relay_team(self) -> Optional["RelayTeam"]:
+        if not self.person:
+            return None
+        return find(race().relay_teams, bib_number=self.person.bib % 1000)
+
+    def _format_trailo_relay_team_result(self, relay_team: "RelayTeam") -> str:
+        from sportorg.modules.trailo.config import TrailoConfig
+
+        ret = ""
+        if TrailoConfig.show_points_in_result():
+            ret += f"{relay_team.get_trailo_score()} {translate('points')} "
+        time_accuracy = race().get_setting("time_accuracy", 0)
+        if TrailoConfig.show_time_as_seconds():
+            ret += (
+                str(relay_team.get_trailo_time().to_sec())
+                + " "
+                + translate("sec")
+            )
+        else:
+            ret += relay_team.get_trailo_time().to_str(time_accuracy)
+        return ret
+
+    def get_result_relay_otime(self) -> OTime:
+        relay_team = self._get_relay_team()
+        if self.is_trailo_relay_leg() and relay_team:
+            return relay_team.get_trailo_time()
+        return self.get_result_otime_relay()
 
     def get_result_otime(self):
         race_type = self.get_race_type()
@@ -890,7 +920,11 @@ class Result(ABC):
         if race_type == RaceType.MULTI_DAY_RACE:
             return self.get_result_otime_multi_day()
         if race_type == RaceType.RELAY:
-            if self.is_trailo_preo_relay_leg():
+            if self.is_trailo_relay_leg():
+                from sportorg.modules.trailo.config import TrailoConfig
+
+                if TrailoConfig.uses_passage_time():
+                    return self.get_result_otime_current_day()
                 return self.get_result_otime_trailo()
             return self.get_result_otime_relay()
 
@@ -2815,13 +2849,134 @@ class RelayTeam:
         self.place = 0
         self.order = 0
 
+    def _uses_trailo_relay_ranking(self) -> bool:
+        return self.race.get_setting("result_processing_mode", "time") == "trailo"
+
     def _uses_trailo_preo_relay_ranking(self) -> bool:
-        return (
-            self.race.get_setting("result_processing_mode", "time") == "trailo"
-            and self.race.get_setting("trailo_mode", "preo") == "preo"
+        return self._uses_trailo_relay_ranking()
+
+    def _person_for_leg(self, leg_number: int) -> Optional["Person"]:
+        relay_leg = self.get_leg(leg_number)
+        if relay_leg and relay_leg.get_person():
+            return relay_leg.get_person()
+        if self.bib_number:
+            return self.race.find_person_by_bib(leg_number * 1000 + self.bib_number)
+        return None
+
+    def _trailo_leg_contribution(self, leg_number: int) -> Tuple[int, OTime]:
+        relay_leg = self.get_leg(leg_number)
+        if relay_leg:
+            result = relay_leg.get_result()
+            if result and result.is_status_ok():
+                return result.trailo_score, result.get_trailo_time()
+        if leg_number < 2:
+            return 0, OTime()
+        person = self._person_for_leg(leg_number)
+        if person is None:
+            return 0, OTime()
+        from sportorg.models.result.result_checker import ResultChecker
+        from sportorg.modules.trailo.result_checker import TrailoResultChecker
+
+        return TrailoResultChecker.synthetic_missing_relay_leg_values(
+            person, ResultChecker.calculate_rogaine_penalty
         )
 
+    def get_trailo_leg_passage_time(self, leg_number: int) -> OTime:
+        """Leg passage: leg 1 finish-start; leg N finish minus leg N-1 finish."""
+        if not self._uses_trailo_relay_ranking():
+            return OTime()
+        relay_leg = self.get_leg(leg_number)
+        if not relay_leg:
+            return OTime()
+        result = relay_leg.get_result()
+        if not result or not result.is_status_ok() or result.finish_time is None:
+            return OTime()
+        if leg_number == 1:
+            if result.start_time is None:
+                return OTime()
+            start = result.start_time
+        else:
+            prev_leg = self.get_leg(leg_number - 1)
+            if not prev_leg:
+                return OTime()
+            prev_result = prev_leg.get_result()
+            if not prev_result or prev_result.finish_time is None:
+                return OTime()
+            start = prev_result.finish_time
+        return result.finish_time - start
+
+    def get_trailo_passage_time(self) -> OTime:
+        """Sum of per-leg passage times (team elapsed time)."""
+        if not self._uses_trailo_relay_ranking():
+            return OTime()
+        total = OTime()
+        leg_count = self.race.data.relay_leg_count
+        for leg_number in range(1, leg_count + 1):
+            total += self.get_trailo_leg_passage_time(leg_number)
+        return total
+
+    def get_trailo_raw_score(self) -> int:
+        if not self._uses_trailo_relay_ranking():
+            return 0
+        total = 0
+        leg_count = self.race.data.relay_leg_count
+        for leg_number in range(1, leg_count + 1):
+            leg_score, _ = self._trailo_leg_contribution(leg_number)
+            total += leg_score
+        return total
+
+    def get_trailo_score_penalty(self) -> int:
+        from sportorg.modules.trailo.config import TrailoConfig
+
+        if not self._uses_trailo_relay_ranking():
+            return 0
+        if not TrailoConfig.points_enabled(self.race):
+            return 0
+        if TrailoConfig.legacy_mode(self.race) != "preo":
+            return 0
+        raw = self.get_trailo_raw_score()
+        if raw <= 0:
+            return 0
+        leg1 = self.get_leg(1)
+        ref = leg1.get_result() if leg1 else None
+        if not ref or not ref.person or not ref.person.group:
+            return 0
+        passage = self.get_trailo_passage_time()
+        if passage == OTime():
+            return 0
+        from sportorg.models.result.result_checker import ResultChecker
+
+        return ResultChecker.calculate_rogaine_penalty(ref, raw, 1, 5, user_time=passage)
+
+    def apply_trailo_relay_team_fields(self) -> None:
+        """Store team-level PreO KV penalty on leg 1 for reports and UI."""
+        from sportorg.modules.trailo.config import TrailoConfig
+
+        if not self._uses_trailo_relay_ranking():
+            return
+        if TrailoConfig.legacy_mode(self.race) != "preo":
+            return
+        if not TrailoConfig.points_enabled(self.race):
+            return
+        penalty = self.get_trailo_score_penalty()
+        for leg in self.legs:
+            result = leg.get_result()
+            if result:
+                result.trailo_score_penalty = 0
+        leg1 = self.get_leg(1)
+        if leg1:
+            result = leg1.get_result()
+            if result:
+                result.trailo_score_penalty = penalty
+
     def get_trailo_time(self) -> OTime:
+        if self._uses_trailo_relay_ranking():
+            total = OTime()
+            leg_count = self.race.data.relay_leg_count
+            for leg_number in range(1, leg_count + 1):
+                _, leg_time = self._trailo_leg_contribution(leg_number)
+                total += leg_time
+            return total
         total = OTime()
         for leg in self.legs:
             result = leg.get_result()
@@ -2830,6 +2985,16 @@ class RelayTeam:
         return total
 
     def get_trailo_score(self) -> int:
+        if self._uses_trailo_relay_ranking():
+            from sportorg.modules.trailo.config import TrailoConfig
+
+            raw = self.get_trailo_raw_score()
+            if (
+                TrailoConfig.legacy_mode(self.race) == "preo"
+                and TrailoConfig.points_enabled(self.race)
+            ):
+                return raw - self.get_trailo_score_penalty()
+            return raw
         total = 0
         for leg in self.legs:
             result = leg.get_result()
@@ -2838,10 +3003,15 @@ class RelayTeam:
         return total
 
     def __eq__(self, other) -> bool:
-        if self._uses_trailo_preo_relay_ranking():
+        if self._uses_trailo_relay_ranking():
+            from sportorg.modules.trailo.config import TrailoConfig
+
+            if self.get_is_status_ok() != other.get_is_status_ok():
+                return False
+            if not TrailoConfig.points_enabled(self.race):
+                return self.get_trailo_time() == other.get_trailo_time()
             return (
-                self.get_is_status_ok() == other.get_is_status_ok()
-                and self.get_trailo_score() == other.get_trailo_score()
+                self.get_trailo_score() == other.get_trailo_score()
                 and self.get_trailo_time() == other.get_trailo_time()
             )
         if self.get_is_status_ok() == other.get_is_status_ok():
@@ -2853,17 +3023,42 @@ class RelayTeam:
     def __gt__(self, other) -> bool:
         """ "Greater" means worse, ranks lower on the result list"""
 
+        if self.get_is_disqualified() and not other.get_is_disqualified():
+            return True
+        if not self.get_is_disqualified() and other.get_is_disqualified():
+            return False
+
+        self_placed = self.get_is_team_placed()
+        other_placed = other.get_is_team_placed()
+        if self_placed and not other_placed:
+            return False
+        if not self_placed and other_placed:
+            return True
+
+        if (
+            not self_placed
+            and not other_placed
+            and not self.get_is_disqualified()
+            and not other.get_is_disqualified()
+        ):
+            if self.get_participant_count() != other.get_participant_count():
+                return self.get_participant_count() < other.get_participant_count()
+
         if self.get_is_status_ok() and not other.get_is_status_ok():
             return False
 
         if not self.get_is_status_ok() and other.get_is_status_ok():
             return True
 
-        if self._uses_trailo_preo_relay_ranking():
+        if self._uses_trailo_relay_ranking():
+            from sportorg.modules.trailo.config import TrailoConfig
+
             if not self.get_is_out_of_competition() and other.get_is_out_of_competition():
                 return False
             if self.get_is_out_of_competition() and not other.get_is_out_of_competition():
                 return True
+            if not TrailoConfig.points_enabled(self.race):
+                return self.get_trailo_time() > other.get_trailo_time()
             if self.get_trailo_score() != other.get_trailo_score():
                 return self.get_trailo_score() < other.get_trailo_score()
             return self.get_trailo_time() > other.get_trailo_time()
@@ -2957,6 +3152,57 @@ class RelayTeam:
             and self.get_is_all_legs_finished()
             and not self.get_is_out_of_competition()
         )
+
+    def get_is_disqualified(self) -> bool:
+        """True if any relay leg is disqualified (whole team is disqualified)."""
+        for leg in self.legs:
+            result = leg.get_result()
+            if result and result.status == ResultStatus.DISQUALIFIED:
+                return True
+        return False
+
+    def get_participant_count(self) -> int:
+        """Legs with a recorded result (participants who started/finished a leg)."""
+        return len(self.legs)
+
+    def get_is_not_started(self) -> bool:
+        """True when no leg has an OK result (e.g. whole team did not start)."""
+        if self.get_is_disqualified():
+            return False
+        if not self.legs:
+            return True
+        for leg in self.legs:
+            result = leg.get_result()
+            if result and result.is_status_ok():
+                return False
+        return True
+
+    def _relay_result_sort_key(self) -> tuple:
+        if self._uses_trailo_relay_ranking():
+            from sportorg.modules.trailo.config import TrailoConfig
+
+            if TrailoConfig.points_enabled(self.race):
+                return (self.get_trailo_score(), self.get_trailo_time().to_msec())
+            return (self.get_trailo_time().to_msec(),)
+        return (self.get_time().to_msec(),)
+
+    def get_relay_sort_key(self) -> tuple:
+        """Sort key: complete teams, incomplete by leg count, DQ teams, not started."""
+        result_key = self._relay_result_sort_key()
+        if self.get_is_disqualified():
+            return (
+                2,
+                0 if self.get_is_all_legs_finished() else 1,
+                -self.get_correct_lap_count(),
+                -self.get_participant_count(),
+                result_key,
+                self.bib_number or 0,
+            )
+        if self.get_is_team_placed():
+            return (0, result_key, self.bib_number or 0)
+        if self.get_is_not_started():
+            return (3, self.bib_number or 0)
+        return (1, -self.get_participant_count(), result_key, self.bib_number or 0)
 
     def get_is_status_ok(self):
         """Get the whole team status - OK if all laps are OK"""

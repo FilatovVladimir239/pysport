@@ -533,6 +533,7 @@ class ResultChecker:
             score: int,
             penalty_step: int = 1,
             penalty_interval_minutes: int = 1,
+            user_time=None,
     ) -> int:
         """
         Calculates the penalty for a given result based on the participant's excess of a race time.
@@ -550,7 +551,8 @@ class ResultChecker:
         """
         penalty = 0
         if result.person and result.person.group:
-            user_time = result.get_result_otime()
+            if user_time is None:
+                user_time = result.get_result_otime()
             max_time = result.person.group.max_time
             if OTime() < max_time < user_time:
                 time_diff = user_time - max_time

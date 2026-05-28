@@ -3,6 +3,7 @@ from typing import Dict, List
 from sportorg import settings
 from sportorg.common.otime import OTime
 from sportorg.models.constant import RankingTable
+from sportorg.modules.trailo.config import TrailoConfig
 from sportorg.models.memory import (
     Group,
     Qualification,
@@ -78,20 +79,14 @@ class ResultCalculation:
         return ret
 
     def _relay_team_place_key(self, team: RelayTeam) -> tuple:
-        if (
-            self.race.get_setting("result_processing_mode", "time") == "trailo"
-            and self.race.get_setting("trailo_mode", "preo") == "preo"
-        ):
-            return (team.get_trailo_score(), team.get_trailo_time().to_msec())
+        if self.race.get_setting("result_processing_mode", "time") == "trailo":
+            return TrailoConfig.relay_team_place_key(team, self.race)
         return (team.get_time().to_msec(),)
 
     def _place_comparison_key(self, res: Result):
         mode = self.race.get_setting("result_processing_mode", "time")
         if mode == "trailo":
-            trailo_mode = self.race.get_setting("trailo_mode", "preo_sprint")
-            if trailo_mode == "tempo":
-                return (res.get_trailo_time().to_msec(),)
-            return (res.trailo_score, res.get_trailo_time().to_msec())
+            return TrailoConfig.place_comparison_key(res, self.race)
         if mode == "scores":
             return (res.rogaine_score, res.get_result_otime().to_msec())
         if mode == "ardf":
@@ -156,7 +151,7 @@ class ResultCalculation:
 
             team = relay_teams[str(team_number)]
             team.add_result(res)
-        teams_sorted = sorted(relay_teams.values())
+        teams_sorted = sorted(relay_teams.values(), key=lambda team: team.get_relay_sort_key())
 
         if group.is_best_team_placing_mode:
             teams_sorted = self.sort_best_relay_team_placing(teams_sorted)
@@ -166,20 +161,27 @@ class ResultCalculation:
         last_place = 1
         last_key = None
         for cur_team in teams_sorted:
-            if not cur_team.get_is_status_ok() or cur_team.get_is_out_of_competition():
+            if cur_team.get_is_out_of_competition() or cur_team.get_is_disqualified():
                 cur_team.set_place(-1)
-            else:
+            elif cur_team.get_is_team_placed():
                 current_key = self._relay_team_place_key(cur_team)
                 if place == 1 or current_key != last_key:
                     last_key = current_key
                     last_place = place
                 cur_team.set_place(last_place)
                 place += 1
+            elif cur_team.get_is_not_started():
+                cur_team.set_place(-1)
+            else:
+                # Incomplete teams: ordered after complete teams, no tied places.
+                cur_team.set_place(place)
+                place += 1
 
             cur_team.set_order(order)
             order += 1
 
             cur_team.set_start_times()
+            cur_team.apply_trailo_relay_team_fields()
         return relay_teams.values()
 
     def sort_best_relay_team_placing(self, teams_sorted_by_result: List[RelayTeam]):

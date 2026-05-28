@@ -760,6 +760,15 @@ msgstr "штрафное время"
 msgid "custom penalty time"
 msgstr "Своё штрафное время"
 
+msgid "Different course"
+msgstr "Другая дистанция"
+
+msgid "Main course section"
+msgstr "Основная часть трассы"
+
+msgid "Station"
+msgstr "Станция"
+
 msgid "penalty time at station"
 msgstr "штрафное время на станции"
 

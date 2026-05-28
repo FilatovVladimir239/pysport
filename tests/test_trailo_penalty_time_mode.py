@@ -8,7 +8,8 @@ def create_race() -> None:
 
 def test_custom_trailo_penalty_time_used_when_enabled() -> None:
     create_race()
-    race().set_setting("trailo_custom_penalty_time_enabled", True)
+    race().set_setting("trailo_alternate_course", True)
+    race().set_setting("trailo_station_enabled", True)
     race().set_setting("trailo_time_penalty", 45)
     race().set_setting("trailo_mode", "preo")
 
@@ -28,7 +29,8 @@ def test_trailo_station_penalty_preo_default_when_custom_disabled() -> None:
 
 def test_trailo_wrong_answer_penalty_used_when_enabled() -> None:
     create_race()
-    race().set_setting("trailo_custom_penalty_time_enabled", True)
+    race().set_setting("trailo_alternate_course", True)
+    race().set_setting("trailo_main_course_wrong_answer_penalty_enabled", True)
     race().set_setting("trailo_wrong_answer_penalty", 45)
 
     assert TrailoResultChecker.get_wrong_answer_penalty_for_mode().to_msec() == 45000

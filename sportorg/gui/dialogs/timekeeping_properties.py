@@ -10,10 +10,12 @@ try:
         QDialogButtonBox,
         QFormLayout,
         QGroupBox,
+        QHBoxLayout,
         QLabel,
         QLineEdit,
         QRadioButton,
         QTabWidget,
+        QVBoxLayout,
         QWidget,
     )
 except ModuleNotFoundError:
@@ -24,10 +26,12 @@ except ModuleNotFoundError:
         QDialogButtonBox,
         QFormLayout,
         QGroupBox,
+        QHBoxLayout,
         QLabel,
         QLineEdit,
         QRadioButton,
         QTabWidget,
+        QVBoxLayout,
         QWidget,
     )
 
@@ -38,6 +42,16 @@ from sportorg.language import translate
 from sportorg.models.memory import SystemType, race
 from sportorg.models.result.result_tools import recalculate_results
 from sportorg.modules.sportident.sireader import SIReaderClient
+from sportorg.modules.trailo.config import (
+    SETTING_ALTERNATE_COURSE,
+    SETTING_LEGACY_CUSTOM_PENALTY,
+    SETTING_MAIN_COURSE,
+    SETTING_MAIN_POINTS,
+    SETTING_MAIN_WRONG_ANSWER,
+    SETTING_STATION,
+    SETTING_STATION_PENALTY,
+    SETTING_WRONG_ANSWER_PENALTY,
+)
 
 
 class TimekeepingPropertiesDialog(QDialog):
@@ -212,39 +226,79 @@ class TimekeepingPropertiesDialog(QDialog):
         self.trailo_settings_tempo_radio = QRadioButton(translate("tempo"))
         self.trailo_settings_layout.addRow(self.trailo_settings_tempo_radio)
 
-        self.trailo_settings_custom_penalty_time = QCheckBox(
-            translate("custom penalty time")
+        self.trailo_settings_alternate_radio = QRadioButton(
+            translate("Different course")
         )
-        self.trailo_settings_custom_penalty_time.stateChanged.connect(
-            self.update_trailo_penalty_time_state
-        )
-        self.trailo_settings_layout.addRow(self.trailo_settings_custom_penalty_time)
+        self.trailo_settings_layout.addRow(self.trailo_settings_alternate_radio)
 
-        self.trailo_settings_penalty_time_label = QLabel(
+        self.trailo_alternate_course_panel = QWidget()
+        alternate_layout = QVBoxLayout(self.trailo_alternate_course_panel)
+        alternate_layout.setContentsMargins(20, 0, 0, 0)
+
+        self.trailo_settings_main_course = QCheckBox(
+            translate("Main course section")
+        )
+        self.trailo_settings_main_course.stateChanged.connect(
+            self.update_trailo_course_state
+        )
+        alternate_layout.addWidget(self.trailo_settings_main_course)
+
+        main_options = QWidget()
+        main_options_layout = QVBoxLayout(main_options)
+        main_options_layout.setContentsMargins(20, 0, 0, 0)
+
+        self.trailo_settings_main_points = QCheckBox(translate("scores"))
+        self.trailo_settings_main_points.stateChanged.connect(
+            self.update_trailo_course_state
+        )
+        main_options_layout.addWidget(self.trailo_settings_main_points)
+
+        wrong_row = QWidget()
+        wrong_row_layout = QHBoxLayout(wrong_row)
+        wrong_row_layout.setContentsMargins(0, 0, 0, 0)
+        self.trailo_settings_main_wrong_penalty = QCheckBox(
+            translate("penalty time for wrong answer")
+        )
+        self.trailo_settings_main_wrong_penalty.stateChanged.connect(
+            self.update_trailo_course_state
+        )
+        self.trailo_settings_wrong_answer_penalty = AdvSpinBox(max_width=50, value=0)
+        wrong_row_layout.addWidget(self.trailo_settings_main_wrong_penalty)
+        wrong_row_layout.addWidget(self.trailo_settings_wrong_answer_penalty)
+        wrong_row_layout.addStretch()
+        main_options_layout.addWidget(wrong_row)
+
+        alternate_layout.addWidget(main_options)
+        self.trailo_main_course_options = main_options
+
+        self.trailo_settings_station = QCheckBox(translate("Station"))
+        self.trailo_settings_station.stateChanged.connect(
+            self.update_trailo_course_state
+        )
+        alternate_layout.addWidget(self.trailo_settings_station)
+
+        station_row = QWidget()
+        station_row_layout = QHBoxLayout(station_row)
+        station_row_layout.setContentsMargins(20, 0, 0, 0)
+        self.trailo_settings_station_penalty_label = QLabel(
             translate("penalty time at station")
         )
         self.trailo_settings_penalty_time = AdvSpinBox(max_width=50, value=0)
-        self.trailo_settings_layout.addRow(
-            self.trailo_settings_penalty_time_label, self.trailo_settings_penalty_time
-        )
+        station_row_layout.addWidget(self.trailo_settings_station_penalty_label)
+        station_row_layout.addWidget(self.trailo_settings_penalty_time)
+        station_row_layout.addStretch()
+        alternate_layout.addWidget(station_row)
+        self.trailo_station_penalty_row = station_row
 
-        self.trailo_settings_wrong_answer_penalty_label = QLabel(
-            translate("penalty time for wrong answer")
-        )
-        self.trailo_settings_wrong_answer_penalty = AdvSpinBox(max_width=50, value=0)
-        self.trailo_settings_layout.addRow(
-            self.trailo_settings_wrong_answer_penalty_label,
-            self.trailo_settings_wrong_answer_penalty,
-        )
-        self.trailo_settings_preo_radio.toggled.connect(
-            self.update_trailo_penalty_time_state
-        )
-        self.trailo_settings_preo_sprint_radio.toggled.connect(
-            self.update_trailo_penalty_time_state
-        )
-        self.trailo_settings_tempo_radio.toggled.connect(
-            self.update_trailo_penalty_time_state
-        )
+        self.trailo_settings_layout.addRow(self.trailo_alternate_course_panel)
+
+        for radio in (
+            self.trailo_settings_preo_radio,
+            self.trailo_settings_preo_sprint_radio,
+            self.trailo_settings_tempo_radio,
+            self.trailo_settings_alternate_radio,
+        ):
+            radio.toggled.connect(self.update_trailo_course_state)
         self.result_proc_layout.addRow(self.trailo_settings_group)
 
         self.start_group_box = QGroupBox(translate("Start time"))
@@ -576,26 +630,78 @@ class TimekeepingPropertiesDialog(QDialog):
             not (self.mr_laps_radio.isChecked() or self.mr_time_radio.isChecked())
         )
 
-    def get_default_trailo_penalty_time(self) -> int:
-        if self.trailo_settings_preo_radio.isChecked():
-            return 60
-        if self.trailo_settings_preo_sprint_radio.isChecked():
-            return 0
-        if self.trailo_settings_tempo_radio.isChecked():
-            return 30
-        return 0
+    @staticmethod
+    def _trailo_preset_penalty_values(trailo_mode: str):
+        if trailo_mode == "preo":
+            return 0, 60
+        if trailo_mode == "tempo":
+            return 0, 30
+        return 0, 0
 
-    def update_trailo_penalty_time_state(self):
-        custom_penalty_enabled = self.trailo_settings_custom_penalty_time.isChecked()
-        self.trailo_settings_penalty_time.setDisabled(not custom_penalty_enabled)
-        self.trailo_settings_wrong_answer_penalty.setDisabled(
-            not custom_penalty_enabled
+    def _apply_trailo_preset_penalties(self, trailo_mode: str) -> None:
+        wrong_penalty, station_penalty = self._trailo_preset_penalty_values(
+            trailo_mode
         )
-        if not custom_penalty_enabled:
-            self.trailo_settings_penalty_time.setValue(
-                self.get_default_trailo_penalty_time()
-            )
-            self.trailo_settings_wrong_answer_penalty.setValue(0)
+        self.trailo_settings_wrong_answer_penalty.setValue(wrong_penalty)
+        self.trailo_settings_penalty_time.setValue(station_penalty)
+
+    def _set_trailo_checkbox(self, checkbox: QCheckBox, checked: bool) -> None:
+        if checkbox.isChecked() == checked:
+            return
+        checkbox.blockSignals(True)
+        checkbox.setChecked(checked)
+        checkbox.blockSignals(False)
+
+    def _apply_trailo_preset_checkboxes(self, trailo_mode: str) -> None:
+        if trailo_mode == "tempo":
+            main_on = False
+            points_on = False
+            station_on = True
+        elif trailo_mode == "preo_sprint":
+            main_on = True
+            points_on = True
+            station_on = False
+        else:
+            main_on = True
+            points_on = True
+            station_on = True
+        self._set_trailo_checkbox(self.trailo_settings_main_course, main_on)
+        self._set_trailo_checkbox(self.trailo_settings_main_points, points_on)
+        self._set_trailo_checkbox(self.trailo_settings_station, station_on)
+
+    def _selected_trailo_mode(self) -> str:
+        if self.trailo_settings_preo_radio.isChecked():
+            return "preo"
+        if self.trailo_settings_preo_sprint_radio.isChecked():
+            return "preo_sprint"
+        if self.trailo_settings_tempo_radio.isChecked():
+            return "tempo"
+        return "preo"
+
+    def update_trailo_course_state(self):
+        alternate_enabled = self.trailo_settings_alternate_radio.isChecked()
+        self.trailo_alternate_course_panel.setEnabled(alternate_enabled)
+
+        if not alternate_enabled:
+            trailo_mode = self._selected_trailo_mode()
+            self._apply_trailo_preset_penalties(trailo_mode)
+            self._apply_trailo_preset_checkboxes(trailo_mode)
+            return
+
+        main_enabled = self.trailo_settings_main_course.isChecked()
+        self.trailo_main_course_options.setEnabled(main_enabled)
+        points_enabled = main_enabled and self.trailo_settings_main_points.isChecked()
+        self.trailo_settings_main_points.setEnabled(main_enabled)
+
+        wrong_enabled = (
+            main_enabled and self.trailo_settings_main_wrong_penalty.isChecked()
+        )
+        self.trailo_settings_main_wrong_penalty.setEnabled(main_enabled)
+        self.trailo_settings_wrong_answer_penalty.setEnabled(wrong_enabled)
+
+        station_enabled = self.trailo_settings_station.isChecked()
+        self.trailo_station_penalty_row.setEnabled(station_enabled)
+        self.trailo_settings_penalty_time.setEnabled(station_enabled)
 
     def set_values_from_model(self):
         cur_race = race()
@@ -709,12 +815,20 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_scores_radio.setChecked(True)
 
         trailo_mode = obj.get_setting("trailo_mode", "preo")
-        trailo_time_penalty = obj.get_setting("trailo_time_penalty", 0)
-        trailo_wrong_answer_penalty = obj.get_setting("trailo_wrong_answer_penalty", 0)
-        trailo_custom_penalty_time_enabled = obj.get_setting(
-            "trailo_custom_penalty_time_enabled", False
+        trailo_time_penalty = obj.get_setting(SETTING_STATION_PENALTY, 0)
+        trailo_wrong_answer_penalty = obj.get_setting(
+            SETTING_WRONG_ANSWER_PENALTY, 0
         )
-        if trailo_mode == "preo":
+        trailo_alternate_course = obj.get_setting(SETTING_ALTERNATE_COURSE, False)
+        if not trailo_alternate_course and obj.get_setting(
+            SETTING_LEGACY_CUSTOM_PENALTY, False
+        ):
+            trailo_alternate_course = True
+        if trailo_alternate_course or obj.get_setting(
+            SETTING_LEGACY_CUSTOM_PENALTY, False
+        ):
+            self.trailo_settings_alternate_radio.setChecked(True)
+        elif trailo_mode == "preo":
             self.trailo_settings_preo_radio.setChecked(True)
         elif trailo_mode == "preo_sprint":
             self.trailo_settings_preo_sprint_radio.setChecked(True)
@@ -723,10 +837,21 @@ class TimekeepingPropertiesDialog(QDialog):
 
         self.trailo_settings_penalty_time.setValue(trailo_time_penalty)
         self.trailo_settings_wrong_answer_penalty.setValue(trailo_wrong_answer_penalty)
-        self.trailo_settings_custom_penalty_time.setChecked(
-            trailo_custom_penalty_time_enabled
+        if not trailo_alternate_course:
+            self._apply_trailo_preset_penalties(trailo_mode)
+        self.trailo_settings_main_course.setChecked(
+            obj.get_setting(SETTING_MAIN_COURSE, True)
         )
-        self.update_trailo_penalty_time_state()
+        self.trailo_settings_main_points.setChecked(
+            obj.get_setting(SETTING_MAIN_POINTS, True)
+        )
+        self.trailo_settings_main_wrong_penalty.setChecked(
+            obj.get_setting(SETTING_MAIN_WRONG_ANSWER, False)
+        )
+        self.trailo_settings_station.setChecked(
+            obj.get_setting(SETTING_STATION, True)
+        )
+        self.update_trailo_course_state()
 
 
         if rp_score_mode == "rogain":
@@ -908,20 +1033,24 @@ class TimekeepingPropertiesDialog(QDialog):
         if self.rp_fixed_scores_radio.isChecked():
             rp_score_mode = "fixed"
 
-        if self.trailo_settings_preo_radio.isChecked():
-            trailo_mode = "preo"
-        elif self.trailo_settings_preo_sprint_radio.isChecked():
-            trailo_mode = "preo_sprint"
+        trailo_alternate_course = self.trailo_settings_alternate_radio.isChecked()
+        if trailo_alternate_course:
+            trailo_mode = obj.get_setting("trailo_mode", "preo")
+            trailo_time_penalty = self.trailo_settings_penalty_time.value()
+            trailo_wrong_answer_penalty = (
+                self.trailo_settings_wrong_answer_penalty.value()
+            )
         else:
-            trailo_mode = "tempo"
-        trailo_custom_penalty_time_enabled = (
-            self.trailo_settings_custom_penalty_time.isChecked()
+            trailo_mode = self._selected_trailo_mode()
+            trailo_wrong_answer_penalty, trailo_time_penalty = (
+                self._trailo_preset_penalty_values(trailo_mode)
+            )
+        trailo_main_course = self.trailo_settings_main_course.isChecked()
+        trailo_main_points = self.trailo_settings_main_points.isChecked()
+        trailo_main_wrong_penalty = (
+            self.trailo_settings_main_wrong_penalty.isChecked()
         )
-        trailo_time_penalty = self.trailo_settings_penalty_time.value()
-        trailo_wrong_answer_penalty = self.trailo_settings_wrong_answer_penalty.value()
-        if not trailo_custom_penalty_time_enabled:
-            trailo_time_penalty = self.get_default_trailo_penalty_time()
-            trailo_wrong_answer_penalty = 0
+        trailo_station = self.trailo_settings_station.isChecked()
 
         rp_fixed_scores_value = self.rp_fixed_scores_edit.value()
 
@@ -933,11 +1062,14 @@ class TimekeepingPropertiesDialog(QDialog):
         rp_scores_allow_duplicates = self.rp_scores_allow_duplicates.isChecked()
 
         obj.set_setting("trailo_mode", trailo_mode)
-        obj.set_setting(
-            "trailo_custom_penalty_time_enabled", trailo_custom_penalty_time_enabled
-        )
-        obj.set_setting("trailo_time_penalty", trailo_time_penalty)
-        obj.set_setting("trailo_wrong_answer_penalty", trailo_wrong_answer_penalty)
+        obj.set_setting(SETTING_ALTERNATE_COURSE, trailo_alternate_course)
+        obj.set_setting(SETTING_LEGACY_CUSTOM_PENALTY, False)
+        obj.set_setting(SETTING_MAIN_COURSE, trailo_main_course)
+        obj.set_setting(SETTING_MAIN_POINTS, trailo_main_points)
+        obj.set_setting(SETTING_MAIN_WRONG_ANSWER, trailo_main_wrong_penalty)
+        obj.set_setting(SETTING_STATION, trailo_station)
+        obj.set_setting(SETTING_STATION_PENALTY, trailo_time_penalty)
+        obj.set_setting(SETTING_WRONG_ANSWER_PENALTY, trailo_wrong_answer_penalty)
         obj.set_setting("result_processing_mode", rp_mode)
         obj.set_setting("result_processing_score_mode", rp_score_mode)
         obj.set_setting("result_processing_fixed_score_value", rp_fixed_scores_value)

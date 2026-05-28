@@ -93,6 +93,19 @@
         text-align: left;
     }
 
+    table.sportorg-table td.index-col[rowspan],
+    table.sportorg-table td.place-col[rowspan],
+    table.sportorg-table td[rowspan].relay-team-result-col,
+    table.sportorg-table td[rowspan].relay-team-pass-time-col,
+    table.sportorg-table td[rowspan].relay-kv-penalty-col {
+        vertical-align: middle;
+    }
+
+    table.sportorg-table th.relay-team-pass-time-header {
+        line-height: 1.2;
+        white-space: normal;
+    }
+
     table.table-split td.result-undefined {
         border: none;
     }
@@ -481,9 +494,46 @@
     racePreparation(race);
 
     var trailoMode = race.settings && race.settings.trailo_mode ? String(race.settings.trailo_mode) : '';
-    var isPreoMode = trailoMode === 'preo';
-    var isTempoMode = trailoMode === 'tempo';
-    var isPreoSprintMode = !isPreoMode;
+    var trailoAlternateCourse = !!(race.settings.trailo_alternate_course || race.settings.trailo_custom_penalty_time_enabled);
+    function trailoUsesPoints() {
+        if (trailoAlternateCourse) {
+            var mainOn = race.settings.trailo_main_course_enabled !== false;
+            return mainOn && !!race.settings.trailo_main_course_points_enabled;
+        }
+        return trailoMode !== 'tempo';
+    }
+    function trailoUsesStationTime() {
+        if (trailoAlternateCourse) {
+            return !!race.settings.trailo_station_enabled;
+        }
+        return trailoMode !== 'preo_sprint';
+    }
+    function trailoMainCourseEnabled() {
+        if (trailoAlternateCourse) {
+            return race.settings.trailo_main_course_enabled !== false;
+        }
+        return trailoMode !== 'tempo';
+    }
+    /** Legacy Tempo / alternate without main: hide controls before the first time station. */
+    function trailoSkipPreStationControls() {
+        if (!trailoAlternateCourse && trailoMode === 'tempo') {
+            return true;
+        }
+        if (trailoAlternateCourse && !trailoMainCourseEnabled()) {
+            return true;
+        }
+        return false;
+    }
+    function isTrailoMainControlCode(code) {
+        code = String(code != null ? code : '').trim();
+        if (!code || isTrailoTimeControlCode(code)) {
+            return false;
+        }
+        return /^\d+[A-Za-z]$/.test(code);
+    }
+    var isPreoMode = trailoUsesStationTime() && trailoMode === 'preo';
+    var isTempoMode = !trailoUsesPoints();
+    var isPreoSprintMode = !trailoUsesStationTime();
     var isTrailo = race.settings.result_processing_mode === 'trailo';
     var isRelayRace = race.data.race_type === 3;
 
@@ -567,7 +617,13 @@
     /** Строка протокола: основная дистанция по course_index; тайм‑КП — как в печати сплита / вкладке результатов (любой код из isTrailoTimeControlCode). */
     function trailoProtocolIncludeSplit(split) {
         var ci = +split.course_index || 0;
-        return ci > 0 || isTrailoTimeControlCode(split.code);
+        if (ci > 0) {
+            return true;
+        }
+        if (isTrailoTimeControlCode(split.code)) {
+            return true;
+        }
+        return trailoMainCourseEnabled() && isTrailoMainControlCode(split.code);
     }
 
     /**
@@ -602,8 +658,8 @@
 
     function preoPassTime(result) {
         if (!isPreoMode || !result) return '';
-        if (isRelayRace && result.trailo_time != null) {
-            return String((result.trailo_time || 0) / 1000);
+        if (isRelayRace) {
+            return '';
         }
         // Разница между finish_time и start_time, формат чч:мм:сс
         var start = result.start_time != null ? result.start_time : result.start_msec;
@@ -612,6 +668,90 @@
         var diff = finish - start;
         if (diff < 0) diff += 24 * 60 * 60 * 1000;
         return toHHMMSS(diff);
+    }
+
+    function resultFinishMsec(res) {
+        if (!res) {
+            return null;
+        }
+        if (res.finish_time != null) {
+            return res.finish_time;
+        }
+        if (res.finish_msec != null) {
+            return res.finish_msec;
+        }
+        return null;
+    }
+
+    function resultStartMsec(res) {
+        if (!res) {
+            return null;
+        }
+        if (res.start_time != null) {
+            return res.start_time;
+        }
+        if (res.start_msec != null) {
+            return res.start_msec;
+        }
+        return null;
+    }
+
+    function msecPassageDiff(finishMsec, startMsec) {
+        if (finishMsec == null || startMsec == null) {
+            return null;
+        }
+        var diff = finishMsec - startMsec;
+        if (diff < 0) {
+            diff += 24 * 60 * 60 * 1000;
+        }
+        return diff;
+    }
+
+    function relayLegPassageTimeMsec(row, prevFinishMsec) {
+        if (row.is_missing_relay_leg) {
+            return null;
+        }
+        var res = row.data;
+        if (!res || res.status !== 1) {
+            return null;
+        }
+        var finishMsec = resultFinishMsec(res);
+        if (finishMsec == null) {
+            return null;
+        }
+        var startMsec = prevFinishMsec != null ? prevFinishMsec : resultStartMsec(res);
+        return msecPassageDiff(finishMsec, startMsec);
+    }
+
+    function annotateRelayLegPassageTimes(teamLegs) {
+        teamLegs.sort(function (a, b) {
+            return relayLegNumber(a) - relayLegNumber(b);
+        });
+        var prevFinishMsec = null;
+        var teamSumMsec = 0;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var row = teamLegs[i];
+            if (row.is_missing_relay_leg) {
+                continue;
+            }
+            var legMsec = relayLegPassageTimeMsec(row, prevFinishMsec);
+            if (legMsec != null) {
+                row.preo_pass_time = toHHMMSS(legMsec);
+                teamSumMsec += legMsec;
+                prevFinishMsec = resultFinishMsec(row.data);
+            }
+        }
+        return teamSumMsec;
+    }
+
+    function relayTeamTrailoScorePenalty(teamLegs) {
+        for (var i = 0; i < teamLegs.length; i++) {
+            if (relayLegNumber(teamLegs[i]) === 1) {
+                var p = teamLegs[i].trailo_score_penalty;
+                return p === '' || p == null ? '' : p;
+            }
+        }
+        return '';
     }
 
     function getTrailoTimeControlTitle() {
@@ -655,20 +795,526 @@
         return score + '\x00' + timeMsec;
     }
 
-    function formatRelayLegPrefix(bib) {
-        var leg = Math.floor((+bib || 0) / 1000);
-        return leg > 0 ? ('Эт. ' + leg + '. ') : '';
+    /** Relay bib for protocol: team.leg (same as Person.get_relay_bib in Python). */
+    function formatRelayBib(bib) {
+        var n = +bib || 0;
+        if (n <= 1000) {
+            return String(n);
+        }
+        var leg = Math.floor(n / 1000);
+        var team = n % 1000;
+        if (leg > 0 && team > 0) {
+            return team + '.' + leg;
+        }
+        return String(n);
     }
 
-    function buildRelayTeamHeaderRow(teamIndex, legRow) {
-        var teamNum = legRow.bib % 1000;
-        var label = legRow.org ? (legRow.org + ' (' + teamNum + ')') : ('Команда ' + teamNum);
-        return {
-            index: teamIndex,
-            name: label,
-            place_show: legRow.place_show,
-            result_relay: legRow.result_relay || ''
+    var RELAY_MISSING_DASH = '—';
+
+    function trailoStationPenaltySec() {
+        if (trailoAlternateCourse) {
+            if (!trailoUsesStationTime()) {
+                return 0;
+            }
+            return parseInt(race.settings.trailo_time_penalty, 10) || 0;
+        }
+        if (race.settings.trailo_custom_penalty_time_enabled) {
+            return parseInt(race.settings.trailo_time_penalty, 10) || 0;
+        }
+        if (trailoMode === 'preo') {
+            return 60;
+        }
+        if (trailoMode === 'tempo') {
+            return 30;
+        }
+        return 0;
+    }
+
+    function trailoWrongAnswerPenaltySec() {
+        if (trailoAlternateCourse) {
+            if (!trailoMainCourseEnabled() || !race.settings.trailo_main_course_wrong_answer_penalty_enabled) {
+                return 0;
+            }
+        } else if (!race.settings.trailo_custom_penalty_time_enabled) {
+            return 0;
+        } else if (!(parseInt(race.settings.trailo_wrong_answer_penalty, 10) || 0)) {
+            return 0;
+        }
+        return parseInt(race.settings.trailo_wrong_answer_penalty, 10) || 0;
+    }
+
+    function trailoStationTaskCountsByIdx(course) {
+        var counts = {};
+        if (!course || !course.controls) {
+            return counts;
+        }
+        var rawCodes = [];
+        for (var i = 0; i < course.controls.length; i++) {
+            rawCodes.push(String(course.controls[i].code != null ? course.controls[i].code : '').trim());
+        }
+        var expanded = expandTrailoControlCodeStrings(rawCodes);
+        for (var j = 0; j < expanded.length; j++) {
+            var parsed = trailoParseForExpand(expanded[j]);
+            if (parsed.kind === 'tc_answer' && parsed.tc_idx != null) {
+                counts[parsed.tc_idx] = (counts[parsed.tc_idx] || 0) + 1;
+            }
+        }
+        return counts;
+    }
+
+    function fillRelayLegPersonProtocolFields(r, person) {
+        if (!person) {
+            return;
+        }
+        r.name = formatPersonName(person);
+        r.org = (person.organization && String(person.organization.name).slice(0, MAX_ORG_NAME)) || '';
+        r.year = formatBirthDate(person.birth_date);
+        r.qual = person.qual != null && Qualification[person.qual] != null ? Qualification[person.qual] : '';
+        r.preo_pass_time = RELAY_MISSING_DASH;
+    }
+
+    function findRaceResultForPerson(person) {
+        if (!person) {
+            return null;
+        }
+        for (var i = 0; i < race.results.length; i++) {
+            var res = race.results[i];
+            if (!res.person) {
+                continue;
+            }
+            if (person.id != null && res.person.id === person.id) {
+                return res;
+            }
+            if (res.person.bib === person.bib) {
+                return res;
+            }
+        }
+        return null;
+    }
+
+    function isRelayLegMissingForProtocol(person, result) {
+        var leg = Math.floor((+person.bib || 0) / 1000);
+        if (leg < 2) {
+            return false;
+        }
+        if (!result) {
+            return true;
+        }
+        return result.status !== 1;
+    }
+
+    function findRelayTeamRowInResults(results, teamNum) {
+        var lead = null;
+        var any = null;
+        for (var i = 0; i < results.length; i++) {
+            var bibRaw = +results[i].bib_raw || 0;
+            if (bibRaw % 1000 !== teamNum) {
+                continue;
+            }
+            any = results[i];
+            if (Math.floor(bibRaw / 1000) === 1) {
+                lead = results[i];
+            }
+        }
+        return lead || any;
+    }
+
+    function makeProtocolSplitCell(displayText, isAnswer) {
+        var tbl = document.createElement('table');
+        tbl.className = 'table-split';
+        if (isAnswer) {
+            tbl.className += ' incorrect';
+        }
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.appendChild(document.createTextNode(displayText));
+        tr.appendChild(td);
+        tbl.appendChild(tr);
+        return tbl;
+    }
+
+    function fillMissingRelayLegProtocolCells(r, courseOrGroup) {
+        var course = courseOrGroup.course || courseOrGroup;
+        if (!course || !course.controls) {
+            return;
+        }
+        var penaltySec = trailoStationPenaltySec();
+        var taskCounts = trailoStationTaskCountsByIdx(course);
+        var wrongMainSec = trailoWrongAnswerPenaltySec();
+        var rawCodes = [];
+        for (var ci = 0; ci < course.controls.length; ci++) {
+            rawCodes.push(String(course.controls[ci].code != null ? course.controls[ci].code : '').trim());
+        }
+        var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+        var tempoStationStarted = false;
+        var totalTrailoMsec = 0;
+        var mainErrors = 0;
+
+        for (var index = 0; index < expandedCodes.length; index++) {
+            var cc = expandedCodes[index];
+            if (!trailoMainCourseEnabled() && isTrailoMainControlCode(cc)) {
+                continue;
+            }
+            if (trailoSkipPreStationControls()) {
+                var isTimeCol = trailoControlIsTimePunchColumn(cc);
+                if (isTimeCol) {
+                    tempoStationStarted = true;
+                } else if (!tempoStationStarted) {
+                    continue;
+                }
+            }
+            var cellKey = index + '_' + cc.slice(0, -1);
+            if (trailoControlIsTimePunchColumn(cc)) {
+                var tcParsed = trailoParseForExpand(cc);
+                var tcIdx = tcParsed.tc_idx;
+                var tasks = tcIdx != null ? (taskCounts[tcIdx] || 0) : 0;
+                var stationTimeSec = penaltySec * tasks;
+                var stationAnswerPenaltySec = penaltySec * tasks;
+                totalTrailoMsec += (stationTimeSec + stationAnswerPenaltySec) * 1000;
+                r[cellKey] = makeProtocolSplitCell(String(stationTimeSec), false);
+            } else if (isTrailoMainControlCode(cc)) {
+                mainErrors += 1;
+                r[cellKey] = makeProtocolSplitCell('X', true);
+            } else {
+                r[cellKey] = makeProtocolSplitCell('X', true);
+            }
+        }
+        if (wrongMainSec > 0) {
+            totalTrailoMsec += wrongMainSec * 1000 * mainErrors;
+        }
+        if (isPreoMode || isTempoMode) {
+            r.trailo_time = totalTrailoMsec / 1000;
+        } else {
+            r.trailo_time = toHHMMSS(totalTrailoMsec);
+        }
+        if (trailoUsesPoints()) {
+            r.trailo_score = 0;
+            r.trailo_score_penalty = 0;
+        } else {
+            r.trailo_score = '';
+            r.trailo_score_penalty = '';
+        }
+    }
+
+    function applyMissingRelayLegProtocolRow(r, courseOrGroup, teamRow, person) {
+        fillRelayLegPersonProtocolFields(r, person || (r.data && r.data.person) || null);
+        r.is_missing_relay_leg = true;
+        if (teamRow) {
+            if (teamRow.result_relay) {
+                r.result_relay = teamRow.result_relay;
+            }
+            if (teamRow.place_show !== undefined && teamRow.place_show !== '') {
+                r.place_show = teamRow.place_show;
+            }
+            if (teamRow.place > 0) {
+                r.place = teamRow.place;
+            }
+        }
+        fillMissingRelayLegProtocolCells(r, courseOrGroup);
+    }
+
+    function buildMissingRelayLegProtocolRow(person, courseOrGroup, teamRow) {
+        var r = {
+            index: 0,
+            name: '',
+            org: '',
+            qual: '',
+            year: '',
+            bib: formatRelayBib(person.bib),
+            bib_raw: person.bib,
+            preo_pass_time: '',
+            preo_team_pass_time: '',
+            trailo_score_penalty: '',
+            trailo_score: trailoUsesPoints() ? 0 : '',
+            result: '',
+            result_relay: teamRow && teamRow.result_relay ? teamRow.result_relay : '',
+            result_msec: 0,
+            place: teamRow && teamRow.place > 0 ? teamRow.place : 0,
+            status: 0,
+            place_show: teamRow && teamRow.place_show ? teamRow.place_show : '',
+            is_out_of_competition: false,
+            is_missing_relay_leg: true,
+            data: { person: person, splits: [], status: 0 }
         };
+        fillRelayLegPersonProtocolFields(r, person);
+        fillMissingRelayLegProtocolCells(r, courseOrGroup);
+        return r;
+    }
+
+    function injectMissingRelayLegRows(results, groupOrCourse) {
+        if (!isRelayRace || !isTrailo || !race.persons) {
+            return;
+        }
+        var isGroupContext = !!(groupOrCourse && groupOrCourse.course);
+        var course = isGroupContext ? groupOrCourse.course : groupOrCourse;
+        var rowByBib = {};
+        for (var ri = 0; ri < results.length; ri++) {
+            rowByBib[+results[ri].bib_raw || +results[ri].bib] = ri;
+        }
+        for (var pi = 0; pi < race.persons.length; pi++) {
+            var person = race.persons[pi];
+            if (!person.group) {
+                continue;
+            }
+            if (isGroupContext && person.group.id !== groupOrCourse.id) {
+                continue;
+            }
+            if (!isGroupContext && course && (!person.group.course || person.group.course.id !== course.id)) {
+                continue;
+            }
+            var bibRaw = +person.bib || 0;
+            if (bibRaw <= 1000) {
+                continue;
+            }
+            var legNum = Math.floor(bibRaw / 1000);
+            if (legNum < 2) {
+                continue;
+            }
+            var raceResult = findRaceResultForPerson(person);
+            if (!isRelayLegMissingForProtocol(person, raceResult)) {
+                continue;
+            }
+            var teamRow = findRelayTeamRowInResults(results, bibRaw % 1000);
+            if (rowByBib[bibRaw] !== undefined) {
+                applyMissingRelayLegProtocolRow(
+                    results[rowByBib[bibRaw]],
+                    { course: course },
+                    teamRow,
+                    person
+                );
+            } else {
+                results.push(buildMissingRelayLegProtocolRow(person, { course: course }, teamRow));
+            }
+        }
+    }
+
+    function sumRelayTeamTrailo(teamLegs) {
+        var score = 0;
+        var timeMsec = 0;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var leg = teamLegs[i];
+            if (leg.status === 1 && leg.data) {
+                score += leg.data.trailo_score || 0;
+                timeMsec += leg.data.trailo_time || 0;
+            }
+        }
+        return {score: score, timeMsec: timeMsec};
+    }
+
+    var RELAY_MERGED_FIELDS = ['index', 'result_relay', 'place_show'];
+
+    function relayTeamPassTimeHeaderTitle() {
+        var span = document.createElement('span');
+        span.className = 'relay-team-pass-time-header';
+        span.appendChild(document.createTextNode('Время прохождения'));
+        span.appendChild(document.createElement('br'));
+        span.appendChild(document.createTextNode('командой'));
+        return span;
+    }
+
+    function applyRelayTeamPassTimeHeaderTitle(fields) {
+        if (!fields) {
+            return;
+        }
+        for (var i = 0; i < fields.length; i++) {
+            if (fields[i].key === 'preo_team_pass_time') {
+                fields[i].title = relayTeamPassTimeHeaderTitle();
+                return;
+            }
+        }
+    }
+
+    function relayRowspanFields(obj) {
+        if (obj._relay_merged_fields) {
+            return obj._relay_merged_fields;
+        }
+        return RELAY_MERGED_FIELDS;
+    }
+
+    function annotateRelayTeamGroup(teamLegs, teamIndex) {
+        if (!teamLegs.length) {
+            return;
+        }
+        var first = teamLegs[0];
+        first.index = teamIndex;
+        first._relay_rowspan = teamLegs.length;
+        var mergedFields = RELAY_MERGED_FIELDS.slice();
+        if (isPreoMode) {
+            var teamPassMsec = annotateRelayLegPassageTimes(teamLegs);
+            first.preo_team_pass_time = teamPassMsec > 0 ? toHHMMSS(teamPassMsec) : '';
+            first.trailo_score_penalty = relayTeamTrailoScorePenalty(teamLegs);
+            mergedFields.push('preo_team_pass_time', 'trailo_score_penalty');
+        }
+        first._relay_merged_fields = mergedFields.slice();
+        for (var j = 1; j < teamLegs.length; j++) {
+            teamLegs[j].index = '';
+            teamLegs[j].result_relay = '';
+            teamLegs[j]._relay_skip_fields = mergedFields.slice();
+        }
+    }
+
+    function relayTeamBib(row) {
+        var bib = row.bib_raw != null ? row.bib_raw : row.bib;
+        return (+bib || 0) % 1000;
+    }
+
+    function relayLegNumber(row) {
+        var bib = row.bib_raw != null ? row.bib_raw : row.bib;
+        return Math.floor((+bib || 0) / 1000);
+    }
+
+    var RESULT_STATUS_DISQUALIFIED = 3;
+
+    function relayTeamGroupSortKey(teamLegs) {
+        var legCount = race.data.relay_leg_count || 0;
+        var isDq = false;
+        var okLegs = 0;
+        var participants = teamLegs.length;
+        var place = 999999;
+        var trailoScore = 0;
+        var trailoTime = 999999999;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var row = teamLegs[i];
+            var res = row.data;
+            if (res && res.status === RESULT_STATUS_DISQUALIFIED) {
+                isDq = true;
+            }
+            if (row.status === 1 || (res && res.status === 1)) {
+                okLegs += 1;
+            }
+            if (row.place > 0 && row.place < place) {
+                place = row.place;
+            }
+            if (row.trailo_score !== '' && row.trailo_score != null) {
+                trailoScore = Math.max(trailoScore, +row.trailo_score || 0);
+            }
+            if (row.trailo_time !== '' && row.trailo_time != null) {
+                trailoTime = Math.min(trailoTime, +row.trailo_time || trailoTime);
+            }
+        }
+        var isComplete = okLegs >= legCount && participants >= legCount;
+        if (isDq) {
+            return [2, isComplete ? 0 : 1, -participants, trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+        }
+        if (isComplete && place < 999999) {
+            return [0, place, -trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+        }
+        var notStarted = true;
+        for (var ni = 0; ni < teamLegs.length; ni++) {
+            if (teamLegs[ni].status === 1 || (teamLegs[ni].data && teamLegs[ni].data.status === 1)) {
+                notStarted = false;
+                break;
+            }
+        }
+        if (notStarted) {
+            return [3, relayTeamBib(teamLegs[0])];
+        }
+        return [1, -participants, -trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+    }
+
+    function compareRelayTeamGroupKeys(ka, kb) {
+        for (var i = 0; i < ka.length; i++) {
+            if (ka[i] !== kb[i]) {
+                return ka[i] - kb[i];
+            }
+        }
+        return 0;
+    }
+
+    function finalizeRelayResultsList(resultsList) {
+        var out = [];
+        var teams = [];
+        var pos = 0;
+        while (pos < resultsList.length) {
+            var teamBib = relayTeamBib(resultsList[pos]);
+            var teamLegs = [];
+            while (pos < resultsList.length && relayTeamBib(resultsList[pos]) === teamBib) {
+                teamLegs.push(resultsList[pos]);
+                pos++;
+            }
+            teams.push(teamLegs);
+        }
+        teams.sort(function (a, b) {
+            return compareRelayTeamGroupKeys(
+                relayTeamGroupSortKey(a),
+                relayTeamGroupSortKey(b)
+            );
+        });
+        var teamIndex = 0;
+        for (var ti = 0; ti < teams.length; ti++) {
+            var teamLegs = teams[ti];
+            teamIndex++;
+            annotateRelayTeamGroup(teamLegs, teamIndex);
+            for (var li = 0; li < teamLegs.length; li++) {
+                out.push(teamLegs[li]);
+            }
+        }
+        return out;
+    }
+
+    function buildTrailoResultsTable(rows, fields) {
+        var gen = new TableGenerator(rows, fields);
+        var table = document.createElement('table');
+        table.className = 'sportorg-table';
+        var thead = document.createElement('thead');
+        var headTr = document.createElement('tr');
+        var headers = gen.headers();
+        for (var hi = 0; hi < headers.length; hi++) {
+            var key = headers[hi];
+            var th = document.createElement('th');
+            var title = gen.getHeaderName(key);
+            if (title instanceof Node) {
+                th.appendChild(title);
+            } else {
+                th.appendChild(document.createTextNode(title));
+            }
+            if (key === 'preo_team_pass_time') {
+                th.classList.add('relay-team-pass-time-header');
+            }
+            headTr.appendChild(th);
+        }
+        thead.appendChild(headTr);
+        table.appendChild(thead);
+        var tbody = document.createElement('tbody');
+        for (var ri = 0; ri < rows.length; ri++) {
+            var obj = rows[ri];
+            var tr = document.createElement('tr');
+            for (var hi = 0; hi < headers.length; hi++) {
+                var key = headers[hi];
+                if (obj._relay_skip_fields && obj._relay_skip_fields.indexOf(key) >= 0) {
+                    continue;
+                }
+                var td = document.createElement('td');
+                if (
+                    obj._relay_rowspan > 1 &&
+                    relayRowspanFields(obj).indexOf(key) >= 0
+                ) {
+                    td.rowSpan = obj._relay_rowspan;
+                    if (key === 'index') {
+                        td.classList.add('index-col');
+                    } else if (key === 'place_show') {
+                        td.classList.add('place-col');
+                    } else if (key === 'result_relay') {
+                        td.classList.add('relay-team-result-col');
+                    } else if (key === 'preo_team_pass_time') {
+                        td.classList.add('relay-team-pass-time-col');
+                    } else if (key === 'trailo_score_penalty') {
+                        td.classList.add('relay-kv-penalty-col');
+                    }
+                }
+                if (obj[key]) {
+                    if (obj[key] instanceof Node) {
+                        td.appendChild(obj[key]);
+                    } else {
+                        td.appendChild(document.createTextNode(obj[key]));
+                    }
+                }
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        return table;
     }
 
     function assignTrailoCompetitionPlaces(results) {
@@ -705,12 +1351,14 @@
             if (result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: (isRelay ? formatRelayLegPrefix(result.person.bib) : '') + formatPersonName(result.person),
+                    name: formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
-                    bib: result.person.bib,
+                    bib: isRelay ? formatRelayBib(result.person.bib) : result.person.bib,
+                    bib_raw: result.person.bib,
                     year: formatBirthDate(result.person.birth_date),
                     preo_pass_time: preoPassTime(result),
+                    preo_team_pass_time: '',
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
@@ -794,6 +1442,9 @@
                 results.push(r);
             }
         }
+        if (isRelay) {
+            injectMissingRelayLegRows(results, group);
+        }
         results.sort(function (a, b) {
             if (isRelay) {
                 if (a.place < 1) {
@@ -803,7 +1454,7 @@
                     return -1
                 }
                 if (a.place === b.place) {
-                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
+                    return relayLegNumber(a) - relayLegNumber(b);
                 }
                 return a.place - b.place
 
@@ -832,26 +1483,14 @@
                 return a.place - b.place
             }
         });
-        var index = 0;
         if (isRelay) {
-            var prevBib = 0;
-            var resultsList = results.slice();
-            results = [];
-            for (var _i = 0, resultsList_ = resultsList; _i < resultsList_.length; _i++) {
-                var r = resultsList_[_i];
-                r.index = '';
-                if (r.bib % 1000 !== prevBib) {
-                    index++;
-                    results.push(buildRelayTeamHeaderRow(index, r));
-                    prevBib = r.bib % 1000;
-                }
-                results.push(r);
-            }
+            results = finalizeRelayResultsList(results);
         } else {
+            var index = 0;
             results.forEach(function (elem) {
                 index++;
                 elem.index = index;
-            })
+            });
         }
         return results;
     }
@@ -870,12 +1509,14 @@
             if (result.person && result.person.group && result.person.group.course && result.person.group.course.id === group.id) { //} && (count ? result.place <= count && result.place > 0 : 1)) {
                 var r = {
                     index: 0,
-                    name: (isRelay ? formatRelayLegPrefix(result.person.bib) : '') + formatPersonName(result.person),
+                    name: formatPersonName(result.person),
                     org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
                     qual: Qualification[result.person.qual],
-                    bib: result.person.bib,
+                    bib: isRelay ? formatRelayBib(result.person.bib) : result.person.bib,
+                    bib_raw: result.person.bib,
                     year: formatBirthDate(result.person.birth_date),
                     preo_pass_time: preoPassTime(result),
+                    preo_team_pass_time: '',
                     trailo_score_penalty: result.trailo_score_penalty,
                     trailo_score: result.trailo_score,
                     trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
@@ -979,6 +1620,9 @@
                 results.push(r);
             }
         }
+        if (isRelay) {
+            injectMissingRelayLegRows(results, group);
+        }
         results.sort(function (a, b) {
             if (isRelay) {
                 if (a.place < 1) {
@@ -988,7 +1632,7 @@
                     return -1
                 }
                 if (a.place === b.place) {
-                    return ~~(a.bib / 1000) - ~~(b.bib / 1000)
+                    return relayLegNumber(a) - relayLegNumber(b);
                 }
                 return a.place - b.place
             } else {
@@ -1033,6 +1677,9 @@
             splits_recalc_times_total[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
         });
         assignTrailoCompetitionPlaces(results);
+        if (isRelay) {
+            return finalizeRelayResultsList(results);
+        }
         var index = 0;
         results.forEach(function (elem) {
             index++;
@@ -1072,6 +1719,7 @@
             {key: 'qual', title: 'Разряд', size: 8},
             {key: 'bib', title: 'Номер', size: 6},
             {key: 'preo_pass_time', title: 'Время прохождения', size: 12, active: false},
+            {key: 'preo_team_pass_time', title: 'Время прохождения командой', size: 14, active: false},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
             {key: 'trailo_score', title: 'Очки', size: 4, active: !isTempoMode},
             {key: isTempoMode ? 'trailo_time' : (isPreoMode ? 'trailo_time' : 'result'), title: isTempoMode ? 'Результат' : 'Время', size: 14},
@@ -1111,6 +1759,7 @@
             try {
                 this.getField('trailo_score_penalty').active = isPreoMode;
                 this.getField('preo_pass_time').active = isPreoMode;
+                this.getField('preo_team_pass_time').active = isPreoMode && isRelayRace;
                 this.getField('trailo_score').active = !isTempoMode;
                 this.getField('result_relay').active = isRelayRace && isTrailo;
             } catch (e){}
@@ -1666,6 +2315,7 @@
                 block.appendChild(getGroupsBlockElement(race));
             }
             var fields = Fields.getCopyFields();
+            applyRelayTeamPassTimeHeaderTitle(fields);
             if (showControlColumns && course) {
                 var rawCodes = course.controls.map(function (co) {
                     return String(co.code != null ? co.code : '').trim();
@@ -1673,13 +2323,15 @@
                 var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
                 var tempoStationStarted = false;
                 expandedCodes.forEach(function (cc, index) {
+                    if (!trailoMainCourseEnabled() && isTrailoMainControlCode(cc)) {
+                        return;
+                    }
                     var isTime = trailoControlIsTimePunchColumn(cc);
-                    if (isTempoMode) {
+                    if (trailoSkipPreStationControls()) {
                         if (isTime) {
                             tempoStationStarted = true;
                         } else if (!tempoStationStarted) {
-                            // Для Tempo убираем отдельный блок "Ответы" перед первой станцией,
-                            // но оставляем подколонки ответов внутри станций.
+                            // Tempo / без основной: только станции, без блока ответов до первой станции.
                             return;
                         }
                     }
@@ -1687,7 +2339,9 @@
                     fields.push({key: index + '_' + cc.slice(0, -1), title: title, size: 8});
                 });
             }
-            var table = new TableGenerator(rows, fields).getTable({className: 'sportorg-table'});
+            var table = isRelayRace
+                ? buildTrailoResultsTable(rows, fields)
+                : new TableGenerator(rows, fields).getTable({className: 'sportorg-table'});
             rebuildTrailoSplitsHeader(table);
             block.appendChild(table);
             resultBlock.appendChild(block);

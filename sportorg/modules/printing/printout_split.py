@@ -630,8 +630,9 @@ class TrailOSportorgPrinter(SportorgPrinter):
             )
 
         self._trailo_vertical_gap(1)
-        trailo_mode = obj.get_setting("trailo_mode", "preo_sprint")
-        if trailo_mode != "tempo":
+        from sportorg.modules.trailo.config import TrailoConfig
+
+        if TrailoConfig.show_elapsed_time_on_split_printout(obj):
             self.print_line(
                 translate("Time")
                 + ": "
