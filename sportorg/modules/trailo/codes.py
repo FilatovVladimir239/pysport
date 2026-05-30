@@ -198,18 +198,18 @@ def trailo_main_control_display_code(
 def trailo_sort_key(split) -> tuple:
     """
     Sort order:
-    - main controls first (1A, 2B, ...)
+    - main controls first (1A, 2B, ...) by CP number, then punch time on same CP
     - then time controls grouped by tc_idx:
       1TT, 1T1A, 1T2B, ... 2TT, 2T1A, ...
     """
     code = getattr(split, "code", None)
     parsed = parse_trailo_code(code)
-    t = getattr(split, "time", 0)
+    t_msec = trailo_split_time_msec(split)
 
     if parsed.kind == "main":
-        return (0, parsed.main_num or 10**9, parsed.main_answer or "", parsed.raw, t)
+        return (0, parsed.main_num or 10**9, t_msec, parsed.raw)
     if parsed.kind == "tc_time":
-        return (1, parsed.tc_idx or 10**9, 0, 0, "", parsed.raw, t)
+        return (1, parsed.tc_idx or 10**9, 0, 0, "", parsed.raw, t_msec)
     if parsed.kind == "tc_answer":
         return (
             1,
@@ -218,6 +218,46 @@ def trailo_sort_key(split) -> tuple:
             parsed.tc_task or 10**9,
             parsed.tc_answer or "",
             parsed.raw,
-            t,
+            t_msec,
         )
-    return (2, 10**9, parsed.raw, t)
+    return (2, 10**9, parsed.raw, t_msec)
+
+
+def trailo_split_time_msec(split) -> int:
+    t = getattr(split, "time", None)
+    if t is None:
+        return 2**62
+    if hasattr(t, "to_msec"):
+        return int(t.to_msec())
+    return int(t)
+
+
+def trailo_splits_matching_control(splits, control_code: str) -> List:
+    """All athlete punches that belong to the same TrailO control."""
+    cp = parse_trailo_code(control_code)
+    matching = []
+    for split in splits:
+        sp = parse_trailo_code(getattr(split, "code", None))
+        if cp.kind == "main" and sp.kind == "main":
+            if sp.main_num == cp.main_num:
+                matching.append(split)
+        elif cp.kind == "tc_time" and sp.kind == "tc_time":
+            if sp.tc_idx == cp.tc_idx:
+                matching.append(split)
+        elif cp.kind == "tc_answer" and sp.kind == "tc_answer":
+            if sp.tc_idx == cp.tc_idx and sp.tc_task == cp.tc_task:
+                matching.append(split)
+        else:
+            code = str(control_code or "")
+            raw = str(getattr(split, "code", "") or "")
+            if code and raw and raw[:-1] == code[:-1]:
+                matching.append(split)
+    return matching
+
+
+def trailo_first_split_for_control(splits, control_code: str):
+    """Earliest punch for a control; later re-punches on the same CP are ignored."""
+    matching = trailo_splits_matching_control(splits, control_code)
+    if not matching:
+        return None
+    return min(matching, key=trailo_split_time_msec)

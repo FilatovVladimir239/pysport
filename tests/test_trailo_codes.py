@@ -8,6 +8,7 @@ from sportorg.modules.trailo.codes import (
     trailo_correctness_mark,
     trailo_course_expanded_control_codes,
     trailo_expected_answer_letter_for_split,
+    trailo_first_split_for_control,
     trailo_main_control_display_code,
     trailo_sort_key,
 )
@@ -86,4 +87,24 @@ def test_trailo_expected_answer_fallback_by_punched_code() -> None:
     expanded = trailo_course_expanded_control_codes(course)
     split = SimpleNamespace(course_index=-1, code="5X")
     assert trailo_expected_answer_letter_for_split(split, expanded) == "C"
+
+
+def test_trailo_sort_key_same_cp_by_punch_time() -> None:
+    splits = [
+        SimpleNamespace(code="10D", time=200),
+        SimpleNamespace(code="10E", time=100),
+        SimpleNamespace(code="9Z", time=50),
+    ]
+    sorted_codes = [s.code for s in sorted(splits, key=trailo_sort_key)]
+    assert sorted_codes == ["9Z", "10E", "10D"]
+
+
+def test_trailo_first_split_for_control_picks_earliest_time() -> None:
+    splits = [
+        SimpleNamespace(code="10D", time=200),
+        SimpleNamespace(code="10E", time=100),
+    ]
+    first = trailo_first_split_for_control(splits, "10D")
+    assert first is not None
+    assert first.code == "10E"
 

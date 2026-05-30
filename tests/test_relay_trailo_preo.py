@@ -372,7 +372,10 @@ def test_relay_preo_leg_and_team_passage_times():
     assert team is not None
     assert team.get_trailo_leg_passage_time(1).to_msec() == 50_000
     assert team.get_trailo_leg_passage_time(2).to_msec() == 30_000
-    assert team.get_trailo_passage_time().to_msec() == 80_000
+    leg1_trailo = race().find_person_result(leg1).trailo_time.to_msec()
+    leg2_trailo = race().find_person_result(leg2).trailo_time.to_msec()
+    assert team.get_trailo_time().to_msec() == leg1_trailo + leg2_trailo
+    assert team.get_trailo_passage_time() == team.get_trailo_time()
 
 
 def test_relay_preo_team_kv_penalty_applied_once_for_whole_team():

@@ -32,4 +32,4 @@ def test_trailo_sort_key_handles_weird_codes() -> None:
 
     # И сортировка работает
     sorted_splits = sorted(splits, key=trailo_sort_key)
-    assert sorted_splits[0].code == "9A"
+    assert [s.code for s in sorted_splits[:2]] == ["9A", "10B"]

@@ -10,7 +10,12 @@ from sportorg.models.memory import (
     Split,
 )
 from sportorg.models.result.result_calculation import ResultCalculation
-from sportorg.modules.trailo.codes import expand_trailo_control_code_strings, parse_trailo_code
+from sportorg.modules.trailo.codes import (
+    expand_trailo_control_code_strings,
+    parse_trailo_code,
+    trailo_first_split_for_control,
+    trailo_sort_key,
+)
 from sportorg.utils.time import get_speed_min_per_km
 
 
@@ -58,7 +63,7 @@ class PersonSplits:
 
     def _generate_trailo_splits(self):
         self.result.splits = [s for s in self.result.splits if s.code[-1] != "X"]
-        self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
+        self.result.splits.sort(key=trailo_sort_key)
 
         for split in self.result.splits:
             split.course_index = -1
@@ -81,19 +86,14 @@ class PersonSplits:
         for course_index, control in enumerate(expanded_controls):
             self._process_trailo_control(control, course_index)
 
-        self.result.splits.sort(key=lambda s: (int(''.join(filter(str.isdigit, s.code))), s.time))
+        self.result.splits.sort(key=trailo_sort_key)
 
     def _process_trailo_control(self, control, course_index: int):
-        control_detected = False
         code = str(control.code)
-
-        for split in self.result.splits:
-            if split.code[:-1] == code[:-1]:
-                control_detected = True
-                self._update_trailo_split(split, control, course_index)
-                break
-
-        if not control_detected:
+        split = trailo_first_split_for_control(self.result.splits, code)
+        if split is not None:
+            self._update_trailo_split(split, control, course_index)
+        else:
             self._add_missing_trailo_control(control, course_index)
 
     def _trailo_control_is_time_punch(self, control) -> bool:

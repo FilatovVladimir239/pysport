@@ -1476,7 +1476,12 @@ class ResultSportident(Result):
         return is_changed
 
     def sort_splits(self):
-        self.splits.sort(key=lambda c: c.time)
+        if race().get_setting("result_processing_mode", "time") == "trailo":
+            from sportorg.modules.trailo.codes import trailo_sort_key
+
+            self.splits.sort(key=trailo_sort_key)
+        else:
+            self.splits.sort(key=lambda c: c.time)
 
     def remove_duplicated_splits(self):
         if len(self.splits) < 2:
@@ -2882,7 +2887,7 @@ class RelayTeam:
         )
 
     def get_trailo_leg_passage_time(self, leg_number: int) -> OTime:
-        """Leg passage: leg 1 finish-start; leg N finish minus leg N-1 finish."""
+        """Leg clock time finish - start (relay leg 2+ start is previous leg finish)."""
         if not self._uses_trailo_relay_ranking():
             return OTime()
         relay_leg = self.get_leg(leg_number)
@@ -2891,29 +2896,24 @@ class RelayTeam:
         result = relay_leg.get_result()
         if not result or not result.is_status_ok() or result.finish_time is None:
             return OTime()
-        if leg_number == 1:
-            if result.start_time is None:
-                return OTime()
+        if leg_number > 1:
+            prev_leg = self.get_leg(leg_number - 1)
+            if prev_leg:
+                start = prev_leg.get_finish_time()
+                if start != OTime():
+                    return result.finish_time - start
+        if result.start_time is not None:
             start = result.start_time
         else:
-            prev_leg = self.get_leg(leg_number - 1)
-            if not prev_leg:
-                return OTime()
-            prev_result = prev_leg.get_result()
-            if not prev_result or prev_result.finish_time is None:
-                return OTime()
-            start = prev_result.finish_time
+            person = relay_leg.get_person()
+            start = person.start_time if person and person.start_time is not None else OTime()
         return result.finish_time - start
 
     def get_trailo_passage_time(self) -> OTime:
-        """Sum of per-leg passage times (team elapsed time)."""
+        """Team time for KV penalty = sum of leg TrailO times."""
         if not self._uses_trailo_relay_ranking():
             return OTime()
-        total = OTime()
-        leg_count = self.race.data.relay_leg_count
-        for leg_number in range(1, leg_count + 1):
-            total += self.get_trailo_leg_passage_time(leg_number)
-        return total
+        return self.get_trailo_time()
 
     def get_trailo_raw_score(self) -> int:
         if not self._uses_trailo_relay_ranking():

@@ -288,6 +288,7 @@ class ResultEditDialog(QDialog):
                     if split != new_splits[i]:
                         break
             result.splits = new_splits
+            result.sort_splits()
 
         time_ = self.item_finish.getOTime()
         if result.finish_time != time_:

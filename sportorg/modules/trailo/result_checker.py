@@ -2,7 +2,11 @@ from typing import Callable, Tuple
 
 from sportorg.common.otime import OTime
 from sportorg.models.memory import Person, Result, race
-from sportorg.modules.trailo.codes import expand_trailo_control_code_strings, parse_trailo_code
+from sportorg.modules.trailo.codes import (
+    expand_trailo_control_code_strings,
+    parse_trailo_code,
+    trailo_first_split_for_control,
+)
 from sportorg.modules.trailo.config import TrailoConfig
 
 
@@ -115,13 +119,18 @@ class TrailoResultChecker:
             if cp.kind != "main" or cp.main_num is None or not cp.main_answer:
                 continue
             matched = False
-            for cur_split in result.splits:
+            cur_split = trailo_first_split_for_control(
+                result.splits, str(control_point.code)
+            )
+            if cur_split is not None:
                 sp = parse_trailo_code(str(cur_split.code))
-                if sp.kind != "main" or sp.main_num is None:
-                    continue
-                if sp.main_num == cp.main_num and cur_split.is_correct:
+                if (
+                    sp.kind == "main"
+                    and sp.main_num is not None
+                    and sp.main_num == cp.main_num
+                    and cur_split.is_correct
+                ):
                     matched = True
-                    break
             if not matched:
                 error_count += 1
         return error_count
@@ -156,19 +165,22 @@ class TrailoResultChecker:
             cp = parse_trailo_code(str(control_point.code))
             if cp.kind != "tc_answer" or cp.tc_idx is None or cp.tc_task is None:
                 continue
-            for cur_split in splits:
-                sp = parse_trailo_code(str(cur_split.code))
-                if sp.kind != "tc_answer":
-                    continue
-                if (
-                    sp.tc_idx == cp.tc_idx
-                    and sp.tc_task == cp.tc_task
-                    and sp.tc_answer
-                    and cp.tc_answer
-                    and sp.tc_answer != cp.tc_answer
-                ):
-                    res += penalty_time
-                    break
+            cur_split = trailo_first_split_for_control(
+                splits, str(control_point.code)
+            )
+            if cur_split is None:
+                continue
+            sp = parse_trailo_code(str(cur_split.code))
+            if sp.kind != "tc_answer":
+                continue
+            if (
+                sp.tc_idx == cp.tc_idx
+                and sp.tc_task == cp.tc_task
+                and sp.tc_answer
+                and cp.tc_answer
+                and sp.tc_answer != cp.tc_answer
+            ):
+                res += penalty_time
         return res
 
     @staticmethod
@@ -183,17 +195,20 @@ class TrailoResultChecker:
             cp = parse_trailo_code(str(control_point.code))
             if cp.kind != "main" or cp.main_num is None or not cp.main_answer:
                 continue
-            for cur_split in result.splits:
-                sp = parse_trailo_code(str(cur_split.code))
-                if sp.kind != "main" or sp.main_num is None or not sp.main_answer:
-                    continue
-                if (
-                    sp.main_num == cp.main_num
-                    and sp.main_answer == cp.main_answer
-                    and cur_split.course_index != -1
-                ):
-                    ret += 1
-                    break
+            cur_split = trailo_first_split_for_control(
+                result.splits, str(control_point.code)
+            )
+            if cur_split is None:
+                continue
+            sp = parse_trailo_code(str(cur_split.code))
+            if sp.kind != "main" or sp.main_num is None or not sp.main_answer:
+                continue
+            if (
+                sp.main_num == cp.main_num
+                and sp.main_answer == cp.main_answer
+                and cur_split.course_index != -1
+            ):
+                ret += 1
         return ret
 
     @staticmethod
