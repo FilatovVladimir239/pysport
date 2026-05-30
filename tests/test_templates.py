@@ -18,3 +18,22 @@ def test_generate_report():
     )
 
     assert result
+
+
+def test_generate_trailo_report_templates():
+    File("tests/data/test.json").open()
+    races_dict = [r.to_dict() for r in races()]
+    kwargs = {
+        "race": races_dict[get_current_race_index()],
+        "races": races_dict,
+        "rent_cards": list(RentCards().get()),
+        "current_race": get_current_race_index(),
+        "selected": {"persons": []},
+    }
+    html = get_text_from_file("reports/1_results_trailo.html", **kwargs)
+    excel = get_text_from_file("reports/1_results_trailo_excel.html", **kwargs)
+    assert "trailo_results_protocol.inc.html" not in html
+    assert "exportResultsToExcel" in html
+    assert "SPORTORG_TRAILO_PROTOCOL" in excel
+    assert "excelMode: true" in excel
+    assert "exportResultsToExcel" in excel
