@@ -3,9 +3,6 @@ from typing import Any, List
 
 from sportorg import config, settings
 from sportorg.libs.template import template
-from sportorg.modules.reports import TRAILO_EXCEL_TEMPLATE
-
-
 def get_templates(path: str = "", exclude_path: str = "") -> List[str]:
     if not path:
         path = settings.template_dir()
@@ -24,9 +21,6 @@ def get_templates(path: str = "", exclude_path: str = "") -> List[str]:
             full_path = full_path.replace(exclude_path, "")
             full_path = full_path.replace("\\", "/")
             files.append(full_path)
-
-    if TRAILO_EXCEL_TEMPLATE not in files and path.replace("\\", "/").endswith("reports"):
-        files.append(TRAILO_EXCEL_TEMPLATE)
 
     return files
 

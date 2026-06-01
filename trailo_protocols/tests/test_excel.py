@@ -1,24 +1,15 @@
 import os
 import re
 import tempfile
-from datetime import date
-
 from openpyxl import load_workbook
 
-from sportorg import settings
 from sportorg.common.otime import OTime
-from sportorg.common.template import get_templates
 from sportorg.models.memory import (
     Course,
     CourseControl,
     Group,
-    Organization,
-    Person,
-    Qualification,
     Race,
     RaceType,
-    ResultManual,
-    ResultStatus,
     Split,
     new_event,
     race,
@@ -34,91 +25,17 @@ from sportorg.modules.reports.trailo_protocol import (
     group_header_detail_lines,
     prepare_race_dict,
 )
-from sportorg.modules.reports.trailo_protocol_excel import (
+from trailo_protocols.excel import (
     _normalize_description_lines,
     default_excel_protocol_options,
     save_trailo_protocol_excel,
 )
 from sportorg.models.result.result_tools import recalculate_results
-from sportorg.modules.trailo.result_checker import TrailoResultChecker
-
-
-def _setup_preo_group():
-    new_event([Race()])
-    race().data.race_type = RaceType.INDIVIDUAL_RACE
-    race().set_setting("result_processing_mode", "trailo")
-    race().set_setting("trailo_mode", "preo")
-    race().set_setting("trailo_alternate_course", False)
-    race().set_setting("trailo_custom_penalty_time_enabled", True)
-    race().data.chief_referee = "Сидоров С.С."
-    race().data.secretary = "Кузнецова К.К."
-
-    org = Organization()
-    org.name = "Club A"
-
-    group = Group()
-    group.name = "M21"
-    group.long_name = "Мужчины 21"
-    group.max_time = OTime(msec=45 * 60 * 1000)
-
-    course = Course()
-    course.length = 5500
-    for code in ("31A", "1TT", "1T1A", "1T2B"):
-        control = CourseControl()
-        control.code = code
-        course.controls.append(control)
-    group.course = course
-
-    person = Person()
-    person.group = group
-    person.organization = org
-    person.set_bib(101)
-    person.surname = "Ivanov"
-    person.name = "Ivan"
-    person.birth_date = date(1990, 5, 15)
-    person.qual = Qualification.III
-
-    split_main = Split()
-    split_main.code = "31A"
-    split_main.is_correct = True
-    split_main.time = OTime(msec=20_000)
-    split_main.course_index = 0
-
-    split_time = Split()
-    split_time.code = "1TT"
-    split_time.is_correct = True
-    split_time.time = OTime(msec=50_000)
-    split_time.course_index = 1
-
-    split_answer = Split()
-    split_answer.code = "1T1A"
-    split_answer.is_correct = True
-    split_answer.time = OTime(msec=55_000)
-    split_answer.course_index = 2
-
-    result = ResultManual()
-    result.person = person
-    result.status = ResultStatus.OK
-    result.start_time = OTime(msec=0)
-    result.finish_time = OTime(msec=60_000)
-    result.splits = [split_main, split_time, split_answer]
-    result.trailo_score = 1
-    TrailoResultChecker.process(result, lambda *args, **kwargs: 0)
-
-    race().groups.append(group)
-    race().courses.append(course)
-    race().persons.append(person)
-    race().results.append(result)
-    return race().to_dict()
-
-
-def test_trailo_excel_template_listed():
-    templates = get_templates(settings.template_dir("reports"))
-    assert "/reports/1_results_trailo.xlsx" in templates
+from fixtures_preo import setup_preo_group
 
 
 def test_build_protocol_blocks_preo():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     blocks = build_protocol_blocks(race_dict)
     assert len(blocks) == 1
     block = blocks[0]
@@ -132,7 +49,7 @@ def test_build_protocol_blocks_preo():
 
 
 def test_count_trailo_course_controls_preo():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     mode = TrailoMode(race_dict)
     course = race_dict["groups"][0]["course"]
     main_count, time_tc_count = count_trailo_course_controls(course, mode)
@@ -141,7 +58,7 @@ def test_count_trailo_course_controls_preo():
 
 
 def test_group_header_detail_lines_preo():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     mode = TrailoMode(race_dict)
     group = race_dict["groups"][0]
     course = group["course"]
@@ -211,7 +128,7 @@ def test_normalize_description_lines_merges_wrapped_organizations():
 
 
 def test_build_base_fields_result_column_titles():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     race_dict["settings"]["trailo_custom_penalty_time_enabled"] = False
     mode = TrailoMode(race_dict)
     titles = [field.title for field in build_base_fields(mode)]
@@ -221,7 +138,7 @@ def test_build_base_fields_result_column_titles():
 
 
 def test_excel_default_options_exclude_answer_columns():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     options = default_excel_protocol_options()
     assert options.show_answers is False
     blocks = build_protocol_blocks(race_dict, options)
@@ -230,7 +147,7 @@ def test_excel_default_options_exclude_answer_columns():
 
 
 def test_save_trailo_protocol_excel_file():
-    race_dict = _setup_preo_group()
+    race_dict = setup_preo_group()
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "protocol.xlsx")
         save_trailo_protocol_excel(race_dict, path)
@@ -258,7 +175,7 @@ def test_save_trailo_protocol_excel_file():
 
 
 def test_save_trailo_protocol_excel_a4_portrait_fit():
-    race_dict = _setup_preo_group()
+    race_dict = setup_preo_group()
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "protocol_print.xlsx")
         save_trailo_protocol_excel(race_dict, path)
@@ -277,7 +194,7 @@ def test_save_trailo_protocol_excel_a4_portrait_fit():
 
 
 def test_save_trailo_protocol_excel_page_break_and_repeated_headers():
-    race_dict = prepare_race_dict(_setup_preo_group())
+    race_dict = prepare_race_dict(setup_preo_group())
     race_dict["settings"]["trailo_custom_penalty_time_enabled"] = False
     race_dict["data"]["title"] = "Test Event"
     race_dict["data"]["description"] = "Day 1"
@@ -347,7 +264,18 @@ def test_save_trailo_protocol_excel_page_break_and_repeated_headers():
 
 
 def test_save_trailo_protocol_excel_relay():
-    from tests.test_relay_trailo_preo import _add_leg_result, _setup_relay_preo
+    import importlib.util
+    from pathlib import Path
+
+    relay_path = (
+        Path(__file__).resolve().parents[2] / "tests" / "test_relay_trailo_preo.py"
+    )
+    spec = importlib.util.spec_from_file_location("relay_trailo_preo", relay_path)
+    relay_mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(relay_mod)
+    _add_leg_result = relay_mod._add_leg_result
+    _setup_relay_preo = relay_mod._setup_relay_preo
 
     group, leg1, leg2 = _setup_relay_preo()
 
@@ -378,7 +306,7 @@ def test_save_trailo_protocol_excel_relay():
 
 
 def test_save_trailo_protocol_excel_can_include_answers_when_requested():
-    race_dict = _setup_preo_group()
+    race_dict = setup_preo_group()
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "protocol_with_answers.xlsx")
         save_trailo_protocol_excel(

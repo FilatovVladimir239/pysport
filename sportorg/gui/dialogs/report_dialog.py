@@ -38,15 +38,6 @@ from sportorg.language import translate
 from sportorg.models.constant import RentCards
 from sportorg.models.memory import get_current_race_index, race, races
 from sportorg.models.result.result_tools import recalculate_results
-from sportorg.modules.reports import (
-    TRAILO_EXCEL_TEMPLATE,
-    TrailoProtocolOptions,
-    default_excel_filename,
-    resolve_excel_script_path,
-    run_excel_export_script,
-    save_trailo_protocol_excel,
-)
-
 _settings = {
     "last_template": None,
     "open_in_browser": True,
@@ -63,11 +54,7 @@ def _is_trailo_race_mode() -> bool:
 
 def _is_trailo_protocol_template(template_path: str) -> bool:
     normalized = template_path.replace("\\", "/").lower()
-    return (
-        "trailo" in normalized
-        or normalized == TRAILO_EXCEL_TEMPLATE.lower()
-        or normalized.endswith(".py")
-    )
+    return "trailo" in normalized
 
 
 class ReportDialog(QDialog):
@@ -99,10 +86,7 @@ class ReportDialog(QDialog):
 
         def select_custom_path() -> None:
             file_name = get_open_file_name(
-                translate("Open template"),
-                translate(
-                    "HTML file (*.html);;Excel export script (*.py);;All files (*.*)"
-                ),
+                translate("Open HTML template"), translate("HTML file (*.html)")
             )
             self.item_template.setCurrentText(file_name)
 
@@ -295,40 +279,6 @@ class ReportDialog(QDialog):
                 )
             if file_name:
                 doc.save(file_name)
-                os.startfile(file_name)
-
-        elif template_path.endswith(".xlsx") or template_path.endswith(".py"):
-            race_data = races_dict[get_current_race_index()]
-            if _settings["save_to_last_file"]:
-                file_name = _settings["last_file"]
-            else:
-                file_name = get_save_file_name(
-                    translate("Save As Excel file"),
-                    translate("Excel file (*.xlsx)"),
-                    default_excel_filename(race_data),
-                )
-            if file_name:
-                if not str(file_name).lower().endswith(".xlsx"):
-                    file_name = f"{file_name}.xlsx"
-                _settings["last_file"] = file_name
-                if template_path.endswith(".py"):
-                    script_path = resolve_excel_script_path(
-                        template_path, settings.template_dir()
-                    )
-                    run_excel_export_script(
-                        script_path,
-                        race_data,
-                        file_name,
-                        show_answers=trailo_show_answers,
-                    )
-                else:
-                    save_trailo_protocol_excel(
-                        race_data,
-                        file_name,
-                        options=TrailoProtocolOptions(
-                            show_answers=trailo_show_answers
-                        ),
-                    )
                 os.startfile(file_name)
 
         elif template_path.endswith(".csv"):
