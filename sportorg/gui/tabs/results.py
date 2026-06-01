@@ -385,10 +385,16 @@ class Widget(QtWidgets.QWidget):
                     index += 1
                     last_correct_time = split.time
 
-                if split.code == code:
-                    s = '<span style="background: red">{}</span>'.format(s)
-                if is_highlight and len(control_codes) and split.code not in control_codes:
-                    s = '<span style="background: yellow">{}</span>'.format(s)
+            if split.code == code:
+                # &nbsp; preserves the trailing/inline whitespace that Qt's
+                # rich-text engine would otherwise collapse inside <span>.
+                s = '<span style="background: red; color: white">{}</span>'.format(
+                    s.replace(" ", "&nbsp;")
+                )
+            if is_highlight and len(control_codes) and split.code not in control_codes:
+                s = '<span style="background: yellow; color: black">{}</span>'.format(
+                    s.replace(" ", "&nbsp;")
+                )
 
                 self.result_card_details.append(s)
                 code = split.code
@@ -411,6 +417,7 @@ class Widget(QtWidgets.QWidget):
         for split in result.splits:
             split_codes.append(split.code)
 
+
         course_highlight_vs_splits = is_highlight
         if is_trailo and not trailo_show_correctness:
             course_highlight_vs_splits = False
@@ -419,6 +426,7 @@ class Widget(QtWidgets.QWidget):
         if not hide_course_in_trailo:
             start_str = translate("Start")
             self.result_course_details.append(start_str)
+
             if course:
                 index = 1
                 for control in course.controls:
@@ -427,16 +435,15 @@ class Widget(QtWidgets.QWidget):
                         code=control.code,
                         length=control.length if control.length else "",
                     )
-                    if (
-                        course_highlight_vs_splits
-                        and str(control.code) not in split_codes
-                    ):
-                        s = '<span style="background: yellow">{}</span>'.format(s)
+                    if is_highlight and str(control.code) not in split_codes:
+                        s = '<span style="background: yellow; color: black">{}</span>'.format(
+                            s.replace(" ", "&nbsp;")
+                        )
                     self.result_course_details.append(s)
                     index += 1
 
-                self.result_course_name_edit.setText(course.name)
-                self.result_course_name_edit.setCursorPosition(0)
-                self.result_course_length_edit.setText(str(course.length))
-            finish_str = translate("Finish")
-            self.result_course_details.append(finish_str)
+                    self.result_course_name_edit.setText(course.name)
+                    self.result_course_name_edit.setCursorPosition(0)
+                    self.result_course_length_edit.setText(str(course.length))
+                finish_str = translate("Finish")
+                self.result_course_details.append(finish_str)
