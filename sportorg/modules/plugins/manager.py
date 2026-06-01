@@ -128,7 +128,12 @@ def parse_plugin_menu_action(action_key: str) -> Tuple[str, str]:
 
 
 def _json_dumps(data: Dict[str, Any]) -> str:
-    return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    try:
+        import orjson
+
+        return orjson.dumps(data).decode("utf-8")
+    except Exception:
+        return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
 
 def _stable_json(data: Dict[str, Any]) -> str:

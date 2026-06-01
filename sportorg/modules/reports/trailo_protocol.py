@@ -66,8 +66,6 @@ def prepare_race_dict(race: Dict[str, Any]) -> Dict[str, Any]:
     org_by_id = {str(o["id"]): o for o in race.get("organizations", [])}
     group_by_id = {str(g["id"]): g for g in race.get("groups", [])}
     course_by_id = {str(c["id"]): c for c in race.get("courses", [])}
-    person_by_id = {str(p["id"]): p for p in race.get("persons", [])}
-
     persons: List[Dict[str, Any]] = []
     for person in race.get("persons", []):
         p = dict(person)
@@ -77,6 +75,7 @@ def prepare_race_dict(race: Dict[str, Any]) -> Dict[str, Any]:
         p["group"] = group_by_id.get(str(group_id)) if group_id else None
         persons.append(p)
     race["persons"] = persons
+    person_by_id = {str(p["id"]): p for p in persons}
 
     results: List[Dict[str, Any]] = []
     for result in race.get("results", []):
@@ -101,6 +100,34 @@ def prepare_race_dict(race: Dict[str, Any]) -> Dict[str, Any]:
     race["organizations"] = sorted(
         race.get("organizations", []), key=lambda item: str(item.get("name", "")).upper()
     )
+    return race
+
+
+def enrich_courses_for_trailo_docx(
+    race: Dict[str, Any], mode: TrailoMode
+) -> List[Dict[str, Any]]:
+    """Add trailo_main_cp_count / trailo_time_cp_count for Word protocol headers."""
+    courses: List[Dict[str, Any]] = []
+    for course in race.get("courses") or []:
+        course_dict = dict(course)
+        main_count, time_tc_count = count_trailo_course_controls(course_dict, mode)
+        course_dict["trailo_main_cp_count"] = main_count
+        course_dict["trailo_time_cp_count"] = time_tc_count
+        courses.append(course_dict)
+    return courses
+
+
+def format_race_dict_for_trailo_docx(race: Dict[str, Any]) -> Dict[str, Any]:
+    """Prepare race dict for TrailO Word templates (trailo_time in display units)."""
+    race = prepare_race_dict(race)
+    mode = TrailoMode(race)
+    formatted_results: List[Dict[str, Any]] = []
+    for result in race.get("results") or []:
+        r = dict(result)
+        r["trailo_time"] = _format_trailo_time(r, mode)
+        formatted_results.append(r)
+    race["results"] = formatted_results
+    race["courses"] = enrich_courses_for_trailo_docx(race, mode)
     return race
 
 

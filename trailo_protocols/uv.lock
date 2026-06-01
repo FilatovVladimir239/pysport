@@ -3353,6 +3353,7 @@ name = "trailo-protocols"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "docxtpl" },
     { name = "openpyxl" },
     { name = "pillow", version = "10.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pillow", version = "11.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
@@ -3377,6 +3378,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "docxtpl", specifier = ">=0,<1" },
     { name = "openpyxl", specifier = ">=3.1,<4" },
     { name = "pillow", specifier = ">=8,<12" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6,<7" },

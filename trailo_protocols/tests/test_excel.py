@@ -157,6 +157,9 @@ def test_save_trailo_protocol_excel_file():
         flat = [str(v) for v in values if v]
         assert any("Ivanov Ivan" in value for value in flat)
         assert any("Протокол результатов" in value for value in flat)
+        assert any(value == "Результат" for value in flat)
+        assert any(value == "очки" for value in flat)
+        assert any(value == "время" for value in flat)
         assert not any("Предварительный протокол ответов" in value for value in flat)
         assert any("Мужчины 21" in value for value in flat)
         assert any("Контрольное время" in value for value in flat)

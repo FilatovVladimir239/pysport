@@ -87,7 +87,7 @@ _DEFAULT_COLUMN_WIDTH = 6.8
 _ANSWER_COLUMN_WIDTH = 2.5
 _TIME_COLUMN_WIDTH = 6.0
 _ROW_HEIGHT_DATA = 13.5
-_ROW_HEIGHT_TABLE_HEADER = 24.0
+_ROW_HEIGHT_TABLE_HEADER = 13.5
 _ROW_HEIGHT_GROUP_TITLE = 10.0
 _ROW_HEIGHT_GROUP_META = 12.0
 _ROW_HEIGHT_SIGNATURE = 14.0
@@ -104,9 +104,11 @@ _SIGNATURE_IMAGE_Y_OFFSET_PX = 6
 _GROUP_META_FONT_SIZE = 10
 _RACE_DESCRIPTION_FONT_SIZE = 9
 _RACE_TITLE_FONT_SIZE = 14
+_RACE_PROTOCOL_LABEL_FONT_SIZE = 14
 _RACE_META_FONT_SIZE = 9
 _TABLE_HEADER_FONT_SIZE = 8
-_TABLE_HEADER_MAX_LINES = 2
+_RESULT_SCORE_KEY = "trailo_score"
+_RESULT_TIME_KEYS = frozenset({"trailo_time", "result"})
 
 
 def _set_row_height(ws: Worksheet, row: int, height: float) -> None:
@@ -132,10 +134,10 @@ def _header_title_for_field(field: ProtocolField) -> str:
         return "Время"
     if field.key == "preo_team_pass_time":
         return "Время"
-    if field.key == "trailo_score":
-        return "Результат\nочки"
-    if field.key in ("trailo_time", "result"):
-        return "Результат\nВремя"
+    if field.key == _RESULT_SCORE_KEY:
+        return "очки"
+    if field.key in _RESULT_TIME_KEYS:
+        return "время"
     if field.key == "result_relay":
         return "Результат\nкоманды"
     title = field.title
@@ -357,7 +359,11 @@ def _write_header_block(
         else "Протокол результатов"
     )
     row = _write_merged_header_line(
-        ws, row, col_count, protocol_label, font=meta_font
+        ws,
+        row,
+        col_count,
+        protocol_label,
+        font=Font(bold=True, size=_RACE_PROTOCOL_LABEL_FONT_SIZE),
     )
     return row
 
@@ -443,8 +449,35 @@ def _write_signature_block(
     return row
 
 
-def _fields_for_excel(fields: List[ProtocolField]) -> List[ProtocolField]:
-    return [field for field in fields if field.key not in _EXCEL_OMIT_FIELD_KEYS]
+def _fields_for_excel(
+    fields: List[ProtocolField], mode: TrailoMode
+) -> List[ProtocolField]:
+    filtered = [field for field in fields if field.key not in _EXCEL_OMIT_FIELD_KEYS]
+    return _ensure_excel_result_columns(filtered, mode)
+
+
+def _ensure_excel_result_columns(
+    fields: List[ProtocolField], mode: TrailoMode
+) -> List[ProtocolField]:
+    """Results Excel always shows score + time under a merged «Результат» header when applicable."""
+    if mode.trailo_mode == "tempo":
+        return fields
+    keys = [field.key for field in fields]
+    if _RESULT_SCORE_KEY in keys:
+        return fields
+    time_index = -1
+    time_key: Optional[str] = None
+    for index, field in enumerate(fields):
+        if field.key in _RESULT_TIME_KEYS:
+            time_index = index
+            time_key = field.key
+            break
+    if time_index < 0 or time_key is None:
+        return fields
+    score_field = ProtocolField(_RESULT_SCORE_KEY, "Результат очки", active=True)
+    out = list(fields)
+    out.insert(time_index, score_field)
+    return out
 
 
 def _active_field_keys(fields: List[ProtocolField]) -> List[str]:
@@ -453,6 +486,24 @@ def _active_field_keys(fields: List[ProtocolField]) -> List[str]:
 
 def _field_by_key(fields: List[ProtocolField]) -> Dict[str, ProtocolField]:
     return {field.key: field for field in fields}
+
+
+def _is_result_time_field(field: ProtocolField) -> bool:
+    return field.key in _RESULT_TIME_KEYS
+
+
+def _result_score_time_pair(
+    base_fields: List[ProtocolField],
+) -> Optional[Tuple[int, ProtocolField, ProtocolField]]:
+    for index, field in enumerate(base_fields):
+        if field.key != _RESULT_SCORE_KEY:
+            continue
+        if index + 1 >= len(base_fields):
+            return None
+        time_field = base_fields[index + 1]
+        if _is_result_time_field(time_field):
+            return index, field, time_field
+    return None
 
 
 def _split_station_groups(
@@ -491,7 +542,7 @@ def _write_group_block(
     show_answers: bool,
 ) -> Tuple[int, int]:
     """Write race header, group title, table headers and data. Returns (last_row, col_count)."""
-    fields = _fields_for_excel(block.fields)
+    fields = _fields_for_excel(block.fields, mode)
     col_count = max(len(_active_field_keys(fields)), 1)
     _apply_column_widths(ws, fields)
     row = 1
@@ -525,14 +576,17 @@ def _write_table_headers(
     hide_answer_labels: bool,
 ) -> int:
     base_fields, answer_fields, station_groups = _split_station_groups(fields, mode)
+    result_pair = _result_score_time_pair(base_fields)
     has_split_columns = bool(answer_fields or station_groups)
+    header_font = Font(bold=True, size=_TABLE_HEADER_FONT_SIZE)
     if not has_split_columns:
-        header_rows = 1
+        header_rows = 2 if result_pair else 1
         sub_header_rowspan = 1
     else:
         header_rows = 2 if hide_answer_labels else 3
         sub_header_rowspan = 1 if hide_answer_labels else 2
     col = 1
+    result_pair_index = result_pair[0] if result_pair else -1
 
     def write_cell(
         r: int,
@@ -544,7 +598,7 @@ def _write_table_headers(
         font: Optional[Font] = None,
     ) -> None:
         cell = ws.cell(row=r, column=c, value=value)
-        cell.font = font or HEADER_FONT
+        cell.font = font or header_font
         cell.alignment = HEADER_WRAP
         cell.border = THIN_BORDER
         if rowspan > 1 or colspan > 1:
@@ -555,7 +609,15 @@ def _write_table_headers(
                 end_column=c + colspan - 1,
             )
 
-    for field in base_fields:
+    for index, field in enumerate(base_fields):
+        if result_pair and index == result_pair_index:
+            write_cell(row, col, "Результат", colspan=2)
+            write_cell(row + 1, col, "очки")
+            write_cell(row + 1, col + 1, "время")
+            col += 2
+            continue
+        if result_pair and index == result_pair_index + 1:
+            continue
         title = _header_title_for_field(field)
         write_cell(row, col, title, rowspan=header_rows)
         col += 1
@@ -581,11 +643,8 @@ def _write_table_headers(
                 write_cell(row + 2, col + index, field.title)
         col += len(station_fields)
 
-    header_line_height = _row_height_for_wrapped_lines(
-        _TABLE_HEADER_MAX_LINES, _TABLE_HEADER_FONT_SIZE
-    )
     for header_row in range(row, row + header_rows):
-        _set_row_height(ws, header_row, max(_ROW_HEIGHT_TABLE_HEADER, header_line_height))
+        _set_row_height(ws, header_row, _ROW_HEIGHT_TABLE_HEADER)
 
     return row + header_rows
 

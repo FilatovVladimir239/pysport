@@ -1,28 +1,81 @@
-# TrailO Protocols (Excel)
+# TrailO Protocols (Excel & Word)
 
-Отдельное приложение для выгрузки протоколов TrailO в Excel из файла базы SportOrg (`.json` / `.json.gz`).
+Экспорт протоколов TrailO в **Excel** и **Word (.docx)**: плагин SportOrg и отдельное окно для файлов `.json` / `.json.gz`.
 
-SportOrg по-прежнему формирует HTML- и Word-протоколы; Excel вынесен сюда.
+HTML-протоколы по-прежнему через меню «Отчёты» в SportOrg.
 
-## Запуск
+## Плагин SportOrg (рекомендуется при работе в открытой базе)
 
-Из корня репозитория `pysport`:
+1. Установите пакет (из корня `pysport`):
 
 ```bash
 cd trailo_protocols
 uv sync
+```
+
+2. В SportOrg: **Настройки → Плагины → Добавить**
+
+| Поле | Значение |
+|------|----------|
+| Executable | путь к `python.exe` из venv (`trailo_protocols\.venv\Scripts\python.exe`) |
+| Arguments | `-m trailo_protocols.plugin_main` |
+| Enabled | ✓ |
+
+3. Перезапустите SportOrg или перезагрузите плагины. В меню появится группа **TrailO**:
+   - *TrailO protocol Excel (with answers)*
+   - *TrailO protocol Excel (no answers)*
+   - *TrailO protocol Word (.docx)*
+   - *Open TrailO output folder*
+
+Файлы сохраняются в папку из настройки плагина `output_dir`. Если она пустая — в  
+`Документы/TrailOProtocols` (Windows) или `~/Documents/TrailOProtocols`.
+
+Настройки плагина (JSON в конфиге SportOrg, ключ `sportorg.trailo.excel_protocol`):
+
+```json
+{
+  "output_dir": "D:\\Reports\\TrailO",
+  "open_after_save": true,
+  "use_custom_script": false,
+  "custom_script": "",
+  "docx_template": "",
+  "docx_use_fixed_template": true
+}
+```
+
+| Поле | Назначение |
+|------|------------|
+| `output_dir` | Папка для `.xlsx` и `.docx` (пусто — `Documents/TrailOProtocols`) |
+| `open_after_save` | Открыть файл после сохранения (Windows) |
+| `use_custom_script` / `custom_script` | Свой Python-скрипт для Excel вместо встроенного |
+| `docx_template` | Путь к шаблону Word (пусто — шаблон из SportOrg, см. ниже) |
+| `docx_use_fixed_template` | `true` — сначала `_9_trailo_preo_protocol_fixed.docx`, иначе `9_trailo_preo_protocol.docx` |
+
+Word-экспорт использует те же данные, что и **Отчёты → Word** в SportOrg (`format_race_dict_for_trailo_docx`: время PreO в секундах, счётчики КП на дистанции).
+
+Плагин получает снимок **текущего заезда** и обновления по `sportorg.*.update`. Перед экспортом пересчитайте результаты в SportOrg.
+
+## Отдельное приложение (файл базы с диска)
+
+```bash
+cd trailo_protocols
+uv sync --extra gui
 uv run trailo-protocols
 ```
 
-Или двойной щелчок по `TrailoProtocols.pyw` (нужен установленный пакет и PySide6).
-
-## Возможности
+Или `TrailoProtocols.pyw` (нужен PySide6).
 
 - Открыть файл события SportOrg
-- Выбрать заезд (если в файле несколько)
-- «Включить ответы» — как в отчётах TrailO
-- Опционально: свой скрипт `.py` с функцией `export(race, file_name, ...)`
+- Выбрать заезд
+- «Включить ответы», свой скрипт `.py` — как раньше
 
 ## Зависимость от SportOrg
 
-Логика таблицы протокола (`trailo_protocol.py`) остаётся в пакете `sportorg`; это общая основа для HTML-шаблонов. Запись `.xlsx` — в этом проекте (`trailo_protocols/excel.py`).
+`trailo_protocol.py` и расчёт TrailO — в пакете `sportorg`. Запись `.xlsx` — `trailo_protocols/excel.py`, `.docx` — `trailo_protocols/docx.py` (docxtpl).
+
+## Тесты
+
+```bash
+cd trailo_protocols
+uv run pytest -q
+```

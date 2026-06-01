@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "TrailO Excel answer protocols from SportOrg event files"
 requires-python = ">=3.8.1,<=3.14"
 dependencies = [
+  "docxtpl>=0,<1",
   "openpyxl>=3.1,<4",
   "Pillow>=8,<12",
   "sportorg",
@@ -16,6 +17,7 @@ gui = [
 
 [project.scripts]
 trailo-protocols = "trailo_protocols.__main__:run"
+sportorg-trailo-excel-protocol = "trailo_protocols.plugin_main:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -43,10 +43,13 @@ except ModuleNotFoundError:
         QWidget,
     )
 
-from sportorg.modules.reports.trailo_protocol import TrailoProtocolOptions
-
-from trailo_protocols.excel import default_excel_filename, save_trailo_protocol_excel
-from trailo_protocols.excel_script import resolve_excel_script_path, run_excel_export_script
+from trailo_protocols.export_core import (
+    build_output_path,
+    export_trailo_excel,
+    is_trailo_race,
+)
+from trailo_protocols.excel import default_excel_filename
+from trailo_protocols.excel_script import resolve_excel_script_path
 from trailo_protocols.loader import load_event_file, race_label
 
 logger = logging.getLogger(__name__)
@@ -59,11 +62,6 @@ _SETTINGS: Dict[str, Any] = {
     "use_custom_script": False,
     "custom_script": "",
 }
-
-
-def _is_trailo_race(race_dict: Dict[str, Any]) -> bool:
-    settings = race_dict.get("settings") or {}
-    return settings.get("result_processing_mode") == "trailo"
 
 
 class MainWindow(QMainWindow):
@@ -177,7 +175,7 @@ class MainWindow(QMainWindow):
         self.race_combo.clear()
         for index, race_dict in enumerate(race_dicts):
             label = race_label(race_dict, index)
-            if not _is_trailo_race(race_dict):
+            if not is_trailo_race(race_dict):
                 label += " (не TrailO)"
             self.race_combo.addItem(label, index)
         self.race_combo.setEnabled(bool(race_dicts))
@@ -194,7 +192,7 @@ class MainWindow(QMainWindow):
             index = self.race_combo.currentIndex()
         race_dict = self._race_dicts[int(index)]
 
-        if not _is_trailo_race(race_dict):
+        if not is_trailo_race(race_dict):
             answer = QMessageBox.question(
                 self,
                 "Режим заезда",
@@ -228,22 +226,14 @@ class MainWindow(QMainWindow):
         _SETTINGS["last_output_dir"] = os.path.dirname(os.path.abspath(file_name))
 
         try:
-            if self.use_custom_script.isChecked():
-                script_path = resolve_excel_script_path(
-                    self.custom_script.text(), os.getcwd()
-                )
-                run_excel_export_script(
-                    script_path,
-                    race_dict,
-                    file_name,
-                    show_answers=show_answers,
-                )
-            else:
-                save_trailo_protocol_excel(
-                    race_dict,
-                    file_name,
-                    options=TrailoProtocolOptions(show_answers=show_answers),
-                )
+            export_trailo_excel(
+                race_dict,
+                file_name,
+                show_answers=show_answers,
+                use_custom_script=self.use_custom_script.isChecked(),
+                custom_script=self.custom_script.text(),
+                working_directory=os.getcwd(),
+            )
         except Exception as exc:
             logger.exception("Export failed")
             QMessageBox.critical(

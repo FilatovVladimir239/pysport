@@ -28,6 +28,7 @@ except ModuleNotFoundError:
 
 from sportorg import config, settings
 from sportorg.common.template import get_templates, get_text_from_file
+from sportorg.modules.reports.trailo_protocol import format_race_dict_for_trailo_docx
 from sportorg.gui.dialogs.file_dialog import (
     get_open_file_name,
     get_save_file_name,
@@ -38,23 +39,14 @@ from sportorg.language import translate
 from sportorg.models.constant import RentCards
 from sportorg.models.memory import get_current_race_index, race, races
 from sportorg.models.result.result_tools import recalculate_results
+
 _settings = {
     "last_template": None,
     "open_in_browser": True,
     "last_file": None,
     "save_to_last_file": False,
     "selected": False,
-    "trailo_show_answers": False,
 }
-
-
-def _is_trailo_race_mode() -> bool:
-    return race().get_setting("result_processing_mode", "time") == "trailo"
-
-
-def _is_trailo_protocol_template(template_path: str) -> bool:
-    normalized = template_path.replace("\\", "/").lower()
-    return "trailo" in normalized
 
 
 class ReportDialog(QDialog):
@@ -107,11 +99,6 @@ class ReportDialog(QDialog):
         self.item_selected.setChecked(_settings["selected"])
         self.layout.addRow(self.item_selected)
 
-        self.item_trailo_show_answers = QCheckBox(translate("Include answers"))
-        self.item_trailo_show_answers.setChecked(_settings["trailo_show_answers"])
-        if _is_trailo_race_mode():
-            self.layout.addRow(self.item_trailo_show_answers)
-
         def cancel_changes():
             self.close()
 
@@ -146,8 +133,6 @@ class ReportDialog(QDialog):
         _settings["open_in_browser"] = self.item_open_in_browser.isChecked()
         _settings["save_to_last_file"] = self.item_save_to_last_file.isChecked()
         _settings["selected"] = self.item_selected.isChecked()
-        if _is_trailo_race_mode():
-            _settings["trailo_show_answers"] = self.item_trailo_show_answers.isChecked()
 
         recalculate_results(recheck_results=False)
 
@@ -240,29 +225,14 @@ class ReportDialog(QDialog):
                 template_path_items.remove(i)
         report_suffix = "_".join(template_path_items)
 
-        trailo_protocol = _is_trailo_race_mode() and _is_trailo_protocol_template(
-            template_path
-        )
-        trailo_show_answers = (
-            self.item_trailo_show_answers.isChecked() if trailo_protocol else False
-        )
-        template_kwargs = {
-            "race": races_dict[get_current_race_index()],
-            "races": races_dict,
-            "rent_cards": list(RentCards().get()),
-            "current_race": get_current_race_index(),
-            "selected": {"persons": []},
-            "settings": settings.SETTINGS.templates_settings,
-        }
-        if trailo_protocol:
-            template_kwargs["trailo_protocol_show_answers"] = trailo_show_answers
-
         if template_path.endswith(".docx"):
-            # DOCX template processing
             full_path = settings.template_dir() + template_path
             doc = DocxTemplate(full_path)
             context = {}
-            context["race"] = races_dict[get_current_race_index()]
+            race_data = races_dict[get_current_race_index()]
+            if "trailo" in template_path.lower():
+                race_data = format_race_dict_for_trailo_docx(race_data)
+            context["race"] = race_data
             context["name"] = config.NAME
             context["version"] = str(config.VERSION)
             doc.render(context)
@@ -282,7 +252,15 @@ class ReportDialog(QDialog):
                 os.startfile(file_name)
 
         elif template_path.endswith(".csv"):
-            template = get_text_from_file(template_path, **template_kwargs)
+            template = get_text_from_file(
+                template_path,
+                race=races_dict[get_current_race_index()],
+                races=races_dict,
+                rent_cards=list(RentCards().get()),
+                current_race=get_current_race_index(),
+                selected={"persons": []},  # leave here for back compatibility
+                settings=settings.SETTINGS.templates_settings,
+            )
 
             if _settings["save_to_last_file"]:
                 file_name = _settings["last_file"]
@@ -301,7 +279,15 @@ class ReportDialog(QDialog):
                     file.close()
 
         else:
-            template = get_text_from_file(template_path, **template_kwargs)
+            template = get_text_from_file(
+                template_path,
+                race=races_dict[get_current_race_index()],
+                races=races_dict,
+                rent_cards=list(RentCards().get()),
+                current_race=get_current_race_index(),
+                selected={"persons": []},  # leave here for back compatibility
+                settings=settings.SETTINGS.templates_settings,
+            )
 
             if _settings["save_to_last_file"]:
                 file_name = _settings["last_file"]
@@ -318,12 +304,6 @@ class ReportDialog(QDialog):
                 with codecs.open(file_name, "w", "utf-8") as file:
                     file.write(template)
                     file.close()
-
+                # Open file in your browser
                 if _settings["open_in_browser"]:
-                    url = "file://" + file_name
-                    if trailo_protocol:
-                        sep = "&" if "?" in url else "?"
-                        url = "{}{}show_answers={}".format(
-                            url, sep, "1" if trailo_show_answers else "0"
-                        )
-                    webbrowser.open(url, new=2)
+                    webbrowser.open("file://" + file_name, new=2)
