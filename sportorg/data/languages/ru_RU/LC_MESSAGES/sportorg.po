@@ -213,6 +213,12 @@ msgstr "Главный судья"
 msgid "Secretary"
 msgstr "Главный секретарь"
 
+msgid "Signature"
+msgstr "Подпись"
+
+msgid "Choose signature image"
+msgstr "Выбрать изображение подписи"
+
 msgid "URL"
 msgstr "URL"
 
@@ -378,6 +384,9 @@ msgstr "Создание протокола"
 msgid "Open in browser"
 msgstr "Открыть в браузере"
 
+msgid "Include answers"
+msgstr "Включить ответы"
+
 msgid "Save to last file"
 msgstr "Сохранить в последний файл"
 
@@ -412,7 +421,7 @@ msgid "TrailO time control"
 msgstr "ТаймКП"
 
 msgid "Passage time"
-msgstr "Время прохождения"
+msgstr "Время"
 
 msgid "Time control responses"
 msgstr "Ответы на тайм-КП"

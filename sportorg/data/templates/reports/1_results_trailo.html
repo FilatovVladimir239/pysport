@@ -16,5 +16,3441 @@
     <button type="button" id="export-excel-btn">Экспорт в Excel</button>
 </div>
 <div id="results-tables"></div>
-{% include "reports/trailo_results_protocol.inc.html" %}
+{% if trailo_protocol_show_answers is defined %}
+<script>
+window.SPORTORG_TRAILO_PROTOCOL = Object.assign(window.SPORTORG_TRAILO_PROTOCOL || {}, {
+    showAnswers: {% if trailo_protocol_show_answers %}true{% else %}false{% endif %}
+});
+</script>
+{% endif %}
+{% raw %}
+<style id="trailo-preo-export-styles">
+    .trailo-preo-heading h3 {
+        margin: 0.35rem 0;
+        line-height: 1.25;
+    }
+    .trailo-preo-desc {
+        font-size: 1rem;
+        font-weight: 400;
+    }
+    .trailo-preo-title {
+        font-size: 1.22rem;
+        font-weight: 700;
+        margin-top: 0.5rem !important;
+    }
+    .trailo-preo-whenwhere {
+        font-size: 1rem;
+        font-weight: 400;
+    }
+    .trailo-preo-protocol {
+        font-size: 1rem;
+    }
+
+    table.table-split {
+        margin: 0 !important;
+        margin-bottom: 0 !important; /* bootstrap table { margin-bottom: 1rem } */
+        display: inline-table;
+    }
+    table.table-split td{
+        border: 0 ! important;
+        padding: 0;
+        text-align: center;
+    }
+    table.table-split.correct {
+        color: green;
+        font-weight: 700;
+    }
+    table.table-split.incorrect {
+        color: red;
+        font-weight: 700;
+        background-color: transparent;
+    }
+
+    /* Подсветка ячейки с ошибочным ответом (стабильно: класс ставится JS-ом) */
+    table.sportorg-table td.incorrect-answer {
+        background-color: #fffde8 !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split,
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split * {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split {
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    table.sportorg-table td.incorrect-answer table.table-split td {
+        padding: 0 !important;
+    }
+
+    table.sportorg-table th, table.sportorg-table td {
+        border: 1px solid #000;
+        text-align: center
+    }
+
+    table.sportorg-table th.name-col,
+    table.sportorg-table td.name-col,
+    table.sportorg-table td.org-col {
+        text-align: left;
+    }
+
+    table.sportorg-table th.year-col,
+    table.sportorg-table td.year-col,
+    table.sportorg-table th.qual-col,
+    table.sportorg-table td.qual-col,
+    table.sportorg-table th.bib-col,
+    table.sportorg-table td.bib-col,
+    table.sportorg-table th.score-col,
+    table.sportorg-table td.score-col,
+    table.sportorg-table th.overall-time-col,
+    table.sportorg-table td.overall-time-col,
+    table.sportorg-table th.trailo-result-col,
+    table.sportorg-table td.trailo-result-col {
+        text-align: center;
+    }
+
+    table.sportorg-table th.year-col,
+    table.sportorg-table td.year-col {
+        width: 10ch !important;
+        min-width: 10ch !important;
+        max-width: 10ch !important;
+        font-variant-numeric: tabular-nums;
+        box-sizing: border-box;
+    }
+
+    table.sportorg-table td.year-col {
+        white-space: nowrap;
+        word-break: keep-all;
+        overflow-wrap: normal;
+    }
+
+    table.sportorg-table th.year-col {
+        line-height: 1.1;
+        white-space: normal;
+    }
+
+    table.sportorg-table th.qual-col,
+    table.sportorg-table td.qual-col {
+        width: 3em !important;
+        max-width: 3em !important;
+        white-space: nowrap;
+    }
+
+    table.sportorg-table th.answer-col,
+    table.sportorg-table td.answer-col {
+        width: 2em !important;
+        min-width: 2em !important;
+        max-width: 2em !important;
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+        text-align: center;
+        vertical-align: middle;
+        box-sizing: border-box;
+    }
+
+    table.sportorg-table td.index-col[rowspan],
+    table.sportorg-table td.place-col[rowspan],
+    table.sportorg-table td[rowspan].relay-team-result-col,
+    table.sportorg-table td[rowspan].relay-team-pass-time-col,
+    table.sportorg-table td[rowspan].relay-kv-penalty-col {
+        vertical-align: middle;
+    }
+
+    table.sportorg-table th.relay-team-pass-time-header {
+        line-height: 1.2;
+        white-space: normal;
+    }
+
+    table.sportorg-table th.year-birth-header,
+    table.sportorg-table th.year-col.year-birth-header {
+        line-height: 1.1;
+        white-space: normal;
+    }
+
+    table.sportorg-table tr.relay-team-separator-row > td {
+        border-top: 2px solid #000 !important;
+    }
+
+    table.table-split td.result-undefined {
+        border: none;
+    }
+
+    /* Центрирование времени Тайм-КП и вложенной таблицы в HTML версии */
+    table.sportorg-table th.time-col,
+    table.sportorg-table td.time-col {
+        text-align: center;
+    }
+
+    table.sportorg-table td.time-col table.table-split {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    table.sportorg-table td.time-col table.table-split td {
+        text-align: center;
+    }
+
+    @media print {
+        @page {
+            margin: 8mm;
+        }
+
+        /* Печать: ужимаем под лист */
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 9px;
+        }
+
+        h2, h3 {
+            margin: 6px 0;
+        }
+
+        table.sportorg-table {
+            width: auto;
+            max-width: 100%;
+            table-layout: fixed;
+        }
+
+        table.sportorg-table th,
+        table.sportorg-table td {
+            padding: 0 1px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        table.sportorg-table th.name-col,
+        table.sportorg-table td.name-col {
+            text-align: left;
+            padding-left: 1px;
+            padding-right: 1px;
+            width: 118px !important;
+        }
+
+        table.sportorg-table th.year-col,
+        table.sportorg-table td.year-col {
+            text-align: center;
+            width: 11ch !important;
+            min-width: 11ch !important;
+            max-width: 11ch !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        table.sportorg-table td.year-col {
+            font-size: 8px;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+        }
+
+        table.sportorg-table th.year-col {
+            font-size: 6.5px;
+            line-height: 1.05;
+            white-space: normal;
+        }
+
+        table.sportorg-table tr.relay-team-separator-row > td {
+            border-top: 2.5px solid #000 !important;
+        }
+
+        table.sportorg-table th.qual-col,
+        table.sportorg-table td.qual-col {
+            text-align: center;
+            width: 36px !important;
+            white-space: nowrap;
+        }
+
+        table.sportorg-table th.bib-col,
+        table.sportorg-table td.bib-col {
+            text-align: center;
+            width: 30px !important;
+        }
+
+        table.sportorg-table th.group-col,
+        table.sportorg-table td.group-col {
+            width: 60px !important;
+        }
+
+        table.sportorg-table th.org-col,
+        table.sportorg-table td.org-col {
+            width: 130px !important;
+        }
+
+        table.sportorg-table th.index-col,
+        table.sportorg-table td.index-col {
+            width: 20px !important;
+        }
+
+        table.sportorg-table th.place-col,
+        table.sportorg-table td.place-col {
+            width: 24px !important;
+        }
+
+        table.sportorg-table th.place-col {
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.time-col {
+            font-size: 9px;
+        }
+
+        table.sportorg-table th.time-col,
+        table.sportorg-table td.time-col {
+            text-align: center;
+            width: 70px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.overall-time-col,
+        table.sportorg-table td.overall-time-col {
+            width: 50px !important;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-variant-numeric: tabular-nums;
+            font-size: 8px;
+        }
+
+        table.sportorg-table th.penalty-col,
+        table.sportorg-table td.penalty-col {
+            width: 30px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.penalty-col {
+            font-size: 6px;
+            line-height: 0.95;
+        }
+
+        table.sportorg-table th.pass-time-col,
+        table.sportorg-table td.pass-time-col {
+            width: 52px !important;
+            font-size: 7px;
+            line-height: 1.0;
+            white-space: normal;
+            word-break: keep-all;
+            overflow-wrap: normal;
+        }
+
+        table.sportorg-table th.pass-time-col {
+            font-size: 6px;
+            line-height: 0.95;
+        }
+
+        table.sportorg-table td.time-col table.table-split {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table.sportorg-table td.time-col table.table-split td {
+            text-align: center;
+        }
+
+        table.sportorg-table th.answer-col,
+        table.sportorg-table td.answer-col {
+            text-align: center;
+            width: 2em !important;
+            min-width: 2em !important;
+            max-width: 2em !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            font-size: 8px;
+            line-height: 1.0;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+
+        table.sportorg-table td.incorrect-answer,
+        table.sportorg-table td.incorrect-answer table.table-split,
+        table.sportorg-table td.incorrect-answer table.table-split td {
+            vertical-align: middle;
+            line-height: 1.0;
+        }
+
+        /* Печать: верхний отступ в заголовках "Ответы" (номер и правильный ответ) */
+        table.sportorg-table thead tr:nth-child(2) th.answer-col,
+        table.sportorg-table thead tr:nth-child(3) th.answer-col {
+            padding-top: 2px !important;
+        }
+
+        /* В ответах часто вложенная table.table-split — центрируем и её */
+        table.sportorg-table td.answer-col table.table-split {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        table.sportorg-table td.answer-col table.table-split td {
+            text-align: center;
+        }
+
+        /* Печать: не оставлять "пустую" страницу с одним заголовком.
+           Большие таблицы должны иметь право разбиваться по страницам. */
+        .results-block {
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+
+        .results-block > h2 {
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        table.sportorg-table {
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+
+        table.sportorg-table thead { display: table-header-group; }
+        table.sportorg-table tfoot { display: table-footer-group; }
+
+        table.sportorg-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        /* Печать без колонок ответов (портрет): крупнее шрифт для читаемости */
+        html.sportorg-print-no-answers body {
+            font-size: 11px;
+        }
+
+        html.sportorg-print-no-answers h2,
+        html.sportorg-print-no-answers h3 {
+            font-size: 1.12em;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th,
+        html.sportorg-print-no-answers table.sportorg-table td {
+            padding: 1px 3px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.name-col,
+        html.sportorg-print-no-answers table.sportorg-table td.name-col {
+            width: 148px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.year-col,
+        html.sportorg-print-no-answers table.sportorg-table td.year-col,
+        html.sportorg-print-no-answers table.sportorg-table th.qual-col,
+        html.sportorg-print-no-answers table.sportorg-table td.qual-col {
+            text-align: center !important;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.org-col,
+        html.sportorg-print-no-answers table.sportorg-table td.org-col {
+            width: 172px !important;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.place-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.overall-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.overall-time-col {
+            font-size: 10px;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.penalty-col,
+        html.sportorg-print-no-answers table.sportorg-table td.penalty-col {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        html.sportorg-print-no-answers table.sportorg-table th.pass-time-col,
+        html.sportorg-print-no-answers table.sportorg-table td.pass-time-col {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+    }
+
+    /* Экран: компактная таблица на всю ширину окна (inline-ширины из JS переопределяем !important) */
+    @media screen {
+        #content {
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        #results-tables {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
+
+        #results-tables .results-block {
+            max-width: 100%;
+        }
+
+        #results-tables .results-block > h2 {
+            font-size: 1.12rem;
+            margin: 0.5rem 0 0.35rem;
+        }
+
+        #results-tables table.sportorg-table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed !important;
+            font-size: 12px !important;
+            margin: 0 auto !important;
+        }
+
+        #results-tables table.sportorg-table th,
+        #results-tables table.sportorg-table td {
+            width: auto !important;
+            min-width: 0 !important;
+            padding: 2px 4px !important;
+            font-size: inherit !important;
+            line-height: 1.22 !important;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        #results-tables table.sportorg-table th.index-col,
+        #results-tables table.sportorg-table td.index-col {
+            width: 2.5em !important;
+        }
+
+        #results-tables table.sportorg-table th.group-col,
+        #results-tables table.sportorg-table td.group-col {
+            width: 7% !important;
+        }
+
+        #results-tables table.sportorg-table th.name-col,
+        #results-tables table.sportorg-table td.name-col {
+            width: 18% !important;
+        }
+
+        #results-tables table.sportorg-table th.year-col,
+        #results-tables table.sportorg-table td.year-col {
+            width: 10ch !important;
+            min-width: 10ch !important;
+            max-width: 10ch !important;
+            text-align: center !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+        }
+
+        #results-tables table.sportorg-table th.year-col {
+            font-size: 10px;
+            line-height: 1.05;
+        }
+
+        #results-tables table.sportorg-table td.year-col {
+            font-size: 11px;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            overflow-wrap: normal !important;
+        }
+
+        #results-tables table.sportorg-table th.qual-col,
+        #results-tables table.sportorg-table td.qual-col {
+            width: 3em !important;
+            text-align: center !important;
+            white-space: nowrap;
+        }
+
+        #results-tables table.sportorg-table th.bib-col,
+        #results-tables table.sportorg-table td.bib-col,
+        #results-tables table.sportorg-table th.score-col,
+        #results-tables table.sportorg-table td.score-col,
+        #results-tables table.sportorg-table th.trailo-result-col,
+        #results-tables table.sportorg-table td.trailo-result-col {
+            text-align: center !important;
+        }
+
+        #results-tables table.sportorg-table th.org-col,
+        #results-tables table.sportorg-table td.org-col {
+            width: 12% !important;
+        }
+
+        #results-tables table.sportorg-table th.place-col,
+        #results-tables table.sportorg-table td.place-col {
+            width: 2.75em !important;
+        }
+
+        #results-tables table.sportorg-table th.penalty-col,
+        #results-tables table.sportorg-table td.penalty-col,
+        #results-tables table.sportorg-table th.pass-time-col,
+        #results-tables table.sportorg-table td.pass-time-col {
+            width: 3.6em !important;
+            font-size: 11px !important;
+        }
+
+        #results-tables table.sportorg-table th.time-col,
+        #results-tables table.sportorg-table td.time-col,
+        #results-tables table.sportorg-table th.overall-time-col,
+        #results-tables table.sportorg-table td.overall-time-col {
+            width: 4.2em !important;
+            font-size: 11px !important;
+            white-space: nowrap;
+        }
+
+        #results-tables table.sportorg-table th.answer-col,
+        #results-tables table.sportorg-table td.answer-col {
+            width: 2em !important;
+            min-width: 2em !important;
+            max-width: 2em !important;
+            padding: 1px 2px !important;
+            font-size: 11px !important;
+            box-sizing: border-box;
+        }
+
+        #results-tables table.sportorg-table td.answer-col table.table-split {
+            font-size: inherit;
+        }
+    }
+
+    .sportorg-excel-export-wrap {
+        margin: 8px 0 12px;
+    }
+
+    #export-excel-btn {
+        padding: 6px 14px;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #f8f8f8;
+        font-size: 14px;
+    }
+
+    #export-excel-btn:hover {
+        background: #eee;
+    }
+
+    html.sportorg-trailo-excel-template .no-print {
+        display: none !important;
+    }
+
+    html.sportorg-trailo-excel-template #results-tables table.sportorg-table {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+</style>
+{% endraw %}<script type="application/json" id="race-json">{{ race|tojson }}</script>
+<script type="application/json" id="selected-json">{{ selected|tojson }}</script>{% raw %}
+<script>
+    var race = JSON.parse(document.getElementById('race-json').textContent);
+    var selected = JSON.parse(document.getElementById('selected-json').textContent);
+    racePreparation(race);
+
+    var trailoMode = race.settings && race.settings.trailo_mode ? String(race.settings.trailo_mode) : '';
+    var trailoAlternateCourse = !!(race.settings.trailo_alternate_course || race.settings.trailo_custom_penalty_time_enabled);
+    function trailoUsesPoints() {
+        if (trailoAlternateCourse) {
+            var mainOn = race.settings.trailo_main_course_enabled !== false;
+            return mainOn && !!race.settings.trailo_main_course_points_enabled;
+        }
+        return trailoMode !== 'tempo';
+    }
+    function trailoUsesStationTime() {
+        if (trailoAlternateCourse) {
+            return !!race.settings.trailo_station_enabled;
+        }
+        return trailoMode !== 'preo_sprint';
+    }
+    function trailoMainCourseEnabled() {
+        if (trailoAlternateCourse) {
+            return race.settings.trailo_main_course_enabled !== false;
+        }
+        return trailoMode !== 'tempo';
+    }
+    /** Legacy Tempo / alternate without main: hide controls before the first time station. */
+    function trailoSkipPreStationControls() {
+        if (!trailoAlternateCourse && trailoMode === 'tempo') {
+            return true;
+        }
+        if (trailoAlternateCourse && !trailoMainCourseEnabled()) {
+            return true;
+        }
+        return false;
+    }
+    function isTrailoMainControlCode(code) {
+        code = String(code != null ? code : '').trim();
+        if (!code || isTrailoTimeControlCode(code)) {
+            return false;
+        }
+        return /^\d+[A-Za-z]$/.test(code);
+    }
+    var isPreoMode = trailoUsesStationTime() && trailoMode === 'preo';
+    var isTempoMode = !trailoUsesPoints();
+    var isPreoSprintMode = !trailoUsesStationTime();
+    var isTrailo = race.settings.result_processing_mode === 'trailo';
+    var isRelayRace = race.data.race_type === 3;
+
+    function isTrailoTimeControlCode(code) {
+        code = String(code || '');
+        // New format: 1TT, 1T2A ...
+        if (/^\d{1,2}TT$/.test(code)) return true;
+        if (/^\d{1,2}T\d+[A-Za-z]$/.test(code)) return true;
+        // Legacy format: 110TT, 111TA ...
+        if (/^\d{3}TT$/.test(code)) return true;
+        if (/^\d{3}T[A-Za-z]$/.test(code)) return true;
+        return false;
+    }
+
+    /**
+     * Колонка «Время Тайм-КП» в шапке — как _trailo_control_is_time_punch в split_calculation.py:
+     * сначала kind==tc_time (…TT), иначе запасной признак code[-1]==='T' (как в Python).
+     * Ответы задач (…T1A) сюда не попадают — последний символ не T.
+     */
+    function trailoControlIsTimePunchColumn(code) {
+        code = String(code != null ? code : '').trim();
+        if (!code) return false;
+        if (/^\d{1,2}TT$/.test(code)) return true;
+        if (/^\d{3}TT$/.test(code)) return true;
+        return code.slice(-1) === 'T';
+    }
+
+    /** Как trailoParse в codes.py (только то, что нужно для expand_trailo_control_code_strings). */
+    function trailoParseForExpand(raw) {
+        if (!raw) return { kind: 'other' };
+        if (/^\d{1,2}TT$/.test(raw)) {
+            var a = raw.match(/^(\d{1,2})TT$/);
+            return { kind: 'tc_time', tc_idx: parseInt(a[1], 10) };
+        }
+        if (/^\d{3}TT$/.test(raw)) {
+            var n = parseInt(raw.slice(0, 3), 10);
+            return { kind: 'tc_time', tc_idx: (n / 10 | 0) - 10 };
+        }
+        var mNew = raw.match(/^(\d{1,2})T(\d+)([A-Za-z])$/);
+        if (mNew) {
+            return { kind: 'tc_answer', tc_idx: parseInt(mNew[1], 10), isLegacyAns: false };
+        }
+        var mLeg = raw.match(/^(\d{3})T([A-Za-z])$/);
+        if (mLeg) {
+            var n2 = parseInt(mLeg[1], 10);
+            return { kind: 'tc_answer', tc_idx: (n2 / 10 | 0) - 10, isLegacyAns: true };
+        }
+        return { kind: 'other' };
+    }
+
+    /** Как expand_trailo_control_code_strings в sportorg.modules.trailo.codes — без строки NTT в файле дистанции. */
+    function expandTrailoControlCodeStrings(controlCodes) {
+        if (!controlCodes || !controlCodes.length) return controlCodes.slice();
+        var out = [];
+        var haveTime = {};
+        var inserted = {};
+        for (var i = 0; i < controlCodes.length; i++) {
+            var raw = String(controlCodes[i] != null ? controlCodes[i] : '').trim();
+            var p = trailoParseForExpand(raw);
+            if (p.kind === 'tc_time' && p.tc_idx != null) {
+                haveTime[p.tc_idx] = true;
+                out.push(raw);
+                continue;
+            }
+            if (p.kind === 'tc_answer' && p.tc_idx != null) {
+                var idx = p.tc_idx;
+                if (!haveTime[idx] && !inserted[idx]) {
+                    var tt = p.isLegacyAns ? String((10 + idx) * 10) + 'TT' : String(idx) + 'TT';
+                    out.push(tt);
+                    inserted[idx] = true;
+                    haveTime[idx] = true;
+                }
+                out.push(raw);
+                continue;
+            }
+            out.push(raw);
+        }
+        return out;
+    }
+
+    /** Строка протокола: основная дистанция по course_index; тайм‑КП — как в печати сплита / вкладке результатов (любой код из isTrailoTimeControlCode). */
+    function trailoProtocolIncludeSplit(split) {
+        var ci = +split.course_index || 0;
+        if (ci > 0) {
+            return true;
+        }
+        if (isTrailoTimeControlCode(split.code)) {
+            return true;
+        }
+        return trailoMainCourseEnabled() && isTrailoMainControlCode(split.code);
+    }
+
+    /**
+     * Ключ ячейки протокола совпадает с fields: индексКПнаДистанции + '_' + префиксКода
+     * (все символы кода кроме последнего). В JSON split.course_index 1-based, как в Split.to_dict.
+     * Порядковый номер сплита в массиве result.splits НЕ совпадает с индексом КП на дистанции,
+     * из‑за чего ответы и Тайм‑КП попадали не в те колонки (например 21–23).
+     */
+    function trailoProtocolCellKey(split, course) {
+        var code = split.code != null ? String(split.code).trim() : '';
+        if (!code) return null;
+        var base = code.slice(0, -1);
+        var ci = +split.course_index || 0;
+        if (ci >= 1) {
+            return (ci - 1) + '_' + base;
+        }
+        if (course && course.controls) {
+            var rawCodes = [];
+            for (var ri = 0; ri < course.controls.length; ri++) {
+                rawCodes.push(String(course.controls[ri].code != null ? course.controls[ri].code : '').trim());
+            }
+            var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+            for (var ii = 0; ii < expandedCodes.length; ii++) {
+                var cbase = expandedCodes[ii].slice(0, -1);
+                if (cbase === base) {
+                    return ii + '_' + base;
+                }
+            }
+        }
+        return null;
+    }
+
+    function preoPassTime(result) {
+        if (!isPreoMode || !result) return '';
+        // finish - start; for relay leg 2+ start is already previous leg finish
+        var start = result.start_msec != null ? result.start_msec : result.start_time;
+        var finish = result.finish_time != null ? result.finish_time : result.finish_msec;
+        if (start == null || finish == null) return '';
+        var diff = finish - start;
+        if (diff < 0) diff += 24 * 60 * 60 * 1000;
+        return toHHMMSS(diff);
+    }
+
+    function annotateRelayLegPassageTimes(teamLegs) {
+        teamLegs.sort(function (a, b) {
+            return relayLegNumber(a) - relayLegNumber(b);
+        });
+        var teamSumMsec = 0;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var row = teamLegs[i];
+            if (row.is_missing_relay_leg) {
+                continue;
+            }
+            var res = row.data;
+            if (!res || res.status !== 1) {
+                continue;
+            }
+            row.preo_pass_time = preoPassTime(res);
+            teamSumMsec += res.trailo_time || 0;
+        }
+        return teamSumMsec;
+    }
+
+    function relayTeamTrailoScorePenalty(teamLegs) {
+        for (var i = 0; i < teamLegs.length; i++) {
+            if (relayLegNumber(teamLegs[i]) === 1) {
+                var p = teamLegs[i].trailo_score_penalty;
+                return p === '' || p == null ? '' : p;
+            }
+        }
+        return '';
+    }
+
+    function getTrailoTimeControlTitle() {
+        return isTempoMode ? 'Станция' : 'Время Тайм-КП';
+    }
+
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function formatBirthDate(value) {
+        if (!value) return '';
+
+        var dateString = String(value);
+        var isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+            return isoMatch[3] + '.' + isoMatch[2] + '.' + isoMatch[1];
+        }
+
+        var parsed = new Date(value);
+        if (isNaN(parsed.getTime())) return '';
+        return pad2(parsed.getDate()) + '.' + pad2(parsed.getMonth() + 1) + '.' + parsed.getFullYear();
+    }
+
+    var TRAILO_PROTOCOL_MAX_PERSON_NAME = 45;
+
+    function personNamePart(value) {
+        var s = String(value != null ? value : '').trim();
+        if (!s || s === '—' || s === '-' || s === '–' || s === '−') {
+            return '';
+        }
+        return s;
+    }
+
+    function formatPersonName(person) {
+        if (!person) return '';
+        return [
+            personNamePart(person.surname),
+            personNamePart(person.name),
+            personNamePart(person.middle_name)
+        ]
+            .filter(function (part) {
+                return !!part;
+            })
+            .join(' ')
+            .slice(0, TRAILO_PROTOCOL_MAX_PERSON_NAME);
+    }
+
+    /** Same tie key as ResultCalculation._place_comparison_key for TrailO. */
+    function trailoPlaceComparisonKey(result) {
+        if (isTempoMode) {
+            return String(result.trailo_time != null ? result.trailo_time : 0);
+        }
+        var score = result.trailo_score != null ? result.trailo_score : 0;
+        var timeMsec = result.trailo_time != null ? result.trailo_time : 0;
+        return score + '\x00' + timeMsec;
+    }
+
+    /** Relay bib for protocol: team.leg (same as Person.get_relay_bib in Python). */
+    function formatRelayBib(bib) {
+        var n = +bib || 0;
+        if (n <= 1000) {
+            return String(n);
+        }
+        var leg = Math.floor(n / 1000);
+        var team = n % 1000;
+        if (leg > 0 && team > 0) {
+            return team + '.' + leg;
+        }
+        return String(n);
+    }
+
+    /** Same lookup order as Race.find_course in memory.py (bib / team.leg / group.course). */
+    function findCourseByName(name) {
+        if (name == null || name === '') {
+            return null;
+        }
+        var key = String(name);
+        for (var ci = 0; ci < race.courses.length; ci++) {
+            if (String(race.courses[ci].name) === key) {
+                return race.courses[ci];
+            }
+        }
+        return null;
+    }
+
+    function findCourseForPerson(person) {
+        if (!person) {
+            return null;
+        }
+        var bib = +person.bib || 0;
+        var byBib = findCourseByName(String(bib));
+        if (byBib) {
+            return byBib;
+        }
+        if (bib > 1000) {
+            var leg = Math.floor(bib / 1000);
+            var team = bib % 1000;
+            if (leg > 0 && team > 0) {
+                byBib = findCourseByName(team + '.' + leg);
+                if (byBib) {
+                    return byBib;
+                }
+            }
+        }
+        if (person.group && person.group.course) {
+            return person.group.course;
+        }
+        return null;
+    }
+
+    function getPersonCourse(person, group) {
+        return findCourseForPerson(person) || (group && group.course) || null;
+    }
+
+    function trailoControlFieldDefsForCourse(course) {
+        var defs = [];
+        if (!course || !course.controls) {
+            return defs;
+        }
+        var rawCodes = course.controls.map(function (co) {
+            return String(co.code != null ? co.code : '').trim();
+        });
+        var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+        var tempoStationStarted = false;
+        expandedCodes.forEach(function (cc, index) {
+            if (!trailoMainCourseEnabled() && isTrailoMainControlCode(cc)) {
+                return;
+            }
+            var isTime = trailoControlIsTimePunchColumn(cc);
+            if (trailoSkipPreStationControls()) {
+                if (isTime) {
+                    tempoStationStarted = true;
+                } else if (!tempoStationStarted) {
+                    return;
+                }
+            }
+            var title = isTime ? getTrailoTimeControlTitle() : (cc ? cc.slice(-1) : '');
+            defs.push({ key: index + '_' + cc.slice(0, -1), title: title, size: 8 });
+        });
+        return defs;
+    }
+
+    function appendTrailoProtocolFieldsForRows(fields, rows, fallbackCourse) {
+        var byKey = {};
+        var order = [];
+        function addCourse(c) {
+            if (!c) {
+                return;
+            }
+            var defs = trailoControlFieldDefsForCourse(c);
+            for (var di = 0; di < defs.length; di++) {
+                var d = defs[di];
+                if (!byKey[d.key]) {
+                    byKey[d.key] = d;
+                    order.push(d.key);
+                }
+            }
+        }
+        addCourse(fallbackCourse);
+        for (var ri = 0; ri < rows.length; ri++) {
+            var person = rows[ri].data && rows[ri].data.person;
+            addCourse(findCourseForPerson(person));
+        }
+        for (var oi = 0; oi < order.length; oi++) {
+            fields.push(byKey[order[oi]]);
+        }
+    }
+
+    function collectProtocolCoursesFromRows(rows, fallbackCourse) {
+        var byId = {};
+        var list = [];
+        function add(c) {
+            if (!c || c.id == null) {
+                return;
+            }
+            var id = String(c.id);
+            if (byId[id]) {
+                return;
+            }
+            byId[id] = true;
+            list.push(c);
+        }
+        add(fallbackCourse);
+        for (var ri = 0; ri < rows.length; ri++) {
+            var person = rows[ri].data && rows[ri].data.person;
+            add(findCourseForPerson(person));
+        }
+        return list;
+    }
+
+    function trailoProtocolAnswerLabelsSignature(course) {
+        return trailoControlFieldDefsForCourse(course)
+            .map(function (d) {
+                return d.key + '=' + d.title;
+            })
+            .join('|');
+    }
+
+    /** Hide the answer-letter header row when athletes use different courses. */
+    function protocolAnswerLabelsDiffer(rows, fallbackCourse) {
+        var courses = collectProtocolCoursesFromRows(rows, fallbackCourse);
+        if (courses.length <= 1) {
+            return false;
+        }
+        var firstSig = null;
+        for (var ci = 0; ci < courses.length; ci++) {
+            var sig = trailoProtocolAnswerLabelsSignature(courses[ci]);
+            if (firstSig === null) {
+                firstSig = sig;
+            } else if (sig !== firstSig) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    var RELAY_MISSING_DASH = '—';
+
+    function trailoStationPenaltySec() {
+        if (trailoAlternateCourse) {
+            if (!trailoUsesStationTime()) {
+                return 0;
+            }
+            return parseInt(race.settings.trailo_time_penalty, 10) || 0;
+        }
+        if (race.settings.trailo_custom_penalty_time_enabled) {
+            return parseInt(race.settings.trailo_time_penalty, 10) || 0;
+        }
+        if (trailoMode === 'preo') {
+            return 60;
+        }
+        if (trailoMode === 'tempo') {
+            return 30;
+        }
+        return 0;
+    }
+
+    function trailoWrongAnswerPenaltySec() {
+        if (trailoAlternateCourse) {
+            if (!trailoMainCourseEnabled() || !race.settings.trailo_main_course_wrong_answer_penalty_enabled) {
+                return 0;
+            }
+        } else if (!race.settings.trailo_custom_penalty_time_enabled) {
+            return 0;
+        } else if (!(parseInt(race.settings.trailo_wrong_answer_penalty, 10) || 0)) {
+            return 0;
+        }
+        return parseInt(race.settings.trailo_wrong_answer_penalty, 10) || 0;
+    }
+
+    function trailoStationTaskCountsByIdx(course) {
+        var counts = {};
+        if (!course || !course.controls) {
+            return counts;
+        }
+        var rawCodes = [];
+        for (var i = 0; i < course.controls.length; i++) {
+            rawCodes.push(String(course.controls[i].code != null ? course.controls[i].code : '').trim());
+        }
+        var expanded = expandTrailoControlCodeStrings(rawCodes);
+        for (var j = 0; j < expanded.length; j++) {
+            var parsed = trailoParseForExpand(expanded[j]);
+            if (parsed.kind === 'tc_answer' && parsed.tc_idx != null) {
+                counts[parsed.tc_idx] = (counts[parsed.tc_idx] || 0) + 1;
+            }
+        }
+        return counts;
+    }
+
+    function fillRelayLegPersonProtocolFields(r, person) {
+        if (!person) {
+            return;
+        }
+        r.name = formatPersonName(person);
+        r.org = (person.organization && String(person.organization.name).slice(0, MAX_ORG_NAME)) || '';
+        r.year = formatBirthDate(person.birth_date);
+        r.qual = person.qual != null && Qualification[person.qual] != null ? Qualification[person.qual] : '';
+        r.preo_pass_time = RELAY_MISSING_DASH;
+    }
+
+    function findRaceResultForPerson(person) {
+        if (!person) {
+            return null;
+        }
+        for (var i = 0; i < race.results.length; i++) {
+            var res = race.results[i];
+            if (!res.person) {
+                continue;
+            }
+            if (person.id != null && res.person.id === person.id) {
+                return res;
+            }
+            if (res.person.bib === person.bib) {
+                return res;
+            }
+        }
+        return null;
+    }
+
+    function isRelayLegMissingForProtocol(person, result) {
+        var leg = Math.floor((+person.bib || 0) / 1000);
+        if (leg < 2) {
+            return false;
+        }
+        if (!result) {
+            return true;
+        }
+        return result.status !== 1;
+    }
+
+    function findRelayTeamRowInResults(results, teamNum) {
+        var lead = null;
+        var any = null;
+        for (var i = 0; i < results.length; i++) {
+            var bibRaw = +results[i].bib_raw || 0;
+            if (bibRaw % 1000 !== teamNum) {
+                continue;
+            }
+            any = results[i];
+            if (Math.floor(bibRaw / 1000) === 1) {
+                lead = results[i];
+            }
+        }
+        return lead || any;
+    }
+
+    function makeProtocolSplitCell(displayText, isAnswer) {
+        var tbl = document.createElement('table');
+        tbl.className = 'table-split';
+        if (isAnswer) {
+            tbl.className += ' incorrect';
+        }
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.appendChild(document.createTextNode(displayText));
+        tr.appendChild(td);
+        tbl.appendChild(tr);
+        return tbl;
+    }
+
+    function fillMissingRelayLegProtocolCells(r, courseOrGroup) {
+        var course = courseOrGroup.course || courseOrGroup;
+        if (!course || !course.controls) {
+            return;
+        }
+        var penaltySec = trailoStationPenaltySec();
+        var taskCounts = trailoStationTaskCountsByIdx(course);
+        var wrongMainSec = trailoWrongAnswerPenaltySec();
+        var rawCodes = [];
+        for (var ci = 0; ci < course.controls.length; ci++) {
+            rawCodes.push(String(course.controls[ci].code != null ? course.controls[ci].code : '').trim());
+        }
+        var expandedCodes = expandTrailoControlCodeStrings(rawCodes);
+        var tempoStationStarted = false;
+        var totalTrailoMsec = 0;
+        var mainErrors = 0;
+
+        for (var index = 0; index < expandedCodes.length; index++) {
+            var cc = expandedCodes[index];
+            if (!trailoMainCourseEnabled() && isTrailoMainControlCode(cc)) {
+                continue;
+            }
+            if (trailoSkipPreStationControls()) {
+                var isTimeCol = trailoControlIsTimePunchColumn(cc);
+                if (isTimeCol) {
+                    tempoStationStarted = true;
+                } else if (!tempoStationStarted) {
+                    continue;
+                }
+            }
+            var cellKey = index + '_' + cc.slice(0, -1);
+            if (trailoControlIsTimePunchColumn(cc)) {
+                var tcParsed = trailoParseForExpand(cc);
+                var tcIdx = tcParsed.tc_idx;
+                var tasks = tcIdx != null ? (taskCounts[tcIdx] || 0) : 0;
+                var stationTimeSec = penaltySec * tasks;
+                var stationAnswerPenaltySec = penaltySec * tasks;
+                totalTrailoMsec += (stationTimeSec + stationAnswerPenaltySec) * 1000;
+                r[cellKey] = makeProtocolSplitCell(String(stationTimeSec), false);
+            } else if (isTrailoMainControlCode(cc)) {
+                mainErrors += 1;
+                r[cellKey] = makeProtocolSplitCell('X', true);
+            } else {
+                r[cellKey] = makeProtocolSplitCell('X', true);
+            }
+        }
+        if (wrongMainSec > 0) {
+            totalTrailoMsec += wrongMainSec * 1000 * mainErrors;
+        }
+        if (isPreoMode || isTempoMode) {
+            r.trailo_time = totalTrailoMsec / 1000;
+        } else {
+            r.trailo_time = toHHMMSS(totalTrailoMsec);
+        }
+        if (trailoUsesPoints()) {
+            r.trailo_score = 0;
+            r.trailo_score_penalty = 0;
+        } else {
+            r.trailo_score = '';
+            r.trailo_score_penalty = '';
+        }
+    }
+
+    function applyMissingRelayLegProtocolRow(r, courseOrGroup, teamRow, person) {
+        fillRelayLegPersonProtocolFields(r, person || (r.data && r.data.person) || null);
+        r.is_missing_relay_leg = true;
+        if (teamRow) {
+            if (teamRow.result_relay) {
+                r.result_relay = teamRow.result_relay;
+            }
+            if (teamRow.place_show !== undefined && teamRow.place_show !== '') {
+                r.place_show = teamRow.place_show;
+            }
+            if (teamRow.place > 0) {
+                r.place = teamRow.place;
+            }
+        }
+        fillMissingRelayLegProtocolCells(r, courseOrGroup);
+    }
+
+    function buildMissingRelayLegProtocolRow(person, courseOrGroup, teamRow) {
+        var r = {
+            index: 0,
+            name: '',
+            org: '',
+            qual: '',
+            year: '',
+            bib: formatRelayBib(person.bib),
+            bib_raw: person.bib,
+            preo_pass_time: '',
+            preo_team_pass_time: '',
+            trailo_score_penalty: '',
+            trailo_score: trailoUsesPoints() ? 0 : '',
+            result: '',
+            result_relay: teamRow && teamRow.result_relay ? teamRow.result_relay : '',
+            result_msec: 0,
+            place: teamRow && teamRow.place > 0 ? teamRow.place : 0,
+            status: 0,
+            place_show: teamRow && teamRow.place_show ? teamRow.place_show : '',
+            is_out_of_competition: false,
+            is_missing_relay_leg: true,
+            data: { person: person, splits: [], status: 0 }
+        };
+        fillRelayLegPersonProtocolFields(r, person);
+        fillMissingRelayLegProtocolCells(r, courseOrGroup);
+        return r;
+    }
+
+    function injectMissingRelayLegRows(results, groupOrCourse) {
+        if (!isRelayRace || !isTrailo || !race.persons) {
+            return;
+        }
+        var isGroupContext = !!(groupOrCourse && groupOrCourse.course);
+        var course = isGroupContext ? groupOrCourse.course : groupOrCourse;
+        var rowByBib = {};
+        for (var ri = 0; ri < results.length; ri++) {
+            rowByBib[+results[ri].bib_raw || +results[ri].bib] = ri;
+        }
+        for (var pi = 0; pi < race.persons.length; pi++) {
+            var person = race.persons[pi];
+            if (!person.group) {
+                continue;
+            }
+            if (isGroupContext && person.group.id !== groupOrCourse.id) {
+                continue;
+            }
+            if (!isGroupContext && course) {
+                var personCourse = findCourseForPerson(person);
+                if (!personCourse || personCourse.id !== course.id) {
+                    continue;
+                }
+            }
+            var bibRaw = +person.bib || 0;
+            if (bibRaw <= 1000) {
+                continue;
+            }
+            var legNum = Math.floor(bibRaw / 1000);
+            if (legNum < 2) {
+                continue;
+            }
+            var raceResult = findRaceResultForPerson(person);
+            if (!isRelayLegMissingForProtocol(person, raceResult)) {
+                continue;
+            }
+            var teamRow = findRelayTeamRowInResults(results, bibRaw % 1000);
+            var legCourse = findCourseForPerson(person) || course;
+            if (!legCourse) {
+                continue;
+            }
+            if (rowByBib[bibRaw] !== undefined) {
+                applyMissingRelayLegProtocolRow(
+                    results[rowByBib[bibRaw]],
+                    { course: legCourse },
+                    teamRow,
+                    person
+                );
+            } else {
+                results.push(buildMissingRelayLegProtocolRow(person, { course: legCourse }, teamRow));
+            }
+        }
+    }
+
+    function sumRelayTeamTrailo(teamLegs) {
+        var score = 0;
+        var timeMsec = 0;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var leg = teamLegs[i];
+            if (leg.status === 1 && leg.data) {
+                score += leg.data.trailo_score || 0;
+                timeMsec += leg.data.trailo_time || 0;
+            }
+        }
+        return {score: score, timeMsec: timeMsec};
+    }
+
+    var RELAY_MERGED_FIELDS = ['index', 'result_relay', 'place_show'];
+
+    function relayTeamPassTimeHeaderTitle() {
+        var span = document.createElement('span');
+        span.className = 'relay-team-pass-time-header';
+        span.appendChild(document.createTextNode('Время'));
+        span.appendChild(document.createElement('br'));
+        span.appendChild(document.createTextNode('командой'));
+        return span;
+    }
+
+    function yearBirthHeaderTitle() {
+        var span = document.createElement('span');
+        span.className = 'year-birth-header';
+        span.appendChild(document.createTextNode('Дата'));
+        span.appendChild(document.createElement('br'));
+        span.appendChild(document.createTextNode('рождения'));
+        return span;
+    }
+
+    function applyYearBirthHeaderTitle(fields) {
+        if (!fields) {
+            return;
+        }
+        for (var i = 0; i < fields.length; i++) {
+            if (fields[i].key === 'year') {
+                fields[i].title = yearBirthHeaderTitle();
+                return;
+            }
+        }
+    }
+
+    function applyRelayTeamPassTimeHeaderTitle(fields) {
+        if (!fields) {
+            return;
+        }
+        for (var i = 0; i < fields.length; i++) {
+            if (fields[i].key === 'preo_team_pass_time') {
+                fields[i].title = relayTeamPassTimeHeaderTitle();
+                return;
+            }
+        }
+    }
+
+    function relayRowspanFields(obj) {
+        if (obj._relay_merged_fields) {
+            return obj._relay_merged_fields;
+        }
+        return RELAY_MERGED_FIELDS;
+    }
+
+    function annotateRelayTeamGroup(teamLegs, teamIndex) {
+        if (!teamLegs.length) {
+            return;
+        }
+        var first = teamLegs[0];
+        first.index = teamIndex;
+        first._relay_rowspan = teamLegs.length;
+        if (teamIndex > 1) {
+            first._relay_team_separator = true;
+        }
+        var mergedFields = RELAY_MERGED_FIELDS.slice();
+        if (isPreoMode) {
+            var teamPassMsec = annotateRelayLegPassageTimes(teamLegs);
+            first.preo_team_pass_time = teamPassMsec > 0 ? toHHMMSS(teamPassMsec) : '';
+            first.trailo_score_penalty = relayTeamTrailoScorePenalty(teamLegs);
+            mergedFields.push('preo_team_pass_time', 'trailo_score_penalty');
+        }
+        first._relay_merged_fields = mergedFields.slice();
+        for (var j = 1; j < teamLegs.length; j++) {
+            teamLegs[j].index = '';
+            teamLegs[j].result_relay = '';
+            teamLegs[j]._relay_skip_fields = mergedFields.slice();
+        }
+    }
+
+    function relayTeamBib(row) {
+        var bib = row.bib_raw != null ? row.bib_raw : row.bib;
+        return (+bib || 0) % 1000;
+    }
+
+    function relayLegNumber(row) {
+        var bib = row.bib_raw != null ? row.bib_raw : row.bib;
+        return Math.floor((+bib || 0) / 1000);
+    }
+
+    var RESULT_STATUS_DISQUALIFIED = 3;
+
+    function relayTeamGroupSortKey(teamLegs) {
+        var legCount = race.data.relay_leg_count || 0;
+        var isDq = false;
+        var okLegs = 0;
+        var participants = teamLegs.length;
+        var place = 999999;
+        var trailoScore = 0;
+        var trailoTime = 999999999;
+        for (var i = 0; i < teamLegs.length; i++) {
+            var row = teamLegs[i];
+            var res = row.data;
+            if (res && res.status === RESULT_STATUS_DISQUALIFIED) {
+                isDq = true;
+            }
+            if (row.status === 1 || (res && res.status === 1)) {
+                okLegs += 1;
+            }
+            if (row.place > 0 && row.place < place) {
+                place = row.place;
+            }
+            if (row.trailo_score !== '' && row.trailo_score != null) {
+                trailoScore = Math.max(trailoScore, +row.trailo_score || 0);
+            }
+            if (row.trailo_time !== '' && row.trailo_time != null) {
+                trailoTime = Math.min(trailoTime, +row.trailo_time || trailoTime);
+            }
+        }
+        var isComplete = okLegs >= legCount && participants >= legCount;
+        if (isDq) {
+            return [2, isComplete ? 0 : 1, -participants, trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+        }
+        if (isComplete && place < 999999) {
+            return [0, place, -trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+        }
+        var notStarted = true;
+        for (var ni = 0; ni < teamLegs.length; ni++) {
+            if (teamLegs[ni].status === 1 || (teamLegs[ni].data && teamLegs[ni].data.status === 1)) {
+                notStarted = false;
+                break;
+            }
+        }
+        if (notStarted) {
+            return [3, relayTeamBib(teamLegs[0])];
+        }
+        return [1, -participants, -trailoScore, trailoTime, relayTeamBib(teamLegs[0])];
+    }
+
+    function compareRelayTeamGroupKeys(ka, kb) {
+        for (var i = 0; i < ka.length; i++) {
+            if (ka[i] !== kb[i]) {
+                return ka[i] - kb[i];
+            }
+        }
+        return 0;
+    }
+
+    function finalizeRelayResultsList(resultsList) {
+        var out = [];
+        var teams = [];
+        var pos = 0;
+        while (pos < resultsList.length) {
+            var teamBib = relayTeamBib(resultsList[pos]);
+            var teamLegs = [];
+            while (pos < resultsList.length && relayTeamBib(resultsList[pos]) === teamBib) {
+                teamLegs.push(resultsList[pos]);
+                pos++;
+            }
+            teams.push(teamLegs);
+        }
+        teams.sort(function (a, b) {
+            return compareRelayTeamGroupKeys(
+                relayTeamGroupSortKey(a),
+                relayTeamGroupSortKey(b)
+            );
+        });
+        var teamIndex = 0;
+        for (var ti = 0; ti < teams.length; ti++) {
+            var teamLegs = teams[ti];
+            teamIndex++;
+            annotateRelayTeamGroup(teamLegs, teamIndex);
+            for (var li = 0; li < teamLegs.length; li++) {
+                out.push(teamLegs[li]);
+            }
+        }
+        return out;
+    }
+
+    function trailoProtocolFieldMeta(fields) {
+        var meta = {};
+        var timeTitle = getTrailoTimeControlTitle();
+        for (var fi = 0; fi < fields.length; fi++) {
+            var f = fields[fi];
+            var entry = { key: f.key, title: f.title };
+            if (typeof f.title === 'string' && f.title === timeTitle) {
+                entry._trailo_is_time = true;
+            }
+            meta[f.key] = entry;
+        }
+        return meta;
+    }
+
+    function buildTrailoResultsTable(rows, fields) {
+        var gen = new TableGenerator(rows, fields);
+        var fieldMeta = trailoProtocolFieldMeta(fields);
+        var table = document.createElement('table');
+        table.className = 'sportorg-table';
+        var thead = document.createElement('thead');
+        var headTr = document.createElement('tr');
+        var headers = gen.headers();
+        for (var hi = 0; hi < headers.length; hi++) {
+            var key = headers[hi];
+            var th = document.createElement('th');
+            var title = gen.getHeaderName(key);
+            if (title instanceof Node) {
+                th.appendChild(title);
+            } else {
+                th.appendChild(document.createTextNode(title));
+            }
+            if (key === 'preo_team_pass_time') {
+                th.classList.add('relay-team-pass-time-header');
+            }
+            if (key === 'year') {
+                th.classList.add('year-col');
+            }
+            headTr.appendChild(th);
+        }
+        thead.appendChild(headTr);
+        table.appendChild(thead);
+        var tbody = document.createElement('tbody');
+        for (var ri = 0; ri < rows.length; ri++) {
+            var obj = rows[ri];
+            var tr = document.createElement('tr');
+            if (obj._relay_team_separator) {
+                tr.classList.add('relay-team-separator-row');
+            }
+            for (var hi = 0; hi < headers.length; hi++) {
+                var key = headers[hi];
+                if (obj._relay_skip_fields && obj._relay_skip_fields.indexOf(key) >= 0) {
+                    continue;
+                }
+                var td = document.createElement('td');
+                if (
+                    obj._relay_rowspan > 1 &&
+                    relayRowspanFields(obj).indexOf(key) >= 0
+                ) {
+                    td.rowSpan = obj._relay_rowspan;
+                    if (key === 'index') {
+                        td.classList.add('index-col');
+                    } else if (key === 'place_show') {
+                        td.classList.add('place-col');
+                    } else if (key === 'result_relay') {
+                        td.classList.add('relay-team-result-col');
+                    } else if (key === 'preo_team_pass_time') {
+                        td.classList.add('relay-team-pass-time-col');
+                    } else if (key === 'trailo_score_penalty') {
+                        td.classList.add('relay-kv-penalty-col');
+                    }
+                }
+                if (key === 'name') {
+                    td.classList.add('name-col');
+                } else if (key === 'org') {
+                    td.classList.add('org-col');
+                } else if (key === 'year') {
+                    td.classList.add('year-col');
+                } else if (key === 'qual') {
+                    td.classList.add('qual-col');
+                } else if (key === 'bib') {
+                    td.classList.add('bib-col');
+                } else if (key === 'trailo_score') {
+                    td.classList.add('score-col');
+                } else if (key === 'trailo_time' || key === 'result') {
+                    td.classList.add('trailo-result-col');
+                } else if (fieldMeta[key]) {
+                    if (fieldMeta[key]._trailo_is_time) {
+                        td.classList.add('time-col');
+                    } else if (/^\d+_/.test(key)) {
+                        td.classList.add('answer-col');
+                    }
+                }
+                if (obj[key]) {
+                    if (obj[key] instanceof Node) {
+                        td.appendChild(obj[key]);
+                    } else {
+                        td.appendChild(document.createTextNode(obj[key]));
+                    }
+                }
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        return table;
+    }
+
+    function assignTrailoCompetitionPlaces(results) {
+        var currentPlace = 1;
+        var lastPlace = 1;
+        var lastKey = null;
+        for (var i = 0; i < results.length; i++) {
+            var elem = results[i];
+            if (
+                elem.data.person.is_out_of_competition ||
+                elem.status !== 1 ||
+                elem.place === 0 ||
+                elem.place === -1
+            ) {
+                continue;
+            }
+            var key = trailoPlaceComparisonKey(elem.data);
+            if (lastKey === null || key !== lastKey) {
+                lastKey = key;
+                lastPlace = currentPlace;
+            }
+            elem.place = lastPlace;
+            elem.place_show = lastPlace;
+            currentPlace += 1;
+        }
+    }
+
+    function groupDisplayName(group) {
+        var longName = group && group.long_name;
+        if (longName && String(longName).trim()) {
+            return String(longName).trim();
+        }
+        return (group && group.name) ? group.name : '';
+    }
+
+    function getResultsByGroup(group, count) {
+        count = +count || 0;
+        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
+        var results = [];
+        for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
+            var result = _a[_i];
+            if (result.person && result.person.group && result.person.group.id === group.id && (count ? result.place <= count && result.place > 0 : 1)) {
+                var r = {
+                    index: 0,
+                    name: formatPersonName(result.person),
+                    org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
+                    qual: Qualification[result.person.qual],
+                    bib: isRelay ? formatRelayBib(result.person.bib) : result.person.bib,
+                    bib_raw: result.person.bib,
+                    year: formatBirthDate(result.person.birth_date),
+                    preo_pass_time: preoPassTime(result),
+                    preo_team_pass_time: '',
+                    trailo_score_penalty: result.trailo_score_penalty,
+                    trailo_score: result.trailo_score,
+                    trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
+                    result: result.result_current,
+                    result_relay: result.result_relay,
+                    result_msec: result.result_msec,
+                    place: result.place,
+                    status: result.status,
+                    place_show: result.person.is_out_of_competition ? 'o/c' : result.place === 0 ? '' : result.place === -1 ? '' : result.place,
+                    is_out_of_competition: result.person.is_out_of_competition,
+                    data: result
+                };
+                if (result.status !== 1) {
+                    r.place_show = '';
+                    if (result.status === 13 && result.status_comment) {
+                        r.preo_pass_time = result.status_comment;
+                    }
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
+                }
+
+                // SPLITS
+                if (result.splits) {
+                    var getTrBlock = function (t, p) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'result-' + p;
+                        td1.appendChild(document.createTextNode(t));
+                        tr.appendChild(td1);
+                        return tr;
+                    };
+                    var courseForKeys = getPersonCourse(result.person, group);
+
+                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                        var split = _c[_b];
+
+                        if (trailoProtocolIncludeSplit(split)) {
+                            var tbl = document.createElement('table');
+                            tbl.className = 'table-split';
+                            if(split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' correct'
+                            }
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' incorrect'
+                            }
+                            if (split.code.slice(-1) != "T"){
+                                tbl.appendChild(getTrBlock(split.code.slice(-1)));
+                            } else {
+                                tbl.appendChild(getTrBlock((isPreoMode || isTempoMode) ? (split.time / 1000) : toHHMMSS(split.time)));
+                            }
+                            var cellKey = trailoProtocolCellKey(split, courseForKeys);
+                            if (cellKey) {
+                                r[cellKey] = tbl;
+                            }
+                        }
+                    }
+
+                    var finishMsec = r.result_msec;
+
+                    if (r.status === 1 && finishMsec > 0) {
+                        var tblF = document.createElement('table');
+                        tblF.className = 'table-split';
+                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                        var place_str = r.place > 0 ? r.place : 'o/c';
+                        tblF.appendChild(getTrBlock(toHHMMSS(r.result_msec) + ' (' + place_str + ')', r.place));
+                        r.finish_split = tblF;
+                    }
+                }
+
+                var getMultipleTrBlock = function () {
+                    var tr = document.createElement('tr');
+                    for (var i = 0; i < arguments.length; i++) {
+                        var td1 = document.createElement('td');
+                        td1.appendChild(document.createTextNode(arguments[i]));
+                        tr.appendChild(td1);
+                    }
+                    return tr;
+                };
+
+                results.push(r);
+            }
+        }
+        if (isRelay) {
+            injectMissingRelayLegRows(results, group);
+        }
+        results.sort(function (a, b) {
+            if (isRelay) {
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.place === b.place) {
+                    return relayLegNumber(a) - relayLegNumber(b);
+                }
+                return a.place - b.place
+
+            } else {
+                if (a.status !== 1 && b.status !== 1) {
+                    return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+                }
+                if (a.status !== 1) {
+                    return 1
+                }
+                if (b.status !== 1) {
+                    return -1
+                }
+                if (a.is_out_of_competition || b.is_out_of_competition) {
+                    if (a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
+                    }
+                    return a.result_msec - b.result_msec;
+                }
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                return a.place - b.place
+            }
+        });
+        if (isRelay) {
+            results = finalizeRelayResultsList(results);
+        } else {
+            var index = 0;
+            results.forEach(function (elem) {
+                index++;
+                elem.index = index;
+            });
+        }
+        return results;
+    }
+	function getResultsByCourse(group, count) {
+		count = +count || 0;
+        var isRelay = group.__type ? group.__type === 3 : race.data.race_type === 3;
+        var results = [];
+        var splits_recalc_times = {};
+        var splits_recalc_times_total = {};
+        group.controls.forEach(function (control, index) {
+            splits_recalc_times[index + '_' + control.code.slice(0,-1)] = [];
+            splits_recalc_times_total[index + '_' + control.code.slice(0,-1)] = [];
+        });
+        for (var _i = 0, _a = race.results; _i < _a.length; _i++) {
+            var result = _a[_i];
+            if (!result.person || !result.person.group) {
+                continue;
+            }
+            var personCourse = findCourseForPerson(result.person);
+            if (!personCourse || personCourse.id !== group.id) {
+                continue;
+            }
+            if (count ? result.place <= count && result.place > 0 : 1) {
+                var r = {
+                    index: 0,
+                    name: formatPersonName(result.person),
+                    org: (result.person.organization && String(result.person.organization.name).slice(0, MAX_ORG_NAME)) || '',
+                    qual: Qualification[result.person.qual],
+                    bib: isRelay ? formatRelayBib(result.person.bib) : result.person.bib,
+                    bib_raw: result.person.bib,
+                    year: formatBirthDate(result.person.birth_date),
+                    preo_pass_time: preoPassTime(result),
+                    preo_team_pass_time: '',
+                    trailo_score_penalty: result.trailo_score_penalty,
+                    trailo_score: result.trailo_score,
+                    trailo_time: (isPreoMode || isTempoMode) ? ((result.trailo_time || 0) / 1000) : toHHMMSS(result.trailo_time),
+                    result: result.result_current,
+                    result_relay: result.result_relay,
+                    result_msec: result.result_msec,
+                    place: result.place,
+                    status: result.status,
+                    place_show: result.person.is_out_of_competition ? 'o/c' : result.place === 0 ? '' : result.place === -1 ? '' : result.place,
+                    is_out_of_competition: result.person.is_out_of_competition,
+					group: result.person.group.name,
+                    data: result
+                };
+                if (result.status !== 1) {
+                    r.diff = '';
+                    r.place_show = '';
+                    if (result.status === 13 && result.status_comment) {
+                        r.preo_pass_time = result.status_comment;
+                    }
+                    if (isPreoMode) {
+                        r.trailo_score = '';
+                    }
+                }
+
+                // SPLITS
+                if (result.splits) {
+                    var getTrBlock = function (t, p) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        td1.className = 'result-' + p;
+                        td1.appendChild(document.createTextNode(t));
+                        tr.appendChild(td1);
+                        return tr;
+                    };
+                    var courseForKeys = personCourse;
+
+                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                        var split = _c[_b];
+
+                        if (trailoProtocolIncludeSplit(split)) {
+                            var tbl = document.createElement('table');
+                            tbl.className = 'table-split';
+                            if(split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' correct'
+                            }
+                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                                tbl.className += ' incorrect'
+                            }
+                            if (split.code.slice(-1) != "T"){
+                                tbl.appendChild(getTrBlock(split.code.slice(-1)));
+                            } else {
+                                tbl.appendChild(getTrBlock((isPreoMode || isTempoMode) ? (split.time / 1000) : toHHMMSS(split.time)));
+                            }
+                            var cellKey = trailoProtocolCellKey(split, courseForKeys);
+                            if (cellKey) {
+                                r[cellKey] = tbl;
+                            }
+                        }
+                    }
+
+                    var finishMsec = r.result_msec;
+
+                    if (r.status === 1 && finishMsec > 0) {
+                        var tblF = document.createElement('table');
+                        tblF.className = 'table-split';
+                        tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                        var place_str = r.place > 0 ? r.place : 'o/c';
+                        tblF.appendChild(getTrBlock(toHHMMSS(r.result_msec) + ' (' + place_str + ')', r.place));
+                        r.finish_split = tblF;
+                    }
+                }
+
+                var getMultipleTrBlock = function () {
+                    var tr = document.createElement('tr');
+                    for (var i = 0; i < arguments.length; i++) {
+                        var td1 = document.createElement('td');
+                        td1.appendChild(document.createTextNode(arguments[i]));
+                        tr.appendChild(td1);
+                    }
+                    return tr;
+                };
+
+                // ALL PUNCHES
+                var splitTable = document.createElement('table');
+                splitTable.className = 'table-split';
+                var splitTr = document.createElement('tr');
+                splitTable.appendChild(splitTr);
+                var prevTime = result.start_msec;
+                for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                    var split = _c[_b];
+                    var tbl = document.createElement('table');
+                    tbl.className = 'table-split';
+                    tbl.appendChild(getMultipleTrBlock(split.code.slice(-1)));
+                    var splitTd = document.createElement('td');
+                    splitTd.appendChild(tbl);
+                    splitTr.appendChild(splitTd);
+                    prevTime = split.time;
+                }
+                r.all_splits = splitTable;
+
+                results.push(r);
+            }
+        }
+        if (isRelay) {
+            injectMissingRelayLegRows(results, group);
+        }
+        results.sort(function (a, b) {
+            if (isRelay) {
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.place === b.place) {
+                    return relayLegNumber(a) - relayLegNumber(b);
+                }
+                return a.place - b.place
+            } else {
+                if (a.status !== 1 && b.status !== 1) {
+                    return STATUS_PRIORITY.indexOf(a.status) - STATUS_PRIORITY.indexOf(b.status);
+                }
+                if (a.status !== 1) {
+                    return 1
+                }
+                if (b.status !== 1) {
+                    return -1
+                }
+                if (a.is_out_of_competition || b.is_out_of_competition) {
+                    if (isTrailo && a.trailo_score != b.trailo_score) {
+                        return -(a.trailo_score - b.trailo_score);
+                    }
+                    if (isPreoMode) {
+                        return a.trailo_time - b.trailo_time;
+                    }
+                    return a.result_msec - b.result_msec;
+                }
+                if (a.place < 1) {
+                    return 1
+                }
+                if (b.place < 1) {
+                    return -1
+                }
+                if (a.trailo_score != b.trailo_score) {
+                    return -(a.trailo_score - b.trailo_score);
+                }
+                if (isPreoMode) {
+                    return a.trailo_time - b.trailo_time;
+                }
+                return a.result_msec - b.result_msec;
+            }
+        });
+        var sort_splits_recalc_fnc = function(a,b){
+            return a-b;
+        }
+        group.controls.forEach(function (control, index) {
+            splits_recalc_times[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
+            splits_recalc_times_total[index + '_' + control.code.slice(0,-1)].sort(sort_splits_recalc_fnc);
+        });
+        assignTrailoCompetitionPlaces(results);
+        if (isRelay) {
+            return finalizeRelayResultsList(results);
+        }
+        var index = 0;
+        results.forEach(function (elem) {
+            index++;
+            elem.index = index;
+            if (elem.data.splits) {
+                var getTrBlock = function (t, p) {
+                    var tr = document.createElement('tr');
+                    var td1 = document.createElement('td');
+                    td1.className = 'result-' + p;
+                    td1.appendChild(document.createTextNode(t));
+                    tr.appendChild(td1);
+                    return tr;
+                };
+
+                var finishMsec = elem.result_msec;
+
+                if (elem.status === 1 && finishMsec > 0) {
+                    var tblF = document.createElement('table');
+                    tblF.className = 'table-split';
+                    tblF.appendChild(getTrBlock(toHHMMSS(finishMsec), 0));
+                    elem.finish_split = tblF;
+                }
+            }
+        });
+
+        return results;
+    }
+
+
+    var Fields = {
+        fields: [
+            {key: 'index', title: '№', size: 4},
+            {key: 'group', title: 'Группа', size: 10, active: false},
+            {key: 'name', title: 'Фамилия Имя', size: 40},
+            {key: 'org', title: 'Команда', size: 20},
+            {key: 'year', title: 'Дата рождения', size: 10},
+            {key: 'qual', title: 'Разряд', size: 6},
+            {key: 'bib', title: 'Номер', size: 6},
+            {key: 'preo_pass_time', title: 'Время', size: 12, active: false},
+            {key: 'preo_team_pass_time', title: 'Время', size: 14, active: false},
+            {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
+            {key: 'trailo_score', title: 'Результат очки', size: 4, active: !isTempoMode},
+            {key: isTempoMode ? 'trailo_time' : (isPreoMode ? 'trailo_time' : 'result'), title: 'Результат Время', size: 14},
+            {key: 'result_relay', title: 'Результат команды', size: 14, active: false},
+            {key: 'place_show', title: 'Место', size: 6}
+        ],
+        active: function (key, val) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    obj.active = val;
+                }
+            }
+        },
+        isActive: function (key) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    return obj.active !== false;
+                }
+            }
+            return true;
+        },
+        getField: function (key) {
+            for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                var obj = _a[_i];
+                if (key === obj.key) {
+                    return obj;
+                }
+            }
+            return null;
+        },
+        getCopyFields: function () {
+            return JSON.parse(JSON.stringify(this.fields))
+        },
+        init: function () {
+            try {
+                this.getField('trailo_score_penalty').active = isPreoMode;
+                this.getField('preo_pass_time').active = isPreoMode;
+                this.getField('preo_team_pass_time').active = isPreoMode && isRelayRace;
+                this.getField('trailo_score').active = !isTempoMode;
+                this.getField('result_relay').active = isRelayRace && isTrailo;
+            } catch (e){}
+            return this;
+        }
+    }.init();
+
+    function trailoInitialShowAnswers() {
+        var href = location.href;
+        if (href.indexOf('show_answers=0') > -1) {
+            return false;
+        }
+        if (href.indexOf('show_answers=1') > -1) {
+            return true;
+        }
+        var cfg = window.SPORTORG_TRAILO_PROTOCOL;
+        if (cfg && cfg.showAnswers !== undefined) {
+            return !!cfg.showAnswers;
+        }
+        return true;
+    }
+
+    window.store = window.store || {
+        showProtocolByCourse: location.href.indexOf('by_course=1') > -1,
+        splitsShow: true,
+        showAnswers: trailoInitialShowAnswers(),
+        showLinkForGroups: true,
+        showPodiumOnly: location.href.indexOf('podium_only=1') > -1,
+        count: 0
+    };
+    var store = window.store;
+
+    function rebuildTrailoSplitsHeader(table, hideAnswerLabels) {
+        if (!table) return;
+        hideAnswerLabels = !!hideAnswerLabels;
+        var headerRowSpan = hideAnswerLabels ? 2 : 3;
+        var subHeaderRowSpan = hideAnswerLabels ? 1 : 2;
+        var thead = table.querySelector('thead');
+        if (!thead) return;
+
+        var headerRow = thead.querySelector('tr');
+        if (!headerRow) return;
+
+        var ths = Array.prototype.slice.call(headerRow.querySelectorAll('th'));
+        if (!ths.length) return;
+
+        var TIME_TITLE = getTrailoTimeControlTitle();
+        var timeIdxs = [];
+        for (var ti = 0; ti < ths.length; ti++) {
+            if ((ths[ti].textContent || '').trim() === TIME_TITLE) timeIdxs.push(ti);
+        }
+        var hasSplits = timeIdxs.length > 0;
+
+        function setColumnWidths() {
+            var PLACE_TITLE = 'Место';
+            var NAME_TITLE = 'Фамилия Имя';
+            var ORG_TITLE = 'Команда';
+            var PENALTY_TITLE = 'ШтрафКВ';
+            var PASS_TIME_TITLE = 'Время';
+
+            var placeIdx = -1;
+            for (var pi = 0; pi < ths.length; pi++) {
+                var tt = (ths[pi].textContent || '').trim();
+                if (tt === PLACE_TITLE) placeIdx = pi;
+            }
+
+            var firstTimeIdxW = hasSplits ? timeIdxs[0] : ths.length;
+            var answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdxW;
+
+            var topRowThs = Array.prototype.slice.call(thead.querySelectorAll('tr:first-child th'));
+            var midRowThs = Array.prototype.slice.call(thead.querySelectorAll('tr:nth-child(2) th'));
+            var numRowThs = hideAnswerLabels
+                ? []
+                : Array.prototype.slice.call(thead.querySelectorAll('tr:nth-child(3) th'));
+
+            for (var t1 = 0; t1 < topRowThs.length; t1++) {
+                var th = topRowThs[t1];
+                var t = (th.textContent || '').trim();
+                if (t === NAME_TITLE) {
+                    th.style.width = '268px';
+                    th.classList.add('name-col');
+                } else if (t === ORG_TITLE) {
+                    th.style.width = '160px';
+                    th.classList.add('org-col');
+                }
+                else if (t === 'Группа') {
+                    th.style.width = '95px';
+                    th.classList.add('group-col');
+                }
+                else if (t === '№') {
+                    th.style.width = '34px';
+                    th.classList.add('index-col');
+                }
+                else if (th.classList.contains('year-col') || t.indexOf('Дата') >= 0) {
+                    th.innerHTML = 'Дата<br>рождения';
+                    th.classList.add('year-col');
+                }
+                else if (t === 'Разряд') {
+                    th.style.width = '36px';
+                    th.classList.add('qual-col');
+                }
+                else if (t === 'Номер') {
+                    th.style.width = '30px';
+                    th.classList.add('bib-col');
+                }
+                else if (t === 'Результат очки' || t === 'Очки') {
+                    th.classList.add('score-col');
+                }
+                else if (t === 'Результат Время' || t === 'Результат' || t === 'Время') {
+                    th.classList.add('trailo-result-col');
+                }
+                else if (t === PASS_TIME_TITLE) {
+                    th.style.width = '52px';
+                    th.classList.add('pass-time-col');
+                    th.innerHTML = 'Время';
+                }
+                else if (t === PENALTY_TITLE) {
+                    th.style.width = '64px';
+                    th.classList.add('penalty-col');
+                    th.innerHTML = 'Штраф<br>КВ';
+                }
+                else if (t === PLACE_TITLE) {
+                    th.style.width = '42px';
+                    th.classList.add('place-col');
+                }
+            }
+
+            var midNum = midRowThs.concat(numRowThs);
+            for (var t2 = 0; t2 < midNum.length; t2++) {
+                var thm = midNum[t2];
+                var tm = (thm.textContent || '').trim();
+                if (thm.classList.contains('overall-time-col')) {
+                    thm.style.width = '42px';
+                } else if (thm.classList.contains('time-col')) {
+                    thm.style.width = '70px';
+                } else if (tm === 'Результат очки' || tm === 'Очки') {
+                    thm.style.width = '34px';
+                    thm.classList.add('score-col');
+                } else {
+                    thm.classList.add('answer-col');
+                }
+            }
+        }
+
+        function markAnswerColumns() {
+            var PLACE_TITLE = 'Место';
+            var placeIdx2 = -1;
+            for (var pj = 0; pj < ths.length; pj++) {
+                if ((ths[pj].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx2 = pj;
+                    break;
+                }
+            }
+
+            var firstTimeIdx2 = hasSplits ? timeIdxs[0] : ths.length;
+            var answersStart2 = (placeIdx2 >= 0) ? placeIdx2 + 1 : firstTimeIdx2;
+
+            var timeIdxSet = {};
+            for (var tk = 0; tk < timeIdxs.length; tk++) timeIdxSet[timeIdxs[tk]] = true;
+
+            var answerIdxs = [];
+            for (var ai = answersStart2; ai < ths.length; ai++) {
+                if (!timeIdxSet[ai]) answerIdxs.push(ai);
+            }
+
+            if (!answerIdxs.length) return;
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                for (var ax = 0; ax < answerIdxs.length; ax++) {
+                    var idx = answerIdxs[ax];
+                    var td = tds[idx];
+                    if (!td) continue;
+                    td.classList.add('answer-col');
+                    if (td.querySelector && td.querySelector('table.table-split.incorrect')) {
+                        td.classList.add('incorrect-answer');
+                    }
+                }
+            }
+        }
+
+        function markTimeColumns() {
+            var tbodyRows2 = table.querySelectorAll('tbody tr');
+            if (!tbodyRows2.length) return;
+
+            for (var trr2 = 0; trr2 < tbodyRows2.length; trr2++) {
+                var tr2 = tbodyRows2[trr2];
+                var tds2 = [];
+                for (var c2 = 0; c2 < tr2.children.length; c2++) {
+                    if (tr2.children[c2].tagName === 'TD') tds2.push(tr2.children[c2]);
+                }
+                for (var tix = 0; tix < timeIdxs.length; tix++) {
+                    var idx2 = timeIdxs[tix];
+                    var td2 = tds2[idx2];
+                    if (!td2) continue;
+                    td2.classList.add('time-col');
+                    td2.style.width = '70px';
+                }
+            }
+        }
+
+        function markOverallTimeColumn() {
+            if (overallTimeIdx < 0) return;
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            if (!tbodyRows.length) return;
+
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[overallTimeIdx];
+                if (!td) continue;
+                td.classList.add('overall-time-col');
+                td.style.width = '50px';
+            }
+        }
+
+        function markNameColumn() {
+            var NAME_TITLE = 'Фамилия Имя';
+            var nameIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === NAME_TITLE) {
+                    nameIdx = ni;
+                    break;
+                }
+            }
+            if (nameIdx < 0) return;
+
+            var tbodyRows3 = table.querySelectorAll('tbody tr');
+            for (var trr3 = 0; trr3 < tbodyRows3.length; trr3++) {
+                var tr3 = tbodyRows3[trr3];
+                var tds3 = [];
+                for (var c3 = 0; c3 < tr3.children.length; c3++) {
+                    if (tr3.children[c3].tagName === 'TD') tds3.push(tr3.children[c3]);
+                }
+                var td3 = tds3[nameIdx];
+                if (!td3) continue;
+                td3.classList.add('name-col');
+            }
+        }
+
+        function markIndexColumn() {
+            var INDEX_TITLE = '№';
+            var idx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === INDEX_TITLE) {
+                    idx = ni;
+                    break;
+                }
+            }
+            if (idx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[idx];
+                if (!td) continue;
+                td.classList.add('index-col');
+            }
+        }
+
+        function markBibColumn() {
+            var BIB_TITLE = 'Номер';
+            var bibIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === BIB_TITLE) {
+                    bibIdx = ni;
+                    break;
+                }
+            }
+            if (bibIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[bibIdx];
+                if (!td) continue;
+                td.classList.add('bib-col');
+            }
+        }
+
+        function markScoreColumn() {
+            var SCORE_TITLE = 'Результат очки';
+            var scoreIdx2 = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                var st = (ths[ni].textContent || '').trim();
+                if (st === SCORE_TITLE || st === 'Очки') {
+                    scoreIdx2 = ni;
+                    break;
+                }
+            }
+            if (scoreIdx2 < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[scoreIdx2];
+                if (!td) continue;
+                td.classList.add('score-col');
+            }
+        }
+
+        function markTrailoResultColumn() {
+            var titles = ['Результат Время', 'Результат', 'Время'];
+            var idx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                var tt = (ths[ni].textContent || '').trim();
+                if (titles.indexOf(tt) >= 0) {
+                    idx = ni;
+                    break;
+                }
+            }
+            if (idx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[idx];
+                if (!td) continue;
+                td.classList.add('trailo-result-col');
+            }
+        }
+
+        function markQualColumn() {
+            var QUAL_TITLE = 'Разряд';
+            var qualIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === QUAL_TITLE) {
+                    qualIdx = ni;
+                    break;
+                }
+            }
+            if (qualIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[qualIdx];
+                if (!td) continue;
+                td.classList.add('qual-col');
+            }
+        }
+
+        function markYearColumn() {
+            var yearIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if (ths[ni].classList && ths[ni].classList.contains('year-col')) {
+                    yearIdx = ni;
+                    break;
+                }
+            }
+            if (yearIdx < 0) {
+                for (var nj = 0; nj < ths.length; nj++) {
+                    var yt = (ths[nj].textContent || '').replace(/\s+/g, ' ');
+                    if (yt.indexOf('Дата') >= 0 && yt.indexOf('рождения') >= 0) {
+                        yearIdx = nj;
+                        break;
+                    }
+                }
+            }
+            if (yearIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[yearIdx];
+                if (!td) continue;
+                td.classList.add('year-col');
+            }
+        }
+
+        function markOrgColumn() {
+            var ORG_TITLE = 'Команда';
+            var orgIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === ORG_TITLE) {
+                    orgIdx = ni;
+                    break;
+                }
+            }
+            if (orgIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[orgIdx];
+                if (!td) continue;
+                td.classList.add('org-col');
+            }
+        }
+
+        function markGroupColumn() {
+            var GROUP_TITLE = 'Группа';
+            var groupIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === GROUP_TITLE) {
+                    groupIdx = ni;
+                    break;
+                }
+            }
+            if (groupIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[groupIdx];
+                if (!td) continue;
+                td.classList.add('group-col');
+            }
+        }
+
+        function markPlaceColumn() {
+            var PLACE_TITLE = 'Место';
+            var placeIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PLACE_TITLE) {
+                    placeIdx = ni;
+                    break;
+                }
+            }
+            if (placeIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[placeIdx];
+                if (!td) continue;
+                td.classList.add('place-col');
+            }
+        }
+
+        function markPenaltyColumn() {
+            var PENALTY_TITLE = 'ШтрафКВ';
+            var penaltyIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PENALTY_TITLE) {
+                    penaltyIdx = ni;
+                    break;
+                }
+            }
+            if (penaltyIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[penaltyIdx];
+                if (!td) continue;
+                td.classList.add('penalty-col');
+            }
+        }
+
+        function markPassTimeColumn() {
+            var PASS_TIME_TITLE = 'Время';
+            var passIdx = -1;
+            for (var ni = 0; ni < ths.length; ni++) {
+                if ((ths[ni].textContent || '').trim() === PASS_TIME_TITLE) {
+                    passIdx = ni;
+                    break;
+                }
+            }
+            if (passIdx < 0) return;
+
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var trr = 0; trr < tbodyRows.length; trr++) {
+                var tr = tbodyRows[trr];
+                var tds = [];
+                for (var c = 0; c < tr.children.length; c++) {
+                    if (tr.children[c].tagName === 'TD') tds.push(tr.children[c]);
+                }
+                var td = tds[passIdx];
+                if (!td) continue;
+                td.classList.add('pass-time-col');
+            }
+        }
+
+        function markIncorrectCells() {
+            var tbodyRows = table.querySelectorAll('tbody tr');
+            for (var r = 0; r < tbodyRows.length; r++) {
+                var tr = tbodyRows[r];
+                for (var c = 0; c < tr.children.length; c++) {
+                    var cell = tr.children[c];
+                    if (!cell || cell.tagName !== 'TD') continue;
+                    if (cell.querySelector && cell.querySelector('table.table-split.incorrect')) {
+                        cell.classList.add('incorrect-answer');
+                    }
+                }
+            }
+        }
+
+        var firstTimeIdx = hasSplits ? timeIdxs[0] : ths.length;
+        var topTr = document.createElement('tr');
+        var midTr = document.createElement('tr');
+        var numTr = document.createElement('tr');
+
+        var PLACE_TITLE = 'Место';
+        var placeIdx = -1;
+        for (var pi2 = 0; pi2 < ths.length; pi2++) {
+            if ((ths[pi2].textContent || '').trim() === PLACE_TITLE) {
+                placeIdx = pi2;
+                break;
+            }
+        }
+
+        var answersStart = (placeIdx >= 0) ? placeIdx + 1 : firstTimeIdx;
+        var answersEndExclusive = firstTimeIdx;
+        var answersLen = Math.max(0, answersEndExclusive - answersStart);
+
+        var SCORE_TITLE = 'Результат очки';
+        var OVERALL_TIME_TITLE = 'Результат Время';
+        var scoreIdx = -1;
+        var overallTimeIdx = -1;
+        for (var bi = 0; bi < answersStart; bi++) {
+            var bt = (ths[bi].textContent || '').trim();
+            if (bt === SCORE_TITLE || bt === 'Очки') scoreIdx = bi;
+            if (bt === OVERALL_TIME_TITLE || bt === 'Время' || bt === 'Результат') overallTimeIdx = bi;
+        }
+        var hasResultGroup = scoreIdx >= 0 && overallTimeIdx >= 0;
+
+        var baseEndExclusive = Math.min(answersStart, firstTimeIdx);
+        for (var i = 0; i < baseEndExclusive; i++) {
+            if (hasResultGroup && i === Math.min(scoreIdx, overallTimeIdx)) {
+                var topResTh = document.createElement('th');
+                topResTh.textContent = 'Результат';
+                topResTh.colSpan = 2;
+                topTr.appendChild(topResTh);
+
+                var scoreTh = ths[scoreIdx].cloneNode(true);
+                scoreTh.textContent = SCORE_TITLE;
+                scoreTh.classList.add('score-col');
+                scoreTh.rowSpan = subHeaderRowSpan;
+                midTr.appendChild(scoreTh);
+
+                var overallTimeTh = ths[overallTimeIdx].cloneNode(true);
+                overallTimeTh.textContent = OVERALL_TIME_TITLE;
+                overallTimeTh.classList.add('overall-time-col');
+                overallTimeTh.rowSpan = subHeaderRowSpan;
+                midTr.appendChild(overallTimeTh);
+
+                i = Math.max(scoreIdx, overallTimeIdx);
+                continue;
+            }
+
+            if (hasResultGroup && (i === scoreIdx || i === overallTimeIdx)) {
+                continue;
+            }
+
+            var cloned = ths[i].cloneNode(true);
+            cloned.rowSpan = headerRowSpan;
+            topTr.appendChild(cloned);
+        }
+
+        if (answersLen > 0) {
+            var topAnswersTh = document.createElement('th');
+            topAnswersTh.textContent = 'Ответы';
+            topAnswersTh.colSpan = answersLen;
+            topTr.appendChild(topAnswersTh);
+
+            var n = 1;
+            for (var j = answersStart; j < answersEndExclusive; j++, n++) {
+                var nth = document.createElement('th');
+                nth.textContent = String(n);
+                nth.classList.add('answer-col');
+                midTr.appendChild(nth);
+
+                if (!hideAnswerLabels) {
+                    var labelTh = ths[j].cloneNode(true);
+                    labelTh.classList.add('answer-col');
+                    numTr.appendChild(labelTh);
+                }
+            }
+        }
+
+        if (hasSplits) {
+            for (var t = 0; t < timeIdxs.length; t++) {
+                var start = timeIdxs[t];
+                var endExclusive = (t + 1 < timeIdxs.length) ? timeIdxs[t + 1] : ths.length;
+                var blockLen = Math.max(0, endExclusive - start);
+                if (blockLen <= 0) continue;
+
+                var topTh = document.createElement('th');
+                topTh.textContent = isTempoMode ? ('Станция ' + (t + 1)) : ('Тайм КП ' + (t + 1));
+                topTh.colSpan = blockLen;
+                topTr.appendChild(topTh);
+
+                var timeTh = ths[start].cloneNode(true);
+                timeTh.textContent = 'Время';
+                timeTh.classList.add('time-col');
+                timeTh.rowSpan = subHeaderRowSpan;
+                midTr.appendChild(timeTh);
+
+                var n2 = 1;
+                for (var k = start + 1; k < endExclusive; k++, n2++) {
+                    var nth2 = document.createElement('th');
+                    nth2.textContent = String(n2);
+                    nth2.classList.add('answer-col');
+                    midTr.appendChild(nth2);
+
+                    if (!hideAnswerLabels) {
+                        var labelTh2 = ths[k].cloneNode(true);
+                        labelTh2.classList.add('answer-col');
+                        numTr.appendChild(labelTh2);
+                    }
+                }
+            }
+        }
+
+        thead.innerHTML = '';
+        thead.appendChild(topTr);
+        thead.appendChild(midTr);
+        if (!hideAnswerLabels) {
+            thead.appendChild(numTr);
+        }
+
+        setColumnWidths();
+        if (hasSplits) {
+            markAnswerColumns();
+            markTimeColumns();
+        }
+        markOverallTimeColumn();
+        markNameColumn();
+        markYearColumn();
+        markQualColumn();
+        markBibColumn();
+        markScoreColumn();
+        markTrailoResultColumn();
+        markIndexColumn();
+        markOrgColumn();
+        markGroupColumn();
+        markPlaceColumn();
+        markPassTimeColumn();
+        markPenaltyColumn();
+        markIncorrectCells();
+    }
+
+    function updatePrintPageOrientation() {
+        var styleId = 'sportorg-print-page-style';
+        var styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            styleEl.type = 'text/css';
+            document.head.appendChild(styleEl);
+        }
+        var orientation = store.showAnswers ? 'landscape' : 'portrait';
+        styleEl.textContent = '@media print { @page { size: A4 ' + orientation + '; margin: 8mm; } }';
+    }
+
+    function render() {
+        var resultBlock = document.getElementById('results-tables');
+        if (!resultBlock) return;
+        resultBlock.innerHTML = '';
+        Fields.active('group', store.showProtocolByCourse);
+        var effectiveCount = store.showPodiumOnly ? 3 : store.count;
+        var showControlColumns = !!store.splitsShow && !!store.showAnswers;
+        if (store.showProtocolByCourse){
+            var _a = race.courses;
+        } else {
+            var _a = race.groups;
+        }
+        for (var _i = 0; _i < _a.length; _i++) {
+            if (store.showProtocolByCourse){
+                var course = _a[_i];
+                var rows = getResultsByCourse(course, effectiveCount);
+                var groupName = course.name;
+            } else {
+                var group = _a[_i];
+                var rows = getResultsByGroup(group, effectiveCount);
+                var course = group.course;
+                var groupName = groupDisplayName(group);
+            }
+            if (!rows.length) {
+                continue;
+            }
+            var block = document.createElement('div');
+            block.className = 'results-block';
+
+            var titleBlock = document.createElement('h2');
+            titleBlock.id = String(groupName).replace(/\s+/g, '-');
+            titleBlock.appendChild(document.createTextNode(groupName));
+            block.appendChild(titleBlock);
+
+            if (!store.showProtocolByCourse && store.showLinkForGroups) {
+                block.appendChild(getGroupsBlockElement(race));
+            }
+            var fields = Fields.getCopyFields();
+            applyYearBirthHeaderTitle(fields);
+            applyRelayTeamPassTimeHeaderTitle(fields);
+            if (showControlColumns) {
+                appendTrailoProtocolFieldsForRows(fields, rows, course);
+            }
+            var hideAnswerLabels =
+                showControlColumns && protocolAnswerLabelsDiffer(rows, course);
+            var table = isRelayRace
+                ? buildTrailoResultsTable(rows, fields)
+                : new TableGenerator(rows, fields).getTable({className: 'sportorg-table'});
+            rebuildTrailoSplitsHeader(table, hideAnswerLabels);
+            block.appendChild(table);
+            resultBlock.appendChild(block);
+        }
+        updatePrintPageOrientation();
+        document.documentElement.classList.toggle('sportorg-print-no-answers', !store.showAnswers);
+        var params = new URLSearchParams();
+        params.set('s_splits', store.splitsShow ? '1' : '0');
+        params.set('by_course', store.showProtocolByCourse ? '1' : '0');
+        params.set('podium_only', store.showPodiumOnly ? '1' : '0');
+        params.set('show_answers', store.showAnswers ? '1' : '0');
+        params.set('sportorg', '1');
+        try {
+            var base = location.pathname;
+            history.replaceState(null, '', base + '?' + params.toString());
+        } catch (e) {}
+    }
+
+    render();
+
+    var Scrolling = {
+        direction: 1,
+        enabled: false,
+        lock: false,
+        prev: 0,
+        intervalTimer: 0,
+        init: function () {
+            var _this = this;
+            if (_this.intervalTimer) {
+                clearInterval(_this.intervalTimer)
+            }
+            _this.intervalTimer = setInterval(function () {
+                _this.lock = !_this.lock;
+            }, 5000);
+            window.onscroll = function () {
+                var d = document.documentElement;
+                var offset = d.scrollTop + window.innerHeight;
+                var height = d.offsetHeight;
+
+                if (offset === height) {
+                    _this.direction = -1;
+                }
+                if (offset <= window.innerHeight) {
+                    _this.direction = 1;
+                }
+            };
+            this.pageScroll();
+            return this;
+        },
+        pageScroll: function () {
+            var _this = this;
+            if (_this.enabled && ! _this.lock) {
+                window.scrollBy(10, _this.direction);
+            }
+            setTimeout(function () {
+                _this.pageScroll();
+            }, 10);
+        }
+    }.init();
+
+    function getExcelExportFilename() {
+        var desc = (race.data && race.data.description) ? race.data.description : 'results';
+        var base = String(desc).replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 80);
+        var d = '';
+        if (race.data && race.data.start_datetime) {
+            d = String(race.data.start_datetime).slice(0, 10).replace(/-/g, '');
+        }
+        var modeTag = isPreoMode ? 'preo' : (isTempoMode ? 'tempo' : 'sprint');
+        var prefix = (window.SPORTORG_TRAILO_PROTOCOL && window.SPORTORG_TRAILO_PROTOCOL.excelMode)
+            ? 'trailo_protocol'
+            : 'trailo_preo';
+        return prefix + '_' + modeTag + '_' + base + (d ? '_' + d : '');
+    }
+
+    function escapeHtmlForExcelExport(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function escapeHtmlWithBrAsExcel(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        s = String(s).replace(/\r\n/g, '\n');
+        var chunks = s.split(/<br\s*\/?>|\n/gi);
+        var out = [];
+        for (var ci = 0; ci < chunks.length; ci++) {
+            out.push(escapeHtmlForExcelExport(chunks[ci]));
+        }
+        return out.join('<br>');
+    }
+
+    function formatRaceDateForExcelOnly(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        s = String(s).trim();
+        var m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (m) {
+            return m[1];
+        }
+        m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+        if (m) {
+            return m[1] + '.' + m[2] + '.' + m[3];
+        }
+        m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+        if (m) {
+            return m[1] + '-' + m[2] + '-' + m[3];
+        }
+        var cut = s.split(/[\sT]/)[0];
+        return cut || s;
+    }
+
+    function raceDescriptionPlainForExcel(html) {
+        var s = String(html || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<\/div>/gi, '\n')
+            .replace(/<\/h[1-6]>/gi, '\n')
+            .replace(/<\/li>/gi, '\n')
+            .replace(/<\/tr>/gi, '\n');
+        var div = document.createElement('div');
+        div.innerHTML = s;
+        var t = (div.innerText || div.textContent || '').replace(/\r\n/g, '\n');
+        t = t.replace(/\n[ \t]+\n/g, '\n\n').replace(/\n{3,}/g, '\n\n');
+        return t.trim();
+    }
+
+    function buildBlockHeaderHtmlForExcel(bi) {
+        var parts = [];
+        var wrapClass =
+            'sportorg-excel-group-header' +
+            (bi > 0 ? ' sportorg-excel-group-header-follow' : '');
+        parts.push('<div class="' + wrapClass + '">');
+        var descHtml = race.data && race.data.description ? String(race.data.description) : '';
+        var descPlain = raceDescriptionPlainForExcel(descHtml);
+        if (descPlain.replace(/\s/g, '')) {
+            parts.push('<div class="sportorg-excel-desc">');
+            var descLines = descPlain.split(/\n/);
+            var di;
+            var anyLine = false;
+            for (di = 0; di < descLines.length; di++) {
+                var ln = descLines[di].replace(/\u00a0/g, ' ').replace(/^\s+|\s+$/g, '');
+                if (!ln) {
+                    continue;
+                }
+                anyLine = true;
+                parts.push(
+                    '<p class="sportorg-excel-desc-line"><strong>' +
+                    escapeHtmlForExcelExport(ln) +
+                    '</strong></p>'
+                );
+            }
+            if (!anyLine) {
+                parts.push(
+                    '<p class="sportorg-excel-desc-line"><strong>' +
+                    escapeHtmlForExcelExport(descPlain.trim()) +
+                    '</strong></p>'
+                );
+            }
+            parts.push('</div>');
+        }
+        var titleRaw = race.data && race.data.title ? String(race.data.title).trim() : '';
+        if (titleRaw) {
+            parts.push(
+                '<p class="sportorg-excel-line sportorg-excel-race-title"><strong>' +
+                escapeHtmlForExcelExport(titleRaw) +
+                '</strong></p>'
+            );
+        }
+        var when = formatRaceDateForExcelOnly(
+            race.data && race.data.start_datetime ? String(race.data.start_datetime) : ''
+        );
+        var where = race.data && race.data.location ? String(race.data.location) : '';
+        var datePlace = [when, where].filter(Boolean).join(', ');
+        if (datePlace) {
+            parts.push(
+                '<p class="sportorg-excel-line">' + escapeHtmlWithBrAsExcel(datePlace) + '</p>'
+            );
+        }
+        parts.push(
+            '<p class="sportorg-excel-doc-title">' +
+            '<strong>' + escapeHtmlForExcelExport('Предварительный протокол ответов') + '</strong>' +
+            '</p>'
+        );
+        parts.push('<div class="sportorg-excel-gap">&nbsp;</div>');
+        parts.push('</div>');
+        return parts.join('');
+    }
+
+    function getSportorgTableColumnCount(table) {
+        if (!table || !table.rows.length) {
+            return 1;
+        }
+        var tr = table.rows[0];
+        var total = 0;
+        var ci;
+        for (ci = 0; ci < tr.cells.length; ci++) {
+            total += tr.cells[ci].colSpan || 1;
+        }
+        return Math.max(1, total);
+    }
+
+    function buildSignatureInnerHtmlString() {
+        var chief = race.data && race.data.chief_referee ? String(race.data.chief_referee).trim() : '';
+        var sec = race.data && race.data.secretary ? String(race.data.secretary).trim() : '';
+        var left = 'Главный судья ________ ' + chief;
+        var right = 'Главный секретарь ________ ' + sec;
+        var gap = '';
+        var gi;
+        for (gi = 0; gi < 32; gi++) {
+            gap += '&nbsp;';
+        }
+        return (
+            '<p class="sportorg-excel-sig-onecell" style="margin:0;line-height:1.45;text-align:center;">' +
+            escapeHtmlForExcelExport(left) +
+            gap +
+            escapeHtmlForExcelExport(right) +
+            '</p>'
+        );
+    }
+
+    var EXCEL_TD_NO_BORDER =
+        'border:none!important;border-style:none!important;border-width:0!important;' +
+        'mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+        'mso-border-left-alt:none;mso-border-right-alt:none;';
+
+    function buildExcelEmptyRowString(colspan) {
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        return (
+            '<tr class="sportorg-excel-empty-row">' +
+            '<td colspan="' +
+            cs +
+            '" style="height:16pt;mso-height-source:userset;line-height:16pt;' +
+            'font-size:1px;padding:3px 4px;' +
+            EXCEL_TD_NO_BORDER +
+            '">&nbsp;</td>' +
+            '</tr>'
+        );
+    }
+
+    function buildGroupRowHtmlString(colspan, groupText) {
+        var gt = String(groupText || '').trim();
+        if (!gt) {
+            return '';
+        }
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        var label =
+            '<strong>' + escapeHtmlForExcelExport('Группа: ') + '</strong>' +
+            escapeHtmlForExcelExport(gt);
+        if (cs === 1) {
+            return (
+                '<tr class="sportorg-excel-group-tr">' +
+                '<td class="sportorg-excel-group-td" colspan="1" style="text-align:center;padding:6px 4px;' +
+                EXCEL_TD_NO_BORDER +
+                '">' +
+                label +
+                '</td></tr>'
+            );
+        }
+        return (
+            '<tr class="sportorg-excel-group-tr">' +
+            '<td class="sportorg-excel-group-cell1" style="padding:4px;' + EXCEL_TD_NO_BORDER + '">&nbsp;</td>' +
+            '<td class="sportorg-excel-group-cell2" colspan="' +
+            (cs - 1) +
+            '" style="text-align:left;padding:6px 4px;' +
+            EXCEL_TD_NO_BORDER +
+            '">' +
+            label +
+            '</td></tr>'
+        );
+    }
+
+    function prependGroupRowToTableHtml(html, colspan, groupText) {
+        var row = buildGroupRowHtmlString(colspan, groupText);
+        if (!row) {
+            return html;
+        }
+        var m = /<thead\b[^>]*>/i.exec(html);
+        if (m) {
+            var afterOpen = m.index + m[0].length;
+            return html.slice(0, afterOpen) + row + html.slice(afterOpen);
+        }
+        m = /<tbody\b[^>]*>/i.exec(html);
+        if (m) {
+            var afterBody = m.index + m[0].length;
+            return html.slice(0, afterBody) + row + html.slice(afterBody);
+        }
+        m = /<table[^>]*>/i.exec(html);
+        if (m) {
+            return html.slice(0, m.index + m[0].length) + row + html.slice(m.index + m[0].length);
+        }
+        return html;
+    }
+
+    function buildSignatureTrString(colspan) {
+        var cs = Math.max(1, parseInt(colspan, 10) || 1);
+        return (
+            '<tr class="sportorg-excel-sig-tr">' +
+            '<td class="sportorg-excel-sig-merged" colspan="' +
+            cs +
+            '" style="padding:10px 8px 8px 8px;vertical-align:middle;' +
+            'border-top:none!important;mso-border-top-alt:none;">' +
+            buildSignatureInnerHtmlString() +
+            '</td>' +
+            '</tr>'
+        );
+    }
+
+    function appendSignatureRowToTableHtml(html, colspan) {
+        var emptyPair =
+            buildExcelEmptyRowString(colspan) + buildExcelEmptyRowString(colspan);
+        var row = buildSignatureTrString(colspan);
+        var lower = html.toLowerCase();
+        var i = lower.lastIndexOf('</tbody>');
+        if (i !== -1) {
+            return html.slice(0, i) + emptyPair + row + html.slice(i);
+        }
+        i = lower.lastIndexOf('</table>');
+        if (i === -1) {
+            return html;
+        }
+        return html.slice(0, i) + emptyPair + row + html.slice(i);
+    }
+
+    function buildExcelTableWithGroupAndSignatures(tbl, block) {
+        var colCount = getSportorgTableColumnCount(tbl);
+        var h2 = block ? block.querySelector('h2') : null;
+        var groupText = h2 ? String(h2.textContent || '').trim() : '';
+        var tableHtml = cloneTableHtmlForExcelExport(tbl);
+        tableHtml = prependGroupRowToTableHtml(tableHtml, colCount, groupText);
+        return appendSignatureRowToTableHtml(tableHtml, colCount);
+    }
+
+    var EXCEL_INCORRECT_BG = '#FFFDE8';
+
+    function cloneTableHtmlForExcelExport(table) {
+        var clone = table.cloneNode(true);
+        flattenExcelTableCells(clone);
+        var cells = clone.querySelectorAll('td.incorrect-answer');
+        for (var i = 0; i < cells.length; i++) {
+            var td = cells[i];
+            td.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var prev = td.getAttribute('style') || '';
+            td.setAttribute(
+                'style',
+                prev + (prev && !/;\s*$/.test(prev) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        var splitWrong = clone.querySelectorAll('td table.table-split.incorrect');
+        for (var j = 0; j < splitWrong.length; j++) {
+            var outer = splitWrong[j].closest('td');
+            if (!outer || outer.classList.contains('incorrect-answer')) {
+                continue;
+            }
+            outer.setAttribute('bgcolor', EXCEL_INCORRECT_BG);
+            var p2 = outer.getAttribute('style') || '';
+            outer.setAttribute(
+                'style',
+                p2 + (p2 && !/;\s*$/.test(p2) ? ';' : '') +
+                    'background-color:' + EXCEL_INCORRECT_BG + ';'
+            );
+        }
+        return clone.outerHTML;
+    }
+
+    function flattenExcelTableCells(tableRoot) {
+        var tds = tableRoot.querySelectorAll('td');
+        for (var i = 0; i < tds.length; i++) {
+            var td = tds[i];
+            var split = td.querySelector('table.table-split');
+            if (split) {
+                var text = (split.textContent || '').replace(/\s+/g, ' ').trim();
+                td.innerHTML = '';
+                if (text) {
+                    td.appendChild(document.createTextNode(text));
+                }
+            }
+        }
+        var sepRows = tableRoot.querySelectorAll('tr.relay-team-separator-row');
+        for (var r = 0; r < sepRows.length; r++) {
+            var rowTds = sepRows[r].querySelectorAll('td');
+            for (var c = 0; c < rowTds.length; c++) {
+                var prev = rowTds[c].getAttribute('style') || '';
+                rowTds[c].setAttribute(
+                    'style',
+                    prev + (prev && !/;\s*$/.test(prev) ? ';' : '') +
+                        'border-top:2pt solid #000!important;'
+                );
+            }
+        }
+    }
+
+    function getExcelExportStyles() {
+        return (
+            'table{border-collapse:collapse;table-layout:fixed;}' +
+            'table.sportorg-table th,table.sportorg-table td{border:1px solid #000;padding:2px 3px;' +
+            'text-align:center;vertical-align:middle;}' +
+            'td.name-col,th.name-col,td.org-col,th.org-col{text-align:left;}' +
+            'td.year-col,th.year-col{text-align:center;white-space:nowrap;mso-number-format:"\\@";' +
+            'width:11ch;min-width:11ch;max-width:11ch;}' +
+            'td.qual-col,th.qual-col{text-align:center;white-space:nowrap;width:3em;}' +
+            'td.bib-col,th.bib-col,td.score-col,th.score-col,td.trailo-result-col,th.trailo-result-col,' +
+            'td.overall-time-col,th.overall-time-col,td.place-col,th.place-col{text-align:center;}' +
+            'td.answer-col,th.answer-col{width:2em;min-width:2em;max-width:2em;padding:1px 2px;}' +
+            'td.time-col,th.time-col{text-align:center;white-space:nowrap;}' +
+            'td[rowspan],th[rowspan]{vertical-align:middle;}' +
+            'tr.relay-team-separator-row td{border-top:2pt solid #000!important;}' +
+            'td.incorrect-answer{background-color:#fffde8!important;}' +
+            '.sportorg-excel-group-header{text-align:center;margin-bottom:18px;}' +
+            '.sportorg-excel-group-header-follow{padding-top:8px;}' +
+            '.sportorg-excel-line{margin:10px 0;line-height:1.45;text-align:center;}' +
+            '.sportorg-excel-race-title{font-size:16pt;mso-ansi-font-size:16.0pt;line-height:1.3;margin:12px 0;}' +
+            '.sportorg-excel-race-title strong{font-weight:700;}' +
+            '.sportorg-excel-desc{min-height:52pt;mso-height-source:userset;padding:14px 12px 12px 12px;' +
+            'text-align:center;}' +
+            '.sportorg-excel-desc-line{margin:4px 0;line-height:1.55;text-align:center;}' +
+            '.sportorg-excel-desc-line strong{font-weight:700;}' +
+            '.sportorg-excel-group-header-follow .sportorg-excel-desc{min-height:64pt;padding-top:20px;}' +
+            '.sportorg-excel-doc-title{margin:12px 0;text-align:center;}' +
+            '.sportorg-excel-gap{height:12px;line-height:12px;font-size:1px;overflow:hidden;}' +
+            'tr.sportorg-excel-group-tr td{border:none!important;border-style:none!important;' +
+            'border-width:0!important;mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+            'mso-border-left-alt:none;mso-border-right-alt:none;}' +
+            'tr.sportorg-excel-empty-row td{border:none!important;border-style:none!important;' +
+            'border-width:0!important;mso-border-top-alt:none;mso-border-bottom-alt:none;' +
+            'mso-border-left-alt:none;mso-border-right-alt:none;}' +
+            'tr.sportorg-excel-empty-row{height:16pt;mso-height-source:userset;}' +
+            'tr.sportorg-excel-sig-tr td.sportorg-excel-sig-merged{padding:10px 8px 8px 8px!important;' +
+            'vertical-align:middle!important;line-height:1.45;}' +
+            '.sportorg-excel-sig-onecell{margin:0;line-height:1.45;text-align:center;}' +
+            'br{mso-data-placement:same-cell;}'
+        );
+    }
+
+    function excelGroupSectionWrapOpen(index) {
+        var tdStyle = 'border:none;padding:0;vertical-align:top;padding-bottom:40px;';
+        if (index > 0) {
+            tdStyle += 'padding-top:56px;mso-padding-top-alt:56px;';
+        }
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0" ' +
+            'style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">' +
+            '<tr><td style="' + tdStyle + '">'
+        );
+    }
+
+    function excelGroupSectionWrapClose() {
+        return '</td></tr></table>';
+    }
+
+    function excelGroupSectionBetweenSpacer() {
+        return (
+            '<table width="100%" border="0" cellpadding="0" cellspacing="0">' +
+            '<tr><td style="border:none;height:36pt;mso-height-source:userset;font-size:1px;line-height:36pt">&nbsp;</td></tr>' +
+            '</table>'
+        );
+    }
+
+    function exportResultsToExcel() {
+        var container = document.getElementById('results-tables');
+        if (!container || !container.querySelector('table.sportorg-table')) {
+            alert('Нет данных для экспорта');
+            return;
+        }
+        var parts = [];
+        parts.push(
+            '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+            'xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+            '<head><meta charset="utf-8">' +
+            '<style>' + getExcelExportStyles() +
+            '</style></head><body>'
+        );
+        var blocks = container.querySelectorAll('.results-block');
+        var nBlocks = blocks.length;
+        for (var bi = 0; bi < nBlocks; bi++) {
+            var block = blocks[bi];
+            parts.push(excelGroupSectionWrapOpen(bi));
+            parts.push(buildBlockHeaderHtmlForExcel(bi));
+            var tbl = block.querySelector('table.sportorg-table');
+            if (tbl) {
+                parts.push(buildExcelTableWithGroupAndSignatures(tbl, block));
+            }
+            parts.push(excelGroupSectionWrapClose());
+            if (bi < nBlocks - 1) {
+                parts.push(excelGroupSectionBetweenSpacer());
+            }
+        }
+        parts.push('</body></html>');
+        var html = parts.join('');
+        var blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = getExcelExportFilename() + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    new SettingsGenerator([
+        {
+            title: 'По дистанциям',
+            value: !!store.showProtocolByCourse,
+            change: function (checked) {
+                store.showProtocolByCourse = checked;
+                render();
+            }
+        },
+        {
+            title: 'Разбивки',
+            value: !!store.splitsShow,
+            change: function (checked) {
+                store.splitsShow = checked;
+                render();
+            }
+        },
+        {
+            title: 'Показывать ответы',
+            value: !!store.showAnswers,
+            change: function (checked) {
+                store.showAnswers = checked;
+                render();
+            }
+        },
+        {
+            title: 'Показывать первых:',
+            value: [
+                {text: 'Все', value: 0},
+                {text: '1', value: 1},
+                {text: '3', value: 3},
+                {text: '4', value: 4},
+                {text: '5', value: 5},
+                {text: '6', value: 6},
+                {text: '10', value: 10}
+            ],
+            change: function (arr) {
+                store.count = arr[0];
+                render();
+            }
+        },
+        {
+            title: 'Только призёры (1-3)',
+            value: !!store.showPodiumOnly,
+            change: function (checked) {
+                store.showPodiumOnly = checked;
+                render();
+            }
+        },
+        {
+            title: 'Каждый класс с новой страницы',
+            value: false,
+            change: function (checked) {
+                store.newPage = checked;
+                render();
+            }
+        },
+        {
+            title: 'Автопрокрутка',
+            value: Scrolling.enabled,
+            change: function (checked) {
+                Scrolling.enabled = checked;
+            }
+        },
+    ]).show();
+
+    function trailoProtocolInitUi() {
+        var cfg = window.SPORTORG_TRAILO_PROTOCOL || {};
+        if (cfg.excelMode) {
+            document.documentElement.classList.add('sportorg-trailo-excel-template');
+            if (cfg.autoExport) {
+                setTimeout(function () {
+                    exportResultsToExcel();
+                }, cfg.autoExportDelay || 400);
+            }
+            return;
+        }
+        var btn = document.getElementById('export-excel-btn');
+        if (btn) {
+            btn.addEventListener('click', exportResultsToExcel);
+        }
+    }
+    trailoProtocolInitUi();
+</script>
+{% endraw %}
 {% endblock %}

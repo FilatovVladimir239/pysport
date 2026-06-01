@@ -1758,6 +1758,8 @@ class RaceData:
         self.location = ""
         self.chief_referee = ""
         self.secretary = ""
+        self.chief_referee_signature_path = ""
+        self.secretary_signature_path = ""
         self.url = ""
         self.race_type = RaceType.INDIVIDUAL_RACE
         self.start_datetime: Optional[datetime.datetime] = None
@@ -1792,6 +1794,8 @@ class RaceData:
             "location": self.location,
             "chief_referee": self.chief_referee,
             "secretary": self.secretary,
+            "chief_referee_signature_path": self.chief_referee_signature_path,
+            "secretary_signature_path": self.secretary_signature_path,
             "url": self.url,
             "race_type": self.race_type.value,
             "start_datetime": str(self.start_datetime) if self.start_datetime else None,
@@ -1806,6 +1810,10 @@ class RaceData:
         self.location = str(data["location"])
         self.chief_referee = str(data["chief_referee"])
         self.secretary = str(data["secretary"])
+        self.chief_referee_signature_path = str(
+            data.get("chief_referee_signature_path", "")
+        )
+        self.secretary_signature_path = str(data.get("secretary_signature_path", ""))
         self.url = str(data["url"])
         self.race_type = RaceType(int(data["race_type"]))
         self.relay_leg_count = int(data["relay_leg_count"])
@@ -2902,12 +2910,7 @@ class RelayTeam:
                 start = prev_leg.get_finish_time()
                 if start != OTime():
                     return result.finish_time - start
-        if result.start_time is not None:
-            start = result.start_time
-        else:
-            person = relay_leg.get_person()
-            start = person.start_time if person and person.start_time is not None else OTime()
-        return result.finish_time - start
+        return result.finish_time - result.get_start_time()
 
     def get_trailo_passage_time(self) -> OTime:
         """Team time for KV penalty = sum of leg TrailO times."""
