@@ -96,6 +96,9 @@ _SIGNATURE_GAP_ROW_HEIGHT = 16.0
 _SIGNATURE_FONT_SIZE = 9
 _SIGNATURE_IMAGE_MAX_WIDTH = 140
 _SIGNATURE_IMAGE_MAX_HEIGHT = 52
+_FEDERATION_STAMP_MAX_WIDTH = 110
+_FEDERATION_STAMP_MAX_HEIGHT = 110
+_FEDERATION_STAMP_RIGHT_MARGIN_PX = 10
 _SIGNATURE_ROW_HEIGHT_WITH_IMAGE = 42.0
 # Non-breaking spaces reserve room for a signature scan (no underline characters).
 _SIGNATURE_FIELD_GAP = "\u00a0" * 80
@@ -156,15 +159,42 @@ def _official_names(race: Dict[str, Any]) -> Tuple[str, str]:
     return chief, secretary
 
 
-def _signature_image_paths(race: Dict[str, Any]) -> Tuple[str, str]:
-    data = race.get("data") or {}
-    chief_path = str(data.get("chief_referee_signature_path") or "").strip()
-    secretary_path = str(data.get("secretary_signature_path") or "").strip()
+def _signature_image_paths(
+    race: Dict[str, Any], plugin_settings: Optional[Dict[str, Any]] = None
+) -> Tuple[str, str]:
+    settings = plugin_settings or {}
+    chief_path = str(settings.get("chief_referee_signature_path") or "").strip()
+    secretary_path = str(settings.get("secretary_signature_path") or "").strip()
     if chief_path and not os.path.isfile(chief_path):
         chief_path = ""
     if secretary_path and not os.path.isfile(secretary_path):
         secretary_path = ""
     return chief_path, secretary_path
+
+
+def _federation_stamp_path(plugin_settings: Optional[Dict[str, Any]]) -> str:
+    settings = plugin_settings or {}
+    path = str(settings.get("federation_stamp_path") or "").strip()
+    if path and not os.path.isfile(path):
+        return ""
+    return path
+
+
+def _worksheet_columns_width_px(ws: Worksheet, col_count: int) -> int:
+    total = 0
+    for col_idx in range(1, col_count + 1):
+        letter = get_column_letter(col_idx)
+        dim = ws.column_dimensions.get(letter)
+        width = float(dim.width) if dim and dim.width else _DEFAULT_COLUMN_WIDTH
+        total += int(width * 7 + 5)
+    return total
+
+
+def _row_height_px(ws: Worksheet, row: int, default: float) -> int:
+    height = ws.row_dimensions[row].height
+    if height is None:
+        height = default
+    return int(float(height) * 1.33)
 
 
 def _place_signature_image(
@@ -195,6 +225,60 @@ def _place_signature_image(
         row=max(row - 1, 0),
         colOff=pixels_to_EMU(x_offset_px),
         rowOff=pixels_to_EMU(y_offset_px),
+    )
+    image.anchor = OneCellAnchor(
+        _from=marker,
+        ext=XDRPositiveSize2D(
+            pixels_to_EMU(image.width),
+            pixels_to_EMU(image.height),
+        ),
+    )
+    ws.add_image(image)
+    return True
+
+
+def _place_federation_stamp(
+    ws: Worksheet,
+    chief_row: int,
+    secretary_row: int,
+    col_count: int,
+    image_path: str,
+) -> bool:
+    """Federation seal to the right of chief/secretary name lines."""
+    if not image_path:
+        return False
+    try:
+        image = XLImage(image_path)
+    except ImportError:
+        logger.warning("Pillow is required to embed federation stamp in Excel")
+        return False
+
+    width_ratio = _FEDERATION_STAMP_MAX_WIDTH / float(image.width or 1)
+    height_ratio = _FEDERATION_STAMP_MAX_HEIGHT / float(image.height or 1)
+    scale = min(width_ratio, height_ratio, 1.0)
+    image.width = int(image.width * scale)
+    image.height = int(image.height * scale)
+
+    table_width = _worksheet_columns_width_px(ws, col_count)
+    chief_height = _row_height_px(ws, chief_row, _ROW_HEIGHT_SIGNATURE)
+    secretary_height = _row_height_px(ws, secretary_row, _ROW_HEIGHT_SIGNATURE)
+    block_height = chief_height + secretary_height
+
+    min_x = _signature_image_x_offset("Главный секретарь") + _SIGNATURE_IMAGE_MAX_WIDTH + 24
+    x_offset = max(
+        table_width - image.width - _FEDERATION_STAMP_RIGHT_MARGIN_PX,
+        min_x,
+    )
+    y_offset = max(
+        (block_height - image.height) // 2,
+        _SIGNATURE_IMAGE_Y_OFFSET_PX,
+    )
+
+    marker = AnchorMarker(
+        col=0,
+        row=max(chief_row - 1, 0),
+        colOff=pixels_to_EMU(x_offset),
+        rowOff=pixels_to_EMU(y_offset),
     )
     image.anchor = OneCellAnchor(
         _from=marker,
@@ -242,7 +326,10 @@ def _cell_text(value: Any) -> str:
 def _strip_html(text: str) -> str:
     plain = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
     plain = re.sub(r"<[^>]+>", "", plain)
-    return unescape(plain).strip()
+    plain = unescape(plain)
+    # Some event files store newlines as literal "\\n" in strings.
+    plain = plain.replace("\\n", "\n")
+    return plain.strip()
 
 
 def _is_description_continuation(previous: str, line: str) -> bool:
@@ -317,9 +404,10 @@ def _write_merged_header_line(
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=col_count)
     cell = ws.cell(row=row, column=1, value=text)
     cell.font = font
-    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+    line_count = max(1, str(text).count("\n") + 1)
+    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=line_count > 1)
     size = int(font.size or _RACE_DESCRIPTION_FONT_SIZE)
-    _set_row_height(ws, row, _row_height_for_wrapped_lines(1, size))
+    _set_row_height(ws, row, _row_height_for_wrapped_lines(line_count, size))
     return row + 1
 
 
@@ -342,13 +430,11 @@ def _write_header_block(
             )
     title = str(data.get("title") or "").strip()
     if title:
-        row = _write_merged_header_line(
-            ws,
-            row,
-            col_count,
-            title,
-            font=Font(bold=True, size=_RACE_TITLE_FONT_SIZE),
-        )
+        title = _strip_html(title)
+        title_lines = [part.strip() for part in title.splitlines() if part.strip()]
+        title_font = Font(bold=True, size=_RACE_TITLE_FONT_SIZE)
+        for line in (title_lines or [title]):
+            row = _write_merged_header_line(ws, row, col_count, line, font=title_font)
     date_place = _race_date_place_line(race)
     meta_font = Font(bold=True, size=_RACE_META_FONT_SIZE)
     if date_place:
@@ -418,16 +504,21 @@ def _write_official_signature_row(
 
 
 def _write_signature_block(
-    ws: Worksheet, row: int, col_count: int, race: Dict[str, Any]
+    ws: Worksheet,
+    row: int,
+    col_count: int,
+    race: Dict[str, Any],
+    plugin_settings: Optional[Dict[str, Any]] = None,
 ) -> int:
     """Chief referee and secretary on separate rows after the results table."""
     chief, secretary = _official_names(race)
-    chief_image, secretary_image = _signature_image_paths(race)
+    chief_image, secretary_image = _signature_image_paths(race, plugin_settings)
     for _ in range(_SIGNATURE_GAP_ROWS):
         _set_row_height(ws, row, _SIGNATURE_GAP_ROW_HEIGHT)
         row += 1
     chief_label = "Главный судья"
     secretary_label = "Главный секретарь"
+    chief_row = row
     row = _write_official_signature_row(
         ws,
         row,
@@ -437,6 +528,7 @@ def _write_signature_block(
         chief_image,
         signature_x_offset_px=_signature_image_x_offset(chief_label),
     )
+    secretary_row = row
     row = _write_official_signature_row(
         ws,
         row,
@@ -446,6 +538,15 @@ def _write_signature_block(
         secretary_image,
         signature_x_offset_px=_signature_image_x_offset(secretary_label),
     )
+    federation_path = _federation_stamp_path(plugin_settings)
+    if federation_path:
+        _place_federation_stamp(
+            ws,
+            chief_row,
+            secretary_row,
+            col_count,
+            federation_path,
+        )
     return row
 
 
@@ -540,6 +641,7 @@ def _write_group_block(
     mode: TrailoMode,
     *,
     show_answers: bool,
+    plugin_settings: Optional[Dict[str, Any]] = None,
 ) -> Tuple[int, int]:
     """Write race header, group title, table headers and data. Returns (last_row, col_count)."""
     fields = _fields_for_excel(block.fields, mode)
@@ -564,7 +666,7 @@ def _write_group_block(
         _set_row_height(ws, row - 1, _ROW_HEIGHT_GROUP_META)
     row = _write_table_headers(ws, row, fields, mode, block.hide_answer_labels)
     row = _write_data_rows(ws, row, fields, block.rows)
-    row = _write_signature_block(ws, row, col_count, race)
+    row = _write_signature_block(ws, row, col_count, race, plugin_settings)
     return row, col_count
 
 
@@ -682,8 +784,16 @@ def _write_data_rows(
 ) -> int:
     keys = _active_field_keys(fields)
     field_map = _field_by_key(fields)
+    try:
+        score_idx = keys.index(_RESULT_SCORE_KEY)
+    except ValueError:
+        score_idx = -1
+    time_idx = -1
+    if score_idx >= 0 and score_idx + 1 < len(keys) and keys[score_idx + 1] in _RESULT_TIME_KEYS:
+        time_idx = score_idx + 1
     row_idx = start_row
     merge_ranges: List[Tuple[int, int, int, int]] = []
+    merge_result_cells: List[Tuple[int, int, int]] = []
     for data_row in rows:
         col = 1
         rowspan = int(data_row.get("_relay_rowspan") or 1)
@@ -700,6 +810,10 @@ def _write_data_rows(
                 if rowspan > 1 and key in merged_fields:
                     merge_ranges.append((row_idx, col, row_idx + rowspan - 1, col))
             col += 1
+        if score_idx >= 0 and time_idx >= 0:
+            status = int(data_row.get("status") or 0)
+            if status and status != 1:
+                merge_result_cells.append((row_idx, score_idx + 1, time_idx + 1))
         _set_row_height(ws, row_idx, _ROW_HEIGHT_DATA)
         row_idx += 1
     for start_r, start_c, end_r, end_c in merge_ranges:
@@ -711,6 +825,14 @@ def _write_data_rows(
                 end_column=end_c,
             )
             ws.cell(row=start_r, column=start_c).alignment = CENTER
+    for row, col_score, col_time in merge_result_cells:
+        ws.merge_cells(
+            start_row=row,
+            start_column=col_score,
+            end_row=row,
+            end_column=col_time,
+        )
+        ws.cell(row=row, column=col_score).alignment = CENTER
     return row_idx
 
 
@@ -773,6 +895,7 @@ def save_trailo_protocol_excel(
     file_name: str,
     *,
     options: Optional[TrailoProtocolOptions] = None,
+    plugin_settings: Optional[Dict[str, Any]] = None,
 ) -> None:
     if options is None:
         options = default_excel_protocol_options()
@@ -802,7 +925,12 @@ def save_trailo_protocol_excel(
             ws = wb.active
             ws.title = "Протокол"
         row, col_count = _write_group_block(
-            ws, block, race, mode, show_answers=show_answers
+            ws,
+            block,
+            race,
+            mode,
+            show_answers=show_answers,
+            plugin_settings=plugin_settings,
         )
         _apply_print_setup(
             ws,

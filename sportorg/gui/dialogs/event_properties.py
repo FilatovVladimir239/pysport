@@ -7,12 +7,9 @@ try:
         QDialog,
         QDialogButtonBox,
         QFormLayout,
-        QHBoxLayout,
         QLabel,
         QLineEdit,
-        QPushButton,
         QTextEdit,
-        QWidget,
     )
 except ModuleNotFoundError:
     from PySide2.QtGui import QIcon
@@ -21,20 +18,12 @@ except ModuleNotFoundError:
         QDialog,
         QDialogButtonBox,
         QFormLayout,
-        QHBoxLayout,
         QLabel,
         QLineEdit,
-        QPushButton,
         QTextEdit,
-        QWidget,
     )
 
 from sportorg import config
-from sportorg.common.signature_images import (
-    signature_image_filter_text,
-    store_signature_image,
-)
-from sportorg.gui.dialogs.file_dialog import get_open_file_name
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.gui.utils.custom_controls import AdvComboBox, AdvSpinBox
 from sportorg.language import translate
@@ -116,40 +105,11 @@ class EventPropertiesDialog(QDialog):
 
         self.label_refery = QLabel(translate("Chief referee"))
         self.item_refery = QLineEdit()
-        self.button_chief_signature = QPushButton(translate("Signature"))
-        self.button_chief_signature.setFixedWidth(90)
-        self.button_clear_chief_signature = QPushButton("×")
-        self.button_clear_chief_signature.setFixedWidth(28)
-        chief_row = QWidget()
-        chief_layout = QHBoxLayout(chief_row)
-        chief_layout.setContentsMargins(0, 0, 0, 0)
-        chief_layout.addWidget(self.item_refery)
-        chief_layout.addWidget(self.button_chief_signature)
-        chief_layout.addWidget(self.button_clear_chief_signature)
-        self.layout.addRow(self.label_refery, chief_row)
-        self.button_chief_signature.clicked.connect(self._pick_chief_signature)
-        self.button_clear_chief_signature.clicked.connect(self._clear_chief_signature)
+        self.layout.addRow(self.label_refery, self.item_refery)
 
         self.label_secretary = QLabel(translate("Secretary"))
         self.item_secretary = QLineEdit()
-        self.button_secretary_signature = QPushButton(translate("Signature"))
-        self.button_secretary_signature.setFixedWidth(90)
-        self.button_clear_secretary_signature = QPushButton("×")
-        self.button_clear_secretary_signature.setFixedWidth(28)
-        secretary_row = QWidget()
-        secretary_layout = QHBoxLayout(secretary_row)
-        secretary_layout.setContentsMargins(0, 0, 0, 0)
-        secretary_layout.addWidget(self.item_secretary)
-        secretary_layout.addWidget(self.button_secretary_signature)
-        secretary_layout.addWidget(self.button_clear_secretary_signature)
-        self.layout.addRow(self.label_secretary, secretary_row)
-        self.button_secretary_signature.clicked.connect(self._pick_secretary_signature)
-        self.button_clear_secretary_signature.clicked.connect(
-            self._clear_secretary_signature
-        )
-
-        self._chief_signature_path = ""
-        self._secretary_signature_path = ""
+        self.layout.addRow(self.label_secretary, self.item_secretary)
 
         self.label_url = QLabel(translate("URL"))
         self.item_url = QLineEdit()
@@ -195,9 +155,6 @@ class EventPropertiesDialog(QDialog):
         self.item_url.setText(str(obj.data.url))
         self.item_refery.setText(str(obj.data.chief_referee))
         self.item_secretary.setText(str(obj.data.secretary))
-        self._chief_signature_path = str(obj.data.chief_referee_signature_path or "")
-        self._secretary_signature_path = str(obj.data.secretary_signature_path or "")
-        self._update_signature_buttons()
         self.item_start_date.setDateTime(obj.data.get_start_datetime())
         self.item_end_date.setDateTime(obj.data.get_end_datetime())
         self.item_type.setCurrentText(obj.data.race_type.get_title())
@@ -218,8 +175,6 @@ class EventPropertiesDialog(QDialog):
         obj.data.url = self.item_url.text()
         obj.data.chief_referee = self.item_refery.text()
         obj.data.secretary = self.item_secretary.text()
-        obj.data.chief_referee_signature_path = self._chief_signature_path
-        obj.data.secretary_signature_path = self._secretary_signature_path
         obj.data.start_datetime = start_date
         obj.data.end_datetime = end_date
 
@@ -237,42 +192,3 @@ class EventPropertiesDialog(QDialog):
         recalculate_results()
         GlobalAccess().get_main_window().set_title()
         GlobalAccess().get_main_window().refresh()
-
-    def _update_signature_buttons(self) -> None:
-        chief_path = self._chief_signature_path.strip()
-        secretary_path = self._secretary_signature_path.strip()
-        self.button_chief_signature.setToolTip(chief_path or translate("Choose signature image"))
-        self.button_secretary_signature.setToolTip(
-            secretary_path or translate("Choose signature image")
-        )
-        self.button_clear_chief_signature.setEnabled(bool(chief_path))
-        self.button_clear_secretary_signature.setEnabled(bool(secretary_path))
-
-    def _pick_chief_signature(self) -> None:
-        self._pick_signature("chief_referee", "_chief_signature_path")
-
-    def _pick_secretary_signature(self) -> None:
-        self._pick_signature("secretary", "_secretary_signature_path")
-
-    def _pick_signature(self, role: str, attr_name: str) -> None:
-        file_name = get_open_file_name(
-            translate("Choose signature image"),
-            signature_image_filter_text(),
-        )
-        if not file_name:
-            return
-        try:
-            saved_path = store_signature_image(file_name, role)
-        except OSError as error:
-            logging.error("Cannot save signature image: %s", error)
-            return
-        setattr(self, attr_name, saved_path)
-        self._update_signature_buttons()
-
-    def _clear_chief_signature(self) -> None:
-        self._chief_signature_path = ""
-        self._update_signature_buttons()
-
-    def _clear_secretary_signature(self) -> None:
-        self._secretary_signature_path = ""
-        self._update_signature_buttons()

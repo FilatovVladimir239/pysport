@@ -34,10 +34,8 @@ def test_generate_trailo_report_templates():
         "selected": {"persons": []},
     }
     html = get_text_from_file("reports/1_results_trailo.html", **kwargs)
-    kwargs_no_answers = dict(kwargs)
-    kwargs_no_answers["trailo_protocol_show_answers"] = False
-    html_no_answers = get_text_from_file("reports/1_results_trailo.html", **kwargs_no_answers)
-    assert "showAnswers: false" in html_no_answers
+    assert "Показывать ответы" not in html
+    assert "trailo_protocol_show_answers" not in html
     assert "trailo_results_protocol.inc.html" not in html
     assert "exportResultsToExcel" in html
     assert "SPORTORG_TRAILO_PROTOCOL" in html

@@ -15,6 +15,30 @@ RESULT_STATUS_DISQUALIFIED = 3
 STATUS_PRIORITY = [8, 4, 3, 5, 13]
 RELAY_MERGED_FIELDS = ["index", "result_relay", "place_show"]
 
+_STATUS_LABELS_RU: Dict[int, str] = {
+    2: "финиш",
+    3: "дискв.",
+    4: "нет КП",
+    5: "не финиш",
+    8: "превыш.\nвремени",
+    9: "снялся",
+    10: "вне\nконкурса",
+    13: "не старт",
+    14: "не заявл.",
+    15: "отменён",
+}
+
+
+def status_short_label(status: Any) -> str:
+    """Status label for protocol cells when status != OK (localized, wraps if needed)."""
+    try:
+        value = int(status or 0)
+    except (TypeError, ValueError):
+        return ""
+    if value == 1:
+        return ""
+    return _STATUS_LABELS_RU.get(value, str(value))
+
 QUALIFICATION_NAMES: Dict[Union[int, str], str] = {
     "": "б/р",
     0: "б/р",
@@ -665,11 +689,17 @@ def _build_result_row(
     if group:
         row["group"] = (person.get("group") or {}).get("name", "")
     if result.get("status") != 1:
+        status_label = status_short_label(result.get("status"))
         row["place_show"] = ""
-        if result.get("status") == 13 and result.get("status_comment"):
-            row["preo_pass_time"] = result.get("status_comment")
+        # Put status into "Result" (points) column; leave time empty.
+        row["trailo_score"] = status_label
+        row["trailo_time"] = ""
+        row["result"] = ""
+        # Keep the left "Время" column empty for non-OK statuses.
+        row["preo_pass_time"] = ""
         if mode.is_preo:
-            row["trailo_score"] = ""
+            # already set to status label
+            pass
 
     course = course_for_keys or get_person_course(race, person, group)
     for split in result.get("splits") or []:

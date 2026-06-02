@@ -41,11 +41,10 @@ def test_build_protocol_blocks_preo():
     block = blocks[0]
     assert block.name == "Мужчины 21"
     assert block.short_name == "M21"
-    assert len(block.rows) == 1
-    row = block.rows[0]
-    assert row["name"] == "Ivanov Ivan"
-    assert row["bib"] == 101
-    assert isinstance(row.get("0_31"), SplitCell)
+    assert len(block.rows) == 2
+    ok_row = next(row for row in block.rows if row.get("bib") == 101)
+    assert ok_row["name"] == "Ivanov Ivan"
+    assert isinstance(ok_row.get("0_31"), SplitCell)
 
 
 def test_count_trailo_course_controls_preo():
@@ -156,6 +155,7 @@ def test_save_trailo_protocol_excel_file():
         values = [cell.value for row in ws.iter_rows(min_row=1, max_row=30) for cell in row]
         flat = [str(v) for v in values if v]
         assert any("Ivanov Ivan" in value for value in flat)
+        assert any("Petrov Petr" in value for value in flat)
         assert any("Протокол результатов" in value for value in flat)
         assert any(value == "Результат" for value in flat)
         assert any(value == "очки" for value in flat)
@@ -175,6 +175,27 @@ def test_save_trailo_protocol_excel_file():
         assert not any("Штраф" in value for value in flat)
         assert not any("Подпись" in value for value in flat)
         assert not any(value.strip() == "М.П." for value in flat)
+
+
+def test_excel_merges_result_cells_for_non_ok_status():
+    race_dict = setup_preo_group()
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "protocol_merge.xlsx")
+        save_trailo_protocol_excel(race_dict, path)
+        wb = load_workbook(path)
+        ws = wb.active
+        # Find status cell and ensure it is merged across two columns.
+        status_cell = None
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+            for cell in row:
+                if cell.value == "не старт":
+                    status_cell = cell
+                    break
+            if status_cell:
+                break
+        assert status_cell is not None
+        merged_ranges = list(ws.merged_cells.ranges)
+        assert any(status_cell.coordinate in rng for rng in merged_ranges)
 
 
 def test_save_trailo_protocol_excel_a4_portrait_fit():

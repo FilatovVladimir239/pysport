@@ -1758,8 +1758,6 @@ class RaceData:
         self.location = ""
         self.chief_referee = ""
         self.secretary = ""
-        self.chief_referee_signature_path = ""
-        self.secretary_signature_path = ""
         self.url = ""
         self.race_type = RaceType.INDIVIDUAL_RACE
         self.start_datetime: Optional[datetime.datetime] = None
@@ -1794,8 +1792,6 @@ class RaceData:
             "location": self.location,
             "chief_referee": self.chief_referee,
             "secretary": self.secretary,
-            "chief_referee_signature_path": self.chief_referee_signature_path,
-            "secretary_signature_path": self.secretary_signature_path,
             "url": self.url,
             "race_type": self.race_type.value,
             "start_datetime": str(self.start_datetime) if self.start_datetime else None,
@@ -1810,10 +1806,6 @@ class RaceData:
         self.location = str(data["location"])
         self.chief_referee = str(data["chief_referee"])
         self.secretary = str(data["secretary"])
-        self.chief_referee_signature_path = str(
-            data.get("chief_referee_signature_path", "")
-        )
-        self.secretary_signature_path = str(data.get("secretary_signature_path", ""))
         self.url = str(data["url"])
         self.race_type = RaceType(int(data["race_type"]))
         self.relay_leg_count = int(data["relay_leg_count"])

@@ -16,13 +16,6 @@
     <button type="button" id="export-excel-btn">Экспорт в Excel</button>
 </div>
 <div id="results-tables"></div>
-{% if trailo_protocol_show_answers is defined %}
-<script>
-window.SPORTORG_TRAILO_PROTOCOL = Object.assign(window.SPORTORG_TRAILO_PROTOCOL || {}, {
-    showAnswers: {% if trailo_protocol_show_answers %}true{% else %}false{% endif %}
-});
-</script>
-{% endif %}
 {% raw %}
 <style id="trailo-preo-export-styles">
     .trailo-preo-heading h3 {
@@ -2133,13 +2126,6 @@ window.SPORTORG_TRAILO_PROTOCOL = Object.assign(window.SPORTORG_TRAILO_PROTOCOL 
         if (href.indexOf('show_answers=0') > -1) {
             return false;
         }
-        if (href.indexOf('show_answers=1') > -1) {
-            return true;
-        }
-        var cfg = window.SPORTORG_TRAILO_PROTOCOL;
-        if (cfg && cfg.showAnswers !== undefined) {
-            return !!cfg.showAnswers;
-        }
         return true;
     }
 
@@ -3382,14 +3368,6 @@ window.SPORTORG_TRAILO_PROTOCOL = Object.assign(window.SPORTORG_TRAILO_PROTOCOL 
             value: !!store.splitsShow,
             change: function (checked) {
                 store.splitsShow = checked;
-                render();
-            }
-        },
-        {
-            title: 'Показывать ответы',
-            value: !!store.showAnswers,
-            change: function (checked) {
-                store.showAnswers = checked;
                 render();
             }
         },

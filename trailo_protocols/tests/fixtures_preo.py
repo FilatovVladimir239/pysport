@@ -86,4 +86,21 @@ def setup_preo_group():
     race().courses.append(course)
     race().persons.append(person)
     race().results.append(result)
+
+    person_dns = Person()
+    person_dns.group = group
+    person_dns.organization = org
+    person_dns.set_bib(102)
+    person_dns.surname = "Petrov"
+    person_dns.name = "Petr"
+    person_dns.birth_date = date(1991, 1, 1)
+    person_dns.qual = Qualification.III
+
+    result_dns = ResultManual()
+    result_dns.person = person_dns
+    result_dns.status = ResultStatus.DID_NOT_START
+    TrailoResultChecker.process(result_dns, lambda *args, **kwargs: 0)
+
+    race().persons.append(person_dns)
+    race().results.append(result_dns)
     return race().to_dict()

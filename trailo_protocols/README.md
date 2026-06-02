@@ -39,7 +39,10 @@ uv sync
   "use_custom_script": false,
   "custom_script": "",
   "docx_template": "",
-  "docx_use_fixed_template": true
+  "docx_use_fixed_template": true,
+  "chief_referee_signature_path": "D:\\Reports\\TrailO\\signatures\\chief.png",
+  "secretary_signature_path": "D:\\Reports\\TrailO\\signatures\\secretary.png",
+  "federation_stamp_path": "D:\\Reports\\TrailO\\signatures\\federation_stamp.png"
 }
 ```
 
@@ -50,6 +53,10 @@ uv sync
 | `use_custom_script` / `custom_script` | Свой Python-скрипт для Excel вместо встроенного |
 | `docx_template` | Путь к шаблону Word (пусто — шаблон из SportOrg, см. ниже) |
 | `docx_use_fixed_template` | `true` — сначала `_9_trailo_preo_protocol_fixed.docx`, иначе `9_trailo_preo_protocol.docx` |
+| `chief_referee_signature_path` / `secretary_signature_path` | PNG/JPEG сканы подписей для Excel-протокола |
+| `federation_stamp_path` | PNG/JPEG печати федерации (справа от ФИО судьи и секретаря) |
+
+ФИО главного судьи и секретаря по-прежнему в **Свойства события** SportOrg (`chief_referee`, `secretary`). Сканы подписей задаются только в настройках плагина. При первом запуске плагин копирует пути из старых полей заезда, если они ещё были в файле базы.
 
 Word-экспорт использует те же данные, что и **Отчёты → Word** в SportOrg (`format_race_dict_for_trailo_docx`: время PreO в секундах, счётчики КП на дистанции).
 
