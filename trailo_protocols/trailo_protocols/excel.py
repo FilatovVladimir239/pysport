@@ -28,6 +28,8 @@ from sportorg.modules.reports.trailo_protocol import (
     prepare_race_dict,
 )
 
+from trailo_protocols.evsk import GroupAssignments, compute_group_assignments
+
 logger = logging.getLogger(__name__)
 
 THIN_BORDER = Border(
@@ -87,7 +89,7 @@ _DEFAULT_COLUMN_WIDTH = 6.8
 _ANSWER_COLUMN_WIDTH = 2.5
 _TIME_COLUMN_WIDTH = 6.0
 _ROW_HEIGHT_DATA = 13.5
-_ROW_HEIGHT_TABLE_HEADER = 13.5
+_ROW_HEIGHT_TABLE_HEADER = 16.0
 _ROW_HEIGHT_GROUP_TITLE = 10.0
 _ROW_HEIGHT_GROUP_META = 12.0
 _ROW_HEIGHT_SIGNATURE = 14.0
@@ -103,7 +105,16 @@ _SIGNATURE_ROW_HEIGHT_WITH_IMAGE = 42.0
 # Non-breaking spaces reserve room for a signature scan (no underline characters).
 _SIGNATURE_FIELD_GAP = "\u00a0" * 80
 _SIGNATURE_LABEL_X_OFFSET_PX = 72
+# Shift chief referee / secretary lines and scans to the right of the table edge.
+_SIGNATURE_BLOCK_SHIFT_PX = 120
+_SIGNATURE_BLOCK_INDENT = 14
 _SIGNATURE_IMAGE_Y_OFFSET_PX = 6
+_SIGNATURE_ALIGN = Alignment(
+    horizontal="left",
+    vertical="center",
+    wrap_text=False,
+    indent=_SIGNATURE_BLOCK_INDENT,
+)
 _GROUP_META_FONT_SIZE = 10
 _RACE_DESCRIPTION_FONT_SIZE = 9
 _RACE_TITLE_FONT_SIZE = 14
@@ -264,7 +275,11 @@ def _place_federation_stamp(
     secretary_height = _row_height_px(ws, secretary_row, _ROW_HEIGHT_SIGNATURE)
     block_height = chief_height + secretary_height
 
-    min_x = _signature_image_x_offset("Главный секретарь") + _SIGNATURE_IMAGE_MAX_WIDTH + 24
+    min_x = (
+        _signature_image_x_offset("Главный секретарь")
+        + _SIGNATURE_IMAGE_MAX_WIDTH
+        + 24
+    )
     x_offset = max(
         table_width - image.width - _FEDERATION_STAMP_RIGHT_MARGIN_PX,
         min_x,
@@ -462,7 +477,11 @@ def _signature_row_text(label: str, name: str) -> str:
 
 def _signature_image_x_offset(label: str) -> int:
     """Place the scan to the right of the duty title (~9pt Calibri in Excel)."""
-    return int(len(label) * 10) + _SIGNATURE_LABEL_X_OFFSET_PX
+    return (
+        int(len(label) * 10)
+        + _SIGNATURE_LABEL_X_OFFSET_PX
+        + _SIGNATURE_BLOCK_SHIFT_PX
+    )
 
 
 def _write_official_signature_row(
@@ -486,7 +505,7 @@ def _write_official_signature_row(
     )
     cell = ws.cell(row=row, column=1, value=line)
     cell.font = sig_font
-    cell.alignment = LEFT_NOWRAP
+    cell.alignment = _SIGNATURE_ALIGN
     has_image = False
     if image_path:
         has_image = _place_signature_image(
@@ -593,6 +612,10 @@ def _is_result_time_field(field: ProtocolField) -> bool:
     return field.key in _RESULT_TIME_KEYS
 
 
+def _is_tempo_result_time_field(mode: TrailoMode, field: ProtocolField) -> bool:
+    return mode.trailo_mode == "tempo" and field.key == "trailo_time"
+
+
 def _result_score_time_pair(
     base_fields: List[ProtocolField],
 ) -> Optional[Tuple[int, ProtocolField, ProtocolField]]:
@@ -634,6 +657,44 @@ def _split_station_groups(
     return base, answers, stations
 
 
+def _write_evsk_assignments(
+    ws: Worksheet,
+    row: int,
+    col_count: int,
+    assignments: GroupAssignments,
+) -> int:
+    """Write one-line EVSK criteria after the results table."""
+    if assignments.skipped_reason and not assignments.summary_lines:
+        return row
+
+    body_font = Font(size=10)
+    gap_font = Font(size=9, italic=True)
+
+    for _ in range(2):
+        _set_row_height(ws, row, _ROW_HEIGHT_GROUP_META)
+        row += 1
+
+    if assignments.skipped_reason:
+        row = _write_merged_header_line(
+            ws,
+            row,
+            col_count,
+            assignments.skipped_reason,
+            font=gap_font,
+        )
+        return row
+
+    for line in assignments.summary_lines:
+        row = _write_merged_header_line(
+            ws,
+            row,
+            col_count,
+            line,
+            font=body_font,
+        )
+    return row
+
+
 def _write_group_block(
     ws: Worksheet,
     block: ProtocolBlock,
@@ -666,6 +727,16 @@ def _write_group_block(
         _set_row_height(ws, row - 1, _ROW_HEIGHT_GROUP_META)
     row = _write_table_headers(ws, row, fields, mode, block.hide_answer_labels)
     row = _write_data_rows(ws, row, fields, block.rows)
+    group = block.group or {}
+    is_relay = int(group.get("__type") or 0) == 3
+    assignments = compute_group_assignments(
+        block.rows,
+        mode,
+        is_relay=is_relay,
+        plugin_settings=plugin_settings,
+        group=block.group,
+    )
+    row = _write_evsk_assignments(ws, row, col_count, assignments)
     row = _write_signature_block(ws, row, col_count, race, plugin_settings)
     return row, col_count
 
@@ -679,10 +750,13 @@ def _write_table_headers(
 ) -> int:
     base_fields, answer_fields, station_groups = _split_station_groups(fields, mode)
     result_pair = _result_score_time_pair(base_fields)
+    has_tempo_result_header = mode.trailo_mode == "tempo" and any(
+        field.key == "trailo_time" and field.active for field in base_fields
+    )
     has_split_columns = bool(answer_fields or station_groups)
     header_font = Font(bold=True, size=_TABLE_HEADER_FONT_SIZE)
     if not has_split_columns:
-        header_rows = 2 if result_pair else 1
+        header_rows = 2 if (result_pair or has_tempo_result_header) else 1
         sub_header_rowspan = 1
     else:
         header_rows = 2 if hide_answer_labels else 3
@@ -719,6 +793,11 @@ def _write_table_headers(
             col += 2
             continue
         if result_pair and index == result_pair_index + 1:
+            continue
+        if _is_tempo_result_time_field(mode, field):
+            write_cell(row, col, "Результат")
+            write_cell(row + 1, col, "время", rowspan=sub_header_rowspan)
+            col += 1
             continue
         title = _header_title_for_field(field)
         write_cell(row, col, title, rowspan=header_rows)

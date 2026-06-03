@@ -42,7 +42,10 @@ uv sync
   "docx_use_fixed_template": true,
   "chief_referee_signature_path": "D:\\Reports\\TrailO\\signatures\\chief.png",
   "secretary_signature_path": "D:\\Reports\\TrailO\\signatures\\secretary.png",
-  "federation_stamp_path": "D:\\Reports\\TrailO\\signatures\\federation_stamp.png"
+  "federation_stamp_path": "D:\\Reports\\TrailO\\signatures\\federation_stamp.png",
+  "evsk_assignments_enabled": true,
+  "evsk_competition_status": "championship_russia",
+  "evsk_competition_status_text": ""
 }
 ```
 
@@ -55,6 +58,11 @@ uv sync
 | `docx_use_fixed_template` | `true` — сначала `_9_trailo_preo_protocol_fixed.docx`, иначе `9_trailo_preo_protocol.docx` |
 | `chief_referee_signature_path` / `secretary_signature_path` | PNG/JPEG сканы подписей для Excel-протокола |
 | `federation_stamp_path` | PNG/JPEG печати федерации (справа от ФИО судьи и секретаря) |
+| `evsk_assignments_enabled` | Блок «Присвоение званий и разрядов» после таблицы (ЕВСК ОДА, с 26.06.2023) |
+| `evsk_competition_status` | Уровень соревнований для МС/КМС по местам: `championship_russia`, `cup_russia`, `first_russia`, `world_youth`, … |
+| `evsk_competition_status_text` | Свой текст статуса (если задан — вместо `evsk_competition_status`) |
+
+После таблицы результатов Excel добавляет блок по ЕВСК: **МС/КМС по местам** (PreO/Tempo — личные; эстафета — командные) и **разряды I–III по результату** (КУС и нормы из листа «нормы» для точного ориентирования и спринта). Нужно не менее 8 финишировавших в группе (4 команд в эстафете).
 
 ФИО главного судьи и секретаря по-прежнему в **Свойства события** SportOrg (`chief_referee`, `secretary`). Сканы подписей задаются только в настройках плагина. При первом запуске плагин копирует пути из старых полей заезда, если они ещё были в файле базы.
 

@@ -8,12 +8,18 @@ from sportorg.models.memory import (
     Course,
     CourseControl,
     Group,
+    Organization,
+    Person,
+    Qualification,
     Race,
     RaceType,
+    ResultManual,
+    ResultStatus,
     Split,
     new_event,
     race,
 )
+from sportorg.modules.trailo.result_checker import TrailoResultChecker
 from sportorg.modules.reports.trailo_protocol import (
     SplitCell,
     TrailoMode,
@@ -98,6 +104,74 @@ def test_group_header_detail_lines_tempo():
     assert any(line == "Дистанция: 2 станции" for line in lines)
     assert not any("КМ —" in line for line in lines)
     assert not any("тайм КП" in line for line in lines)
+
+
+def _setup_tempo_group_with_results():
+    _setup_tempo_group()
+    group = race().groups[0]
+    org = Organization()
+    org.name = "Club"
+
+    person_ok = Person()
+    person_ok.group = group
+    person_ok.organization = org
+    person_ok.set_bib(1)
+    person_ok.surname = "Fast"
+    person_ok.name = "Runner"
+    person_ok.qual = Qualification.III
+
+    split = Split()
+    split.code = "31A"
+    split.is_correct = True
+    split.time = OTime(msec=30_000)
+    split.course_index = 0
+
+    result_ok = ResultManual()
+    result_ok.person = person_ok
+    result_ok.status = ResultStatus.OK
+    result_ok.start_time = OTime(msec=0)
+    result_ok.finish_time = OTime(msec=30_000)
+    result_ok.splits = [split]
+    TrailoResultChecker.process(result_ok, lambda *args, **kwargs: 0)
+
+    person_dns = Person()
+    person_dns.group = group
+    person_dns.organization = org
+    person_dns.set_bib(2)
+    person_dns.surname = "Late"
+    person_dns.name = "Start"
+    result_dns = ResultManual()
+    result_dns.person = person_dns
+    result_dns.status = ResultStatus.DID_NOT_START
+    TrailoResultChecker.process(result_dns, lambda *args, **kwargs: 0)
+
+    race().persons.extend([person_ok, person_dns])
+    race().results.extend([result_ok, result_dns])
+    recalculate_results(recheck_results=True)
+    return race().to_dict()
+
+
+def test_save_trailo_protocol_excel_tempo_result_header_and_status():
+    race_dict = prepare_race_dict(_setup_tempo_group_with_results())
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "tempo.xlsx")
+        save_trailo_protocol_excel(race_dict, path)
+        ws = load_workbook(path).active
+        flat = [str(c.value or "") for row in ws.iter_rows() for c in row]
+        assert any(v == "Результат" for v in flat)
+        assert any(v == "время" for v in flat)
+        assert not any(v == "Время" and "Результат" not in str(v) for v in flat if v in ("Время",))
+        assert any("не старт" in v for v in flat)
+        result_header_height = None
+        for row in range(1, ws.max_row + 1):
+            for col in range(1, ws.max_column + 1):
+                if ws.cell(row=row, column=col).value == "Результат":
+                    result_header_height = ws.row_dimensions[row].height
+                    break
+            if result_header_height is not None:
+                break
+        assert result_header_height is not None
+        assert result_header_height >= 16.0
 
 
 def test_group_display_name_prefers_long_name():
@@ -327,6 +401,24 @@ def test_save_trailo_protocol_excel_relay():
         save_trailo_protocol_excel(race().to_dict(), path)
         wb = load_workbook(path)
         assert wb.active.max_row >= 5
+        flat = [
+            str(cell.value)
+            for row in wb.active.iter_rows(min_row=1, max_row=wb.active.max_row)
+            for cell in row
+            if cell.value is not None
+        ]
+        kus_line = next(
+            (value for value in flat if value.startswith("Квалификационный уровень —")),
+            "",
+        )
+        criteria = next(
+            (value for value in flat if "МС — 1 место" in str(value)),
+            "",
+        )
+        if kus_line:
+            assert "МС — 1 место" in criteria
+            assert "КМС — 2–3 место" in criteria
+            assert "МС — 1–3 место" not in criteria
 
 
 def test_save_trailo_protocol_excel_can_include_answers_when_requested():

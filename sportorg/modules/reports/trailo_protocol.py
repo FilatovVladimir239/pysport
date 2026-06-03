@@ -691,15 +691,15 @@ def _build_result_row(
     if result.get("status") != 1:
         status_label = status_short_label(result.get("status"))
         row["place_show"] = ""
-        # Put status into "Result" (points) column; leave time empty.
-        row["trailo_score"] = status_label
-        row["trailo_time"] = ""
         row["result"] = ""
-        # Keep the left "Время" column empty for non-OK statuses.
         row["preo_pass_time"] = ""
-        if mode.is_preo:
-            # already set to status label
-            pass
+        if mode.trailo_mode == "tempo":
+            row["trailo_time"] = status_label
+            row["trailo_score"] = ""
+        else:
+            # Put status into "Result" (points) column; leave time empty.
+            row["trailo_score"] = status_label
+            row["trailo_time"] = ""
 
     course = course_for_keys or get_person_course(race, person, group)
     for split in result.get("splits") or []:
