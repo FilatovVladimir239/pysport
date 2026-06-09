@@ -25,8 +25,10 @@ from sportorg.gui.dialogs.file_dialog import get_save_file_name
 from sportorg.gui.dialogs.group_edit import GroupEditDialog
 from sportorg.gui.dialogs.organization_edit import OrganizationEditDialog
 from sportorg.gui.dialogs.person_edit import PersonEditDialog
+from sportorg.gui.dialogs.redfox_team_edit import RedfoxTeamEditDialog
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.gui.menu import Factory, menu_list
+from sportorg.modules.redfox.person_sync import is_redfox_persons_mode
 from sportorg.gui.tabs import courses, groups, log, organizations, persons, results
 from sportorg.gui.tabs.memory_model import (
     CourseMemoryModel,
@@ -712,6 +714,9 @@ class MainWindow(QMainWindow):
             table = self.get_person_table()
             table.model().init_cache()
             table.model().layoutChanged.emit()
+            person_tab = self.tabwidget.widget(0)
+            if person_tab is not None and hasattr(person_tab, "refresh_redfox_hint"):
+                person_tab.refresh_redfox_hint()
 
             table = self.get_result_table()
             table.model().init_cache()
@@ -1024,7 +1029,16 @@ class MainWindow(QMainWindow):
             tab = self.current_tab
             if tab == 0:
                 p = race().add_new_person()
-                PersonEditDialog(p, True).exec_()
+                if is_redfox_persons_mode():
+                    from sportorg.modules.redfox.person_sync import (
+                        default_meta,
+                        set_redfox_meta,
+                    )
+
+                    set_redfox_meta(p, default_meta())
+                    RedfoxTeamEditDialog(p, True).exec_()
+                else:
+                    PersonEditDialog(p, True).exec_()
                 self.refresh()
             elif tab == 1:
                 self.menu_factory.execute("ManualFinishAction")

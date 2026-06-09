@@ -320,7 +320,21 @@ class PersonMemoryModel(AbstractSportOrgMemoryModel):
         super().__init__()
         self.init_cache()
 
+    def _redfox_mode(self) -> bool:
+        from sportorg.modules.redfox.person_sync import is_redfox_persons_mode
+
+        return is_redfox_persons_mode()
+
     def get_headers(self) -> List[str]:
+        if self._redfox_mode():
+            return [
+                translate("Team number"),
+                translate("Group"),
+                translate("Team name"),
+                translate("Members"),
+                translate("Comment"),
+            ]
+
         use_birthday = settings.SETTINGS.race_use_birthday
 
         return [
@@ -347,6 +361,7 @@ class PersonMemoryModel(AbstractSportOrgMemoryModel):
 
     def init_cache(self):
         self.cache.clear()
+        self.c_count = len(self.get_headers())
         for row in range(len(self.race.persons)):
             self.cache.append(self.get_data(row))
 
@@ -362,6 +377,24 @@ class PersonMemoryModel(AbstractSportOrgMemoryModel):
         self.race.persons.insert(position, new_person)
 
     def get_values_from_object(self, person: Person):
+        if self._redfox_mode():
+            from sportorg.modules.redfox.person_sync import (
+                format_members_column,
+                get_redfox_group_settings,
+                get_redfox_meta,
+                user_comment_part,
+            )
+
+            meta = get_redfox_meta(person)
+            _, team_size = get_redfox_group_settings(person.group)
+            return [
+                person.bib,
+                person.group.name if person.group else "",
+                person.name or person.full_name.strip(),
+                format_members_column(meta, team_size),
+                user_comment_part(person.comment or ""),
+            ]
+
         ret = []
 
         is_rented_card = person.is_rented_card or RentCards().exists(person.card_number)

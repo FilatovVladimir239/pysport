@@ -3,15 +3,20 @@ import sys
 
 try:
     from PySide6 import QtCore, QtWidgets
+    from PySide6.QtWidgets import QHeaderView
 except ModuleNotFoundError:
     from PySide2 import QtCore, QtWidgets
+    from PySide2.QtWidgets import QHeaderView
 
 from sportorg.gui.dialogs.person_edit import PersonEditDialog
+from sportorg.gui.dialogs.redfox_team_edit import RedfoxTeamEditDialog
 from sportorg.gui.global_access import GlobalAccess
 from sportorg.gui.tabs.memory_model import PersonMemoryModel
 from sportorg.gui.tabs.table import TableView
+from sportorg.language import translate
 from sportorg.models.memory import race
 from sportorg.models.start.relay import set_next_relay_number_to_person
+from sportorg.modules.redfox.person_sync import is_redfox_persons_mode
 
 
 class PersonsTableView(TableView):
@@ -138,6 +143,16 @@ class Widget(QtWidgets.QWidget):
         self.setup_ui()
 
     def setup_ui(self):
+        self.redfox_hint = QtWidgets.QLabel("")
+        self.redfox_hint.setWordWrap(True)
+        self.redfox_hint.setVisible(is_redfox_persons_mode())
+        self.redfox_hint.setText(
+            translate(
+                "Redfox mode: each row is a team. Group course = distance (Long/Short/Lite), set team size on Groups tab."
+            )
+        )
+        self.entry_layout.addWidget(self.redfox_hint, 0, 0)
+
         self.person_table.setObjectName("PersonTable")
         self.person_table.setModel(PersonMemoryModel())
 
@@ -145,7 +160,11 @@ class Widget(QtWidgets.QWidget):
             # show_edit_dialog(index)
             try:
                 if index.row() < len(race().persons):
-                    dialog = PersonEditDialog(race().persons[index.row()])
+                    person = race().persons[index.row()]
+                    if is_redfox_persons_mode():
+                        dialog = RedfoxTeamEditDialog(person)
+                    else:
+                        dialog = PersonEditDialog(person)
                     dialog.exec_()
                     GlobalAccess().get_main_window().refresh()
             except Exception as e:
@@ -164,7 +183,33 @@ class Widget(QtWidgets.QWidget):
 
         self.person_table.activated.connect(entry_double_clicked)
         self.person_table.clicked.connect(entry_single_clicked)
-        self.entry_layout.addWidget(self.person_table)
+        self.entry_layout.addWidget(self.person_table, 1, 0)
+        self.configure_redfox_table(is_redfox_persons_mode())
+
+    def configure_redfox_table(self, enabled: bool) -> None:
+        table = self.person_table
+        table.setWordWrap(enabled)
+        header = table.verticalHeader()
+        if enabled:
+            header.setSectionResizeMode(QHeaderView.ResizeToContents)
+            header.setMinimumSectionSize(22)
+        else:
+            header.setSectionResizeMode(QHeaderView.Fixed)
+            header.setDefaultSectionSize(20)
+        if enabled and table.model():
+            table.resizeRowsToContents()
+            table.resizeColumnToContents(3)
+
+    def refresh_redfox_hint(self) -> None:
+        visible = is_redfox_persons_mode()
+        self.redfox_hint.setVisible(visible)
+        self.configure_redfox_table(visible)
+        if visible:
+            self.redfox_hint.setText(
+                translate(
+                    "Redfox mode: each row is a team. Group course = distance (Long/Short/Lite), set team size on Groups tab."
+                )
+            )
 
     def get_table(self):
         return self.person_table

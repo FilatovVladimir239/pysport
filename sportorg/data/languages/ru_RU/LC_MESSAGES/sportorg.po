@@ -1948,3 +1948,138 @@ msgstr "Не получается подключиться к станции Т�
 
 msgid "Penalty for extra cp"
 msgstr "Штраф за лишние КП"
+
+msgid "Redfox"
+msgstr "Redfox"
+
+msgid "Split check"
+msgstr "Сплит-проверка"
+
+msgid "Redfox split check"
+msgstr "Сплит-проверка Redfox"
+
+msgid "Redfox mode (SFR → team reads)"
+msgstr "Режим Redfox (SFR → считывания команды)"
+
+msgid "Redfox mode enabled"
+msgstr "Режим Redfox включён"
+
+msgid "Redfox mode disabled"
+msgstr "Режим Redfox выключен"
+
+msgid "Create split"
+msgstr "Сформировать сплит"
+
+msgid "Add team"
+msgstr "Добавить команду"
+
+msgid "Team size"
+msgstr "Размер команды"
+
+msgid "Active lap"
+msgstr "Активный круг"
+
+msgid "Points (lap)"
+msgstr "Баллы (круг)"
+
+msgid "Team finish"
+msgstr "Финиш команды"
+
+msgid "Chip reads"
+msgstr "Считывания чипов"
+
+msgid "Member 1"
+msgstr "Участник 1"
+
+msgid "Member 2"
+msgstr "Участник 2"
+
+msgid "Member 3"
+msgstr "Участник 3"
+
+msgid "Member 4"
+msgstr "Участник 4"
+
+msgid "Spread"
+msgstr "Разброс"
+
+msgid "Cnt"
+msgstr "Кол-во"
+
+msgid "Pen."
+msgstr "Штр."
+
+msgid "Chip read: team {}, lap {}, slot {}"
+msgstr "Считывание: команда {}, круг {}, слот {}"
+
+msgid "Lap {}"
+msgstr "Круг {}"
+
+msgid "Chip reads for current lap"
+msgstr "Считывания чипов (текущий круг)"
+
+msgid "Member {}"
+msgstr "Участник {}"
+
+msgid "Waiting for chip"
+msgstr "Ожидание чипа"
+
+msgid "Read at {}"
+msgstr "Считано: {}"
+
+msgid "Read all team chips, then click Create split"
+msgstr "Сначала считайте все чипы команды (2 или 4), затем нажмите «Сформировать сплит»"
+
+msgid "Clear lap reads"
+msgstr "Очистить считывания круга"
+
+msgid "All {} chips read — click Create split"
+msgstr "Все {} чипа считаны — нажмите «Сформировать сплит»"
+
+msgid "Read {} chips for lap {}"
+msgstr "Считайте {} чипа для круга {}"
+
+msgid "Need {} chips, only {} read"
+msgstr "Нужно {} чипов, считано только {}"
+
+msgid "Split check completed for lap {}"
+msgstr "Проверка сплита для круга {} завершена"
+
+msgid "Redfox team properties"
+msgstr "Свойства команды Redfox"
+
+msgid "Team number"
+msgstr "Номер команды"
+
+msgid "Redfox mode: each row is a team. Use Add (+) to create a team."
+msgstr "Режим Redfox: каждая строка — команда. Кнопка «+» добавляет команду."
+
+msgid "Redfox mode: each row is a team. Group course = distance (Long/Short/Lite), set team size on Groups tab."
+msgstr "Режим Redfox: каждая строка — команда. Дистанция — дистанция группы (Long/Short/Lite), размер — на вкладке «Группы»."
+
+msgid "Members"
+msgstr "Участники"
+
+msgid "Member {}: {} ({})"
+msgstr "Участник {}: {} ({})"
+
+msgid "Member {}: {}"
+msgstr "Участник {}: {}"
+
+msgid "Distance {} · team size {}"
+msgstr "Дистанция {} · размер команды {}"
+
+msgid "From Competitors tab"
+msgstr "С вкладки «Участники»"
+
+msgid "Teams are managed on the Competitors tab. Select a team here for split check."
+msgstr "Команды создаются на вкладке «Участники». Здесь выберите команду для проверки сплита."
+
+msgid "Select a team on the Competitors tab"
+msgstr "Выберите команду на вкладке «Участники»"
+
+msgid "Selected team has no number"
+msgstr "У выбранной команды не задан номер"
+
+msgid "Team {} not found — create it on the Competitors tab"
+msgstr "Команда {} не найдена — создайте её на вкладке «Участники»"

@@ -31,6 +31,7 @@ from sportorg.gui.dialogs.not_start_dialog import InputStartNumbersDialog
 from sportorg.gui.dialogs.organization_mass_edit import OrganizationMassEditDialog
 from sportorg.gui.dialogs.print_properties import PrintPropertiesDialog
 from sportorg.gui.dialogs.plugins import PluginsDialog
+from sportorg.gui.dialogs.redfox_split_check_dialog import RedfoxSplitCheckDialog
 from sportorg.gui.dialogs.relay_clone_dialog import RelayCloneDialog
 from sportorg.gui.dialogs.relay_number_dialog import RelayNumberDialog
 from sportorg.gui.dialogs.rent_cards_dialog import RentCardsDialog
@@ -1022,3 +1023,8 @@ class SFRExportAction(Action, metaclass=ActionFactory):
             except Exception as e:
                 logging.exception(str(e))
                 QMessageBox.critical(self.app, translate("Error"), str(e))
+
+
+class RedfoxSplitCheckAction(Action, metaclass=ActionFactory):
+    def execute(self):
+        RedfoxSplitCheckDialog.open_window()

@@ -333,6 +333,8 @@ class Group:
         self.is_best_team_placing_mode: bool = False
         self.relay_legs = 0
 
+        self.redfox_team_size = 4
+
     def __repr__(self) -> str:
         return "Group {}".format(self.name)
 
@@ -387,6 +389,7 @@ class Group:
             "__type": self.__type.value if self.__type is not None else None,
             "is_best_team_placing_mode": self.is_best_team_placing_mode,
             "relay_legs": self.relay_legs,
+            "redfox_team_size": self.redfox_team_size,
             "sex": 0,
         }
 
@@ -404,6 +407,8 @@ class Group:
         self.order_in_corridor = int(data["order_in_corridor"])
         self.first_number = int(data["first_number"])
         self.relay_legs = int(data["relay_legs"])
+        if "redfox_team_size" in data:
+            self.redfox_team_size = int(data["redfox_team_size"])
         if "ranking" in data:
             if data["ranking"]:
                 self.ranking = Ranking()

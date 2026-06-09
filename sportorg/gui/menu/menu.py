@@ -458,6 +458,17 @@ def menu_list():
                     "feature": settings.FEATURE_SPORTIDENT,
                 },
                 {
+                    "title": translate("Redfox"),
+                    "feature": settings.FEATURE_REDFOX,
+                    "actions": [
+                        {
+                            "title": translate("Split check"),
+                            "action": "RedfoxSplitCheckAction",
+                            "feature": settings.FEATURE_SFR,
+                        },
+                    ],
+                },
+                {
                     "title": translate("Huichang management"),
                     "action": "HuichangManagementAction",
                     "id": "huichang_management",

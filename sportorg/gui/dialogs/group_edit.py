@@ -16,6 +16,10 @@ from sportorg.models.constant import get_race_courses
 from sportorg.models.memory import Limit, RaceType, find, race
 from sportorg.models.result.result_calculation import ResultCalculation
 from sportorg.modules.live.live import live_client
+from sportorg.modules.redfox.person_sync import (
+    get_redfox_group_settings,
+    is_redfox_persons_mode,
+)
 from sportorg.modules.teamwork.teamwork import Teamwork
 
 
@@ -119,6 +123,17 @@ class GroupEditDialog(BaseDialog):
             ),
             ButtonField(text=translate("Configuration"), id="ranking"),
         ]
+        if is_redfox_persons_mode():
+            self.form[12:12] = [
+                NumberField(
+                    title=translate("Team size"),
+                    object=group,
+                    key="redfox_team_size",
+                    minimum=2,
+                    maximum=4,
+                    single_step=2,
+                ),
+            ]
 
     def before_showing(self) -> None:
         self.on_is_any_course_changed()

@@ -80,6 +80,11 @@ class ResultThread(QThread):
             try:
                 cmd = self._queue.get(timeout=5)
                 if cmd.command == "card_data":
+                    from sportorg.modules.redfox import reader as redfox_reader
+
+                    if redfox_reader.try_append_card_data(cmd.data):
+                        backup.backup_data(cmd.data)
+                        continue
                     result = self._get_result(self._check_data(cmd.data))
                     self.data_sender.emit(result)
                     backup.backup_data(cmd.data)
