@@ -2075,8 +2075,8 @@
             {key: 'preo_pass_time', title: 'Время', size: 12, active: false},
             {key: 'preo_team_pass_time', title: 'Время', size: 14, active: false},
             {key: 'trailo_score_penalty', title: 'ШтрафКВ', size: 9, active: false},
-            {key: 'trailo_score', title: 'Результат очки', size: 4, active: !isTempoMode},
-            {key: isTempoMode ? 'trailo_time' : (isPreoMode ? 'trailo_time' : 'result'), title: 'Результат Время', size: 14},
+            {key: 'trailo_score', title: 'Очки', size: 4, active: !isTempoMode},
+            {key: isTempoMode ? 'trailo_time' : (isPreoMode ? 'trailo_time' : 'result'), title: 'Время', size: 14},
             {key: 'result_relay', title: 'Результат команды', size: 14, active: false},
             {key: 'place_show', title: 'Место', size: 6}
         ],
@@ -2212,10 +2212,10 @@
                     th.style.width = '30px';
                     th.classList.add('bib-col');
                 }
-                else if (t === 'Результат очки' || t === 'Очки') {
+                else if (t === 'Очки') {
                     th.classList.add('score-col');
                 }
-                else if (t === 'Результат Время' || t === 'Результат' || t === 'Время') {
+                else if (t === 'Результат' || t === 'Время') {
                     th.classList.add('trailo-result-col');
                 }
                 else if (t === PASS_TIME_TITLE) {
@@ -2242,7 +2242,7 @@
                     thm.style.width = '42px';
                 } else if (thm.classList.contains('time-col')) {
                     thm.style.width = '70px';
-                } else if (tm === 'Результат очки' || tm === 'Очки') {
+                } else if (tm === 'Очки') {
                     thm.style.width = '34px';
                     thm.classList.add('score-col');
                 } else {
@@ -2403,11 +2403,11 @@
         }
 
         function markScoreColumn() {
-            var SCORE_TITLE = 'Результат очки';
+            var SCORE_TITLE = 'Очки';
             var scoreIdx2 = -1;
             for (var ni = 0; ni < ths.length; ni++) {
                 var st = (ths[ni].textContent || '').trim();
-                if (st === SCORE_TITLE || st === 'Очки') {
+                if (st === SCORE_TITLE) {
                     scoreIdx2 = ni;
                     break;
                 }
@@ -2660,8 +2660,8 @@
         var answersEndExclusive = firstTimeIdx;
         var answersLen = Math.max(0, answersEndExclusive - answersStart);
 
-        var SCORE_TITLE = 'Результат очки';
-        var OVERALL_TIME_TITLE = 'Результат Время';
+        var SCORE_TITLE = 'Очки';
+        var OVERALL_TIME_TITLE = 'Время';
         var scoreIdx = -1;
         var overallTimeIdx = -1;
         for (var bi = 0; bi < answersStart; bi++) {
