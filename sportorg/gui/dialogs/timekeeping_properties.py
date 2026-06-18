@@ -55,6 +55,8 @@ from sportorg.modules.trailo.config import (
 
 
 class TimekeepingPropertiesDialog(QDialog):
+    _TRAILO_TAB_INDEX = 2
+
     def __init__(self):
         super().__init__(GlobalAccess().get_main_window())
         self.time_format = "hh:mm:ss"
@@ -299,7 +301,11 @@ class TimekeepingPropertiesDialog(QDialog):
             self.trailo_settings_alternate_radio,
         ):
             radio.toggled.connect(self.update_trailo_course_state)
-        self.result_proc_layout.addRow(self.trailo_settings_group)
+
+        self.trailo_tab = QWidget()
+        trailo_tab_layout = QVBoxLayout(self.trailo_tab)
+        trailo_tab_layout.addWidget(self.trailo_settings_group)
+        trailo_tab_layout.addStretch()
 
         self.start_group_box = QGroupBox(translate("Start time"))
         self.start_layout = QFormLayout()
@@ -485,6 +491,8 @@ class TimekeepingPropertiesDialog(QDialog):
         self.tab_widget.addTab(self.time_settings_tab, translate("Time settings"))
         self.tab_widget.addTab(self.credit_time_settings_tab, translate("Credit"))
 
+        self._update_trailo_tab_visibility()
+
         def cancel_changes():
             self.close()
 
@@ -585,15 +593,27 @@ class TimekeepingPropertiesDialog(QDialog):
 
         return fallback
 
+    def _update_trailo_tab_visibility(self) -> None:
+        visible = self.rp_trailo_radio.isChecked()
+        tab_index = self.tab_widget.indexOf(self.trailo_tab)
+        if visible:
+            if tab_index < 0:
+                self.tab_widget.insertTab(
+                    self._TRAILO_TAB_INDEX, self.trailo_tab, translate("trailo")
+                )
+            return
+        if tab_index < 0:
+            return
+        if self.tab_widget.currentWidget() == self.trailo_tab:
+            self.tab_widget.setCurrentWidget(self.result_proc_tab)
+        self.tab_widget.removeTab(tab_index)
+
     def rp_result_calculation_mode(self):
         if self.rp_scores_radio.isChecked():
             self.rp_scores_group.show()
         else:
             self.rp_scores_group.hide()
-        if self.rp_trailo_radio.isChecked():
-            self.trailo_settings_group.show()
-        else:
-            self.trailo_settings_group.hide()
+        self._update_trailo_tab_visibility()
 
     def penalty_calculation_mode(self):
         if (
@@ -940,6 +960,8 @@ class TimekeepingPropertiesDialog(QDialog):
 
         credit_time_cp = obj.get_setting("credit_time_cp", 250)
         self.credit_time_cp_value.setValue(credit_time_cp)
+
+        self.rp_result_calculation_mode()
 
     def apply_changes_impl(self):
         obj = race()
