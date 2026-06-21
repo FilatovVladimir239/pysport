@@ -1,0 +1,804 @@
+{
+  "preo_norms": [
+    {
+      "kus": 800,
+      "ranks": {
+        "I": {
+          "score_min": 72.0,
+          "time_max": 148.0
+        }
+      }
+    },
+    {
+      "kus": 680,
+      "ranks": {
+        "I": {
+          "score_min": 74.0,
+          "time_max": 144.0
+        }
+      }
+    },
+    {
+      "kus": 600,
+      "ranks": {
+        "I": {
+          "score_min": 76.0,
+          "time_max": 140.0
+        }
+      }
+    },
+    {
+      "kus": 520,
+      "ranks": {
+        "I": {
+          "score_min": 78.0,
+          "time_max": 136.0
+        },
+        "II": {
+          "score_min": 60.0,
+          "time_max": 160.0
+        }
+      }
+    },
+    {
+      "kus": 400,
+      "ranks": {
+        "I": {
+          "score_min": 80.0,
+          "time_max": 132.0
+        },
+        "II": {
+          "score_min": 62.0,
+          "time_max": 156.0
+        }
+      }
+    },
+    {
+      "kus": 340,
+      "ranks": {
+        "I": {
+          "score_min": 82.0,
+          "time_max": 128.0
+        },
+        "II": {
+          "score_min": 64.0,
+          "time_max": 152.0
+        }
+      }
+    },
+    {
+      "kus": 300,
+      "ranks": {
+        "I": {
+          "score_min": 84.0,
+          "time_max": 124.0
+        },
+        "II": {
+          "score_min": 66.0,
+          "time_max": 148.0
+        }
+      }
+    },
+    {
+      "kus": 260,
+      "ranks": {
+        "I": {
+          "score_min": 86.0,
+          "time_max": 120.0
+        },
+        "II": {
+          "score_min": 68.0,
+          "time_max": 144.0
+        }
+      }
+    },
+    {
+      "kus": 200,
+      "ranks": {
+        "I": {
+          "score_min": 88.0,
+          "time_max": 116.0
+        },
+        "II": {
+          "score_min": 70.0,
+          "time_max": 140.0
+        },
+        "III": {
+          "score_min": 52.0,
+          "time_max": 200.0
+        }
+      }
+    },
+    {
+      "kus": 170,
+      "ranks": {
+        "I": {
+          "score_min": 90.0,
+          "time_max": 112.0
+        },
+        "II": {
+          "score_min": 72.0,
+          "time_max": 136.0
+        },
+        "III": {
+          "score_min": 54.0,
+          "time_max": 195.0
+        }
+      }
+    },
+    {
+      "kus": 150,
+      "ranks": {
+        "I": {
+          "score_min": 92.0,
+          "time_max": 108.0
+        },
+        "II": {
+          "score_min": 70.0,
+          "time_max": 132.0
+        },
+        "III": {
+          "score_min": 56.0,
+          "time_max": 190.0
+        }
+      }
+    },
+    {
+      "kus": 130,
+      "ranks": {
+        "I": {
+          "score_min": 96.0,
+          "time_max": 104.0
+        },
+        "II": {
+          "score_min": 72.0,
+          "time_max": 128.0
+        },
+        "III": {
+          "score_min": 58.0,
+          "time_max": 185.0
+        }
+      }
+    },
+    {
+      "kus": 100,
+      "ranks": {
+        "I": {
+          "score_min": 100.0,
+          "time_max": 100.0
+        },
+        "II": {
+          "score_min": 78.0,
+          "time_max": 124.0
+        },
+        "III": {
+          "score_min": 60.0,
+          "time_max": 180.0
+        }
+      }
+    },
+    {
+      "kus": 80,
+      "ranks": {
+        "II": {
+          "score_min": 82.0,
+          "time_max": 120.0
+        },
+        "III": {
+          "score_min": 62.0,
+          "time_max": 175.0
+        }
+      }
+    },
+    {
+      "kus": 70,
+      "ranks": {
+        "II": {
+          "score_min": 86.0,
+          "time_max": 115.0
+        },
+        "III": {
+          "score_min": 64.0,
+          "time_max": 170.0
+        }
+      }
+    },
+    {
+      "kus": 60,
+      "ranks": {
+        "II": {
+          "score_min": 90.0,
+          "time_max": 110.0
+        },
+        "III": {
+          "score_min": 68.0,
+          "time_max": 165.0
+        }
+      }
+    },
+    {
+      "kus": 50,
+      "ranks": {
+        "II": {
+          "score_min": 95.0,
+          "time_max": 105.0
+        },
+        "III": {
+          "score_min": 72.0,
+          "time_max": 160.0
+        }
+      }
+    },
+    {
+      "kus": 40,
+      "ranks": {
+        "II": {
+          "score_min": 100.0,
+          "time_max": 100.0
+        },
+        "III": {
+          "score_min": 76.0,
+          "time_max": 155.0
+        }
+      }
+    },
+    {
+      "kus": 36,
+      "ranks": {
+        "III": {
+          "score_min": 80.0,
+          "time_max": 150.0
+        }
+      }
+    },
+    {
+      "kus": 31,
+      "ranks": {
+        "III": {
+          "score_min": 85.0,
+          "time_max": 145.0
+        }
+      }
+    },
+    {
+      "kus": 24,
+      "ranks": {
+        "III": {
+          "score_min": 90.0,
+          "time_max": 140.0
+        }
+      }
+    },
+    {
+      "kus": 22,
+      "ranks": {
+        "III": {
+          "score_min": 100.0,
+          "time_max": 135.0
+        }
+      }
+    },
+    {
+      "kus": 20,
+      "ranks": {}
+    },
+    {
+      "kus": 18,
+      "ranks": {}
+    },
+    {
+      "kus": 16,
+      "ranks": {}
+    },
+    {
+      "kus": 14,
+      "ranks": {}
+    },
+    {
+      "kus": 12,
+      "ranks": {}
+    },
+    {
+      "kus": 10,
+      "ranks": {}
+    },
+    {
+      "kus": 9,
+      "ranks": {}
+    },
+    {
+      "kus": 8,
+      "ranks": {}
+    },
+    {
+      "kus": 6,
+      "ranks": {}
+    }
+  ],
+  "tempo_norms": [
+    {
+      "kus": 800,
+      "ranks": {
+        "I": {
+          "time_max": 148.0
+        }
+      }
+    },
+    {
+      "kus": 680,
+      "ranks": {
+        "I": {
+          "time_max": 144.0
+        }
+      }
+    },
+    {
+      "kus": 600,
+      "ranks": {
+        "I": {
+          "time_max": 140.0
+        }
+      }
+    },
+    {
+      "kus": 520,
+      "ranks": {
+        "I": {
+          "time_max": 136.0
+        },
+        "II": {
+          "time_max": 160.0
+        }
+      }
+    },
+    {
+      "kus": 400,
+      "ranks": {
+        "I": {
+          "time_max": 132.0
+        },
+        "II": {
+          "time_max": 156.0
+        }
+      }
+    },
+    {
+      "kus": 340,
+      "ranks": {
+        "I": {
+          "time_max": 128.0
+        },
+        "II": {
+          "time_max": 152.0
+        }
+      }
+    },
+    {
+      "kus": 300,
+      "ranks": {
+        "I": {
+          "time_max": 124.0
+        },
+        "II": {
+          "time_max": 148.0
+        }
+      }
+    },
+    {
+      "kus": 260,
+      "ranks": {
+        "I": {
+          "time_max": 120.0
+        },
+        "II": {
+          "time_max": 144.0
+        }
+      }
+    },
+    {
+      "kus": 200,
+      "ranks": {
+        "I": {
+          "time_max": 116.0
+        },
+        "II": {
+          "time_max": 140.0
+        },
+        "III": {
+          "time_max": 160.0
+        }
+      }
+    },
+    {
+      "kus": 170,
+      "ranks": {
+        "I": {
+          "time_max": 112.0
+        },
+        "II": {
+          "time_max": 136.0
+        },
+        "III": {
+          "time_max": 156.0
+        }
+      }
+    },
+    {
+      "kus": 150,
+      "ranks": {
+        "I": {
+          "time_max": 108.0
+        },
+        "II": {
+          "time_max": 132.0
+        },
+        "III": {
+          "time_max": 152.0
+        }
+      }
+    },
+    {
+      "kus": 130,
+      "ranks": {
+        "I": {
+          "time_max": 104.0
+        },
+        "II": {
+          "time_max": 128.0
+        },
+        "III": {
+          "time_max": 148.0
+        }
+      }
+    },
+    {
+      "kus": 100,
+      "ranks": {
+        "I": {
+          "time_max": 100.0
+        },
+        "II": {
+          "time_max": 124.0
+        },
+        "III": {
+          "time_max": 144.0
+        }
+      }
+    },
+    {
+      "kus": 80,
+      "ranks": {
+        "II": {
+          "time_max": 120.0
+        },
+        "III": {
+          "time_max": 140.0
+        }
+      }
+    },
+    {
+      "kus": 70,
+      "ranks": {
+        "II": {
+          "time_max": 116.0
+        },
+        "III": {
+          "time_max": 136.0
+        }
+      }
+    },
+    {
+      "kus": 60,
+      "ranks": {
+        "II": {
+          "time_max": 112.0
+        },
+        "III": {
+          "time_max": 132.0
+        }
+      }
+    },
+    {
+      "kus": 50,
+      "ranks": {
+        "II": {
+          "time_max": 108.0
+        },
+        "III": {
+          "time_max": 128.0
+        }
+      }
+    },
+    {
+      "kus": 40,
+      "ranks": {
+        "II": {
+          "time_max": 104.0
+        },
+        "III": {
+          "time_max": 124.0
+        }
+      }
+    },
+    {
+      "kus": 36,
+      "ranks": {
+        "II": {
+          "time_max": 100.0
+        },
+        "III": {
+          "time_max": 120.0
+        }
+      }
+    },
+    {
+      "kus": 31,
+      "ranks": {
+        "III": {
+          "time_max": 116.0
+        }
+      }
+    },
+    {
+      "kus": 24,
+      "ranks": {
+        "III": {
+          "time_max": 112.0
+        }
+      }
+    },
+    {
+      "kus": 22,
+      "ranks": {
+        "III": {
+          "time_max": 108.0
+        }
+      }
+    },
+    {
+      "kus": 20,
+      "ranks": {
+        "III": {
+          "time_max": 104.0
+        }
+      }
+    },
+    {
+      "kus": 18,
+      "ranks": {
+        "III": {
+          "time_max": 100.0
+        }
+      }
+    },
+    {
+      "kus": 16,
+      "ranks": {}
+    },
+    {
+      "kus": 14,
+      "ranks": {}
+    },
+    {
+      "kus": 12,
+      "ranks": {}
+    }
+  ],
+  "title_rules": [
+    {
+      "status": "Первенство мира",
+      "sex_age": "Юниоры, юниорки (до 24 лет)",
+      "relay": false,
+      "ms_places": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "kms_places": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "status": "Первенство мира",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": [
+        1,
+        2
+      ],
+      "kms_places": [
+        3,
+        4
+      ]
+    },
+    {
+      "status": "Первенство Европы",
+      "sex_age": "Юниоры, юниорки (до 24 лет)",
+      "relay": false,
+      "ms_places": [
+        1,
+        2
+      ],
+      "kms_places": [
+        3,
+        4
+      ]
+    },
+    {
+      "status": "Первенство Европы",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": [
+        1
+      ],
+      "kms_places": [
+        2
+      ]
+    },
+    {
+      "status": "Другие международные спортивные соревнования, включенные в ЕКП",
+      "sex_age": "",
+      "relay": false,
+      "ms_places": [
+        1,
+        2
+      ],
+      "kms_places": [
+        3,
+        4
+      ]
+    },
+    {
+      "status": "Другие международные спортивные соревнования, включенные в ЕКП",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1,
+        2
+      ]
+    },
+    {
+      "status": "Другие международные спортивные соревнования, включенные в ЕКП",
+      "sex_age": "Юноши, девушки  (до 24 лет)",
+      "relay": false,
+      "ms_places": [
+        1
+      ],
+      "kms_places": [
+        2,
+        3
+      ]
+    },
+    {
+      "status": "Другие международные спортивные соревнования, включенные в ЕКП",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1
+      ]
+    },
+    {
+      "status": "Чемпионат России",
+      "sex_age": "",
+      "relay": false,
+      "ms_places": [
+        1,
+        2,
+        3
+      ],
+      "kms_places": [
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "status": "Чемпионат России",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": [
+        1
+      ],
+      "kms_places": [
+        2,
+        3
+      ]
+    },
+    {
+      "status": "Кубок России (при двух и более               этапах – финал)",
+      "sex_age": "Мужчины, женщины",
+      "relay": false,
+      "ms_places": [
+        1
+      ],
+      "kms_places": [
+        2,
+        3
+      ]
+    },
+    {
+      "status": "Кубок России (при двух и более               этапах – финал)",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1,
+        2
+      ]
+    },
+    {
+      "status": "Первенство России",
+      "sex_age": "Юноши, девушки  (до 24 лет)",
+      "relay": false,
+      "ms_places": [
+        1
+      ],
+      "kms_places": [
+        2,
+        3
+      ]
+    },
+    {
+      "status": "Первенство России",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1
+      ]
+    },
+    {
+      "status": "Другие всероссийские спортивные соревнования, включенные в ЕКП",
+      "sex_age": "",
+      "relay": false,
+      "ms_places": null,
+      "kms_places": [
+        1,
+        2
+      ]
+    },
+    {
+      "status": "Другие всероссийские спортивные соревнования, включенные в ЕКП",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1
+      ]
+    },
+    {
+      "status": "1-10 место",
+      "sex_age": "",
+      "relay": false,
+      "ms_places": null,
+      "kms_places": [
+        1,
+        2
+      ]
+    },
+    {
+      "status": "1-10 место",
+      "sex_age": "",
+      "relay": true,
+      "ms_places": null,
+      "kms_places": [
+        1
+      ]
+    },
+    {
+      "status": "1-10 место",
+      "sex_age": "Юноши, девушки (до 24 лет)",
+      "relay": false,
+      "ms_places": null,
+      "kms_places": [
+        1
+      ]
+    }
+  ]
+}
