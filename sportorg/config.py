@@ -12,7 +12,7 @@ except ImportError:
     from importlib_resources import as_file, files
 
 NAME = "SportOrg"
-VERSION = "v1.8.0+Shachunov"
+VERSION = "v1.8.0+ladoga"
 PYTHON_VERSION = (
     f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 )
