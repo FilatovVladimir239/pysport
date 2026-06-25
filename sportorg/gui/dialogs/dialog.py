@@ -46,6 +46,7 @@ from sportorg.utils.time import qdate_to_date, time_to_otime
 @dataclass
 class Field:
     title: str = ""
+    tooltip: str = ""
     object: Optional[Any] = None
     key: str = ""
     id: str = ""
@@ -122,6 +123,20 @@ class _Empty:
 Empty = _Empty()
 
 
+def _make_form_label(title: str, tooltip: str = ""):
+    if tooltip:
+        if "\n" in title:
+            first_line, rest = title.split("\n", 1)
+            title = first_line + " 🛈\n" + rest
+        else:
+            title = title + " 🛈"
+    label = QLabel(title)
+    label.setWordWrap(True)
+    if tooltip:
+        label.setToolTip(tooltip)
+    return label, label
+
+
 class BaseDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -164,7 +179,7 @@ class BaseDialog(QDialog):
         form_layout = QFormLayout(content_widget)
 
         for form_field in self.form:
-            label = QLabel(form_field.title)
+            form_label, label = _make_form_label(form_field.title, form_field.tooltip)
             item = None
             value = Empty
             if form_field.object and form_field.key:
@@ -278,7 +293,7 @@ class BaseDialog(QDialog):
                 if callback:
                     item.clicked.connect(callback)
 
-            form_layout.addRow(label, item)  # type:ignore
+            form_layout.addRow(form_label, item)  # type:ignore
             form_field.q_label = label
             form_field.q_item = item
             if form_field.id:

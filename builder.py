@@ -1,9 +1,32 @@
+import subprocess
 import sys
 from importlib.util import find_spec
+from pathlib import Path
 
 from cx_Freeze import Executable, setup
 
 from sportorg import config
+
+
+def _ensure_commit_version_file() -> None:
+    path = Path(config.COMMIT_VERSION_FILE)
+    if path.exists():
+        return
+    commit = ""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        commit = result.stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    path.write_text(commit, encoding="utf-8")
+
+
+_ensure_commit_version_file()
 
 base = None
 if sys.platform == "win32":

@@ -368,6 +368,21 @@ class TimekeepingPropertiesDialog(QDialog):
             self.credit_time_cp, self.credit_time_cp_value
         )
 
+        self.credit_time_max_label = QLabel(translate("Maximum credit time"))
+        self.credit_time_max = AdvTimeEdit(max_width=80, display_format="HH:mm:ss")
+        self.credit_time_max.setToolTip(
+            translate(
+                "Maximum time credited per punch at the cutoff station. "
+                "Zero = no limit."
+            )
+        )
+        self.credit_time_group_box_layout.addRow(
+            self.credit_time_max_label, self.credit_time_max
+        )
+
+        self.credit_time_off_radio.toggled.connect(self.credit_time_mode_changed)
+        self.credit_time_cp.toggled.connect(self.credit_time_mode_changed)
+
         self.credit_time_group_box.setLayout(self.credit_time_group_box_layout)
         self.credit_time_settings_settings_layout.addRow(self.credit_time_group_box)
         self.credit_time_settings_tab.setLayout(
@@ -488,6 +503,12 @@ class TimekeepingPropertiesDialog(QDialog):
             self.rp_scores_group.show()
         else:
             self.rp_scores_group.hide()
+
+    def credit_time_mode_changed(self):
+        enabled = self.credit_time_cp.isChecked()
+        self.credit_time_cp_value.setEnabled(enabled)
+        self.credit_time_max_label.setEnabled(enabled)
+        self.credit_time_max.setEnabled(enabled)
 
     def penalty_calculation_mode(self):
         if (
@@ -720,6 +741,10 @@ class TimekeepingPropertiesDialog(QDialog):
         credit_time_cp = obj.get_setting("credit_time_cp", 250)
         self.credit_time_cp_value.setValue(credit_time_cp)
 
+        credit_time_max = obj.get_setting("credit_time_max", 0)
+        self.credit_time_max.setOTime(OTime(msec=credit_time_max))
+        self.credit_time_mode_changed()
+
     def apply_changes_impl(self):
         obj = race()
 
@@ -892,5 +917,6 @@ class TimekeepingPropertiesDialog(QDialog):
         credit_time_disabled = self.credit_time_off_radio.isChecked()
         obj.set_setting("credit_time_enabled", not credit_time_disabled)
         obj.set_setting("credit_time_cp", self.credit_time_cp_value.value())
+        obj.set_setting("credit_time_max", self.credit_time_max.getOTime().to_msec())
 
         recalculate_results(recheck_results=False)

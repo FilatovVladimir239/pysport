@@ -219,6 +219,24 @@ msgstr "URL"
 msgid "Group properties"
 msgstr "Свойства группы"
 
+msgid "Allowed control codes"
+msgstr "Разрешённые номера КП"
+
+msgid "One code per line. Empty = all punched controls count toward the score."
+msgstr "По одному коду в строке. Пусто — засчитываются все отмеченные КП."
+
+msgid "CP restrictions after start"
+msgstr "Ограничения на КП после старта"
+
+msgid "Format: code minutes, e.g. '45 60' = CP 45 only after 60 min from start."
+msgstr "Формат: код минуты, например «45 60» — КП 45 только через 60 мин после старта."
+
+msgid "Consecutive control chain bonus"
+msgstr "Бонус за связку КП подряд"
+
+msgid "Format: code code ... bonus, e.g. '45 67 32 5' = +5 if 45,67,32 taken in a row."
+msgstr "Формат: код код ... бонус, например «45 67 32 5» — +5, если 45, 67 и 32 отмечены подряд на карте."
+
 msgid "Full name"
 msgstr "Полное наименование"
 
@@ -730,6 +748,12 @@ msgstr "Штраф за каждую просроченную минуту"
 msgid "maximum overrun time"
 msgstr "Макс. превышение контрольного времени"
 
+msgid "Maximum credit time"
+msgstr "Максимальное время отсечки"
+
+msgid "Maximum time credited per punch at the cutoff station. Zero = no limit."
+msgstr "Максимум отсечки за один заход на станцию. Ноль — без ограничения."
+
 msgid "no credit time"
 msgstr "Без отсечки"
 
@@ -843,6 +867,18 @@ msgstr "Очки"
 
 msgid "Points gained"
 msgstr "Набрано очков"
+
+msgid "CP score total"
+msgstr "Сумма за КП"
+
+msgid "Chain bonus"
+msgstr "Бонус за связку"
+
+msgid "Score"
+msgstr "Итого очков"
+
+msgid "Rogaine split points legend"
+msgstr "* = КП отмечен раньше разрешённого времени; - = не засчитан; dup = повтор"
 
 msgid "Penalty for finishing late"
 msgstr "Штраф за превышение"

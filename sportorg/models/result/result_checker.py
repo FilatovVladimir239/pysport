@@ -11,6 +11,11 @@ from sportorg.models.memory import (
     find,
     race,
 )
+from sportorg.models.result.course_control_rules import (
+    calculate_control_chain_bonus,
+    resolve_scoring_course,
+    split_counts_for_course_score,
+)
 
 
 class ResultCheckerException(Exception):
@@ -107,9 +112,12 @@ class ResultChecker:
             return
 
         credit_cp = race().get_setting("credit_time_cp", 250)
+        max_credit_msec = race().get_setting("credit_time_max", 0)
         splits = result.splits
 
-        result.credit_time = ResultChecker.credit_calculation(splits, credit_cp)
+        result.credit_time = ResultChecker.credit_calculation(
+            splits, credit_cp, max_credit_msec
+        )
 
     @staticmethod
     def calculate_penalty(result: Result):
@@ -200,11 +208,14 @@ class ResultChecker:
         return ret
 
     @staticmethod
-    def credit_calculation(splits, credit_cp):
+    def credit_calculation(splits, credit_cp, max_credit_msec=0):
         result_credit_time = OTime()
         for idx, split in enumerate(splits):
             if int(split.code) == credit_cp and idx > 0:
-                result_credit_time += split.time - splits[idx - 1].time
+                segment = split.time - splits[idx - 1].time
+                if max_credit_msec > 0 and segment.to_msec() > max_credit_msec:
+                    segment = OTime(msec=max_credit_msec)
+                result_credit_time += segment
 
         return result_credit_time
 
@@ -485,12 +496,20 @@ class ResultChecker:
         """
         user_array = []
         score = 0
+        course = resolve_scoring_course(result)
 
         for cur_split in result.splits:
             code = str(cur_split.code)
+            if not split_counts_for_course_score(result, cur_split, course):
+                continue
             if code not in user_array or allow_duplicates:
                 user_array.append(code)
                 score += ResultChecker.get_control_score(code)
+
+        if course is not None:
+            punch_codes = [str(split.code) for split in result.splits]
+            chains = getattr(course, "control_chain_bonuses", None) or []
+            score += calculate_control_chain_bonus(punch_codes, chains)
 
         return score
 

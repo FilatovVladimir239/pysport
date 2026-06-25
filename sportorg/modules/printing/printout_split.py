@@ -2,6 +2,7 @@ import platform
 
 from sportorg.language import translate
 from sportorg.models.memory import Group, Result, ResultStatus, race
+from sportorg.models.result.course_control_rules import build_rogaine_score_breakdown
 from sportorg.models.result.result_calculation import ResultCalculation
 
 if platform.system() == "Windows":  # current realisation works on Windows only
@@ -141,6 +142,18 @@ class SportorgPrinter:
         self.move_cursor(font_size * 1.3)
         self.end_page()
 
+    @staticmethod
+    def _format_rogaine_split_points(split_info):
+        if not split_info:
+            return "   -"
+        if split_info.get("counts"):
+            return ("+" + str(split_info["points"]))[-4:].rjust(4)
+        if split_info.get("skip_reason") == "early":
+            return "  0*"
+        if split_info.get("skip_reason") == "duplicate":
+            return " dup"
+        return "   -"
+
     def print_split_normal(self, result: Result):
         obj = race()
 
@@ -175,31 +188,33 @@ class SportorgPrinter:
             str(obj.data.start_datetime)[:10] + ", " + obj.data.location, fn, fs_main
         )
 
-        # Athlete info, bib, card number, start time
-        self.print_line(person.full_name, fn, fs_large, 700)
+        # Athlete info, bib, start time
+        if person.surname:
+            self.print_line(person.surname, fn, fs_large, 700)
+        if person.name:
+            self.print_line(person.name, fn, fs_large, 700)
         self.print_line(translate("Group") + ": " + group.name, fn, fs_main)
         if person.organization:
             self.print_line(
                 translate("Team") + ": " + person.organization.name, fn, fs_main
             )
-        self.print_line(
-            translate("Bib")
-            + ": "
-            + str(person.bib)
-            + " " * 5
-            + translate("Card")
-            + ": "
-            + str(person.card_number),
-            fn,
-            fs_main,
-        )
+        self.print_line(translate("Bib") + ": " + str(person.bib), fn, fs_main)
         self.print_line(
             translate("Start") + ": " + result.get_start_time().to_str(), fn, fs_main
         )
 
+        is_rogaine = race().get_setting("result_processing_mode", "time") == "scores"
+        rogaine_breakdown = (
+            build_rogaine_score_breakdown(result) if is_rogaine else None
+        )
+
         # Splits
         index = 1
-        for split in result.splits:
+        for split_index, split in enumerate(result.splits):
+            rogaine_split = None
+            if rogaine_breakdown:
+                rogaine_split = rogaine_breakdown["splits"][split_index]
+
             if not is_group_existed:
                 line = (
                     ("  " + str(index))[-3:]
@@ -207,6 +222,18 @@ class SportorgPrinter:
                     + ("  " + split.code)[-3:]
                     + " "
                     + split.time.to_str()[-7:]
+                )
+                index += 1
+                self.print_line(line, fn, fs_main)
+            elif is_rogaine:
+                line = (
+                    ("  " + str(index))[-3:]
+                    + " "
+                    + ("  " + split.code)[-3:]
+                    + " "
+                    + split.relative_time.to_str()[-7:]
+                    + " "
+                    + self._format_rogaine_split_points(rogaine_split)
                 )
                 index += 1
                 self.print_line(line, fn, fs_main)
@@ -231,13 +258,10 @@ class SportorgPrinter:
                     + split.relative_time.to_str()[-7:]
                     + " "
                     + split.leg_time.to_str()[-5:]
-                    + " "
-                    + split.speed
-                    + " "
                 )
 
                 if not is_relay:
-                    line += ("  " + str(split.leg_place))[-3:]
+                    line += " " + ("  " + str(split.leg_place))[-3:]
 
                 # Highlight correct controls of marked route ( '31' and '31(31,32,33)' => + )
                 if is_penalty_used and course:
@@ -255,6 +279,14 @@ class SportorgPrinter:
                     + split.relative_time.to_str()[-7:]
                 )
                 self.print_line(line, fn, fs_main)
+
+        if is_rogaine and rogaine_breakdown:
+            has_early_cp = any(
+                split_info.get("skip_reason") == "early"
+                for split_info in rogaine_breakdown["splits"]
+            )
+            if has_early_cp:
+                self.print_line(translate("Rogaine split points legend"), fn, fs_small)
 
         finish_split = ""
         if len(result.splits) > 0:
@@ -293,28 +325,39 @@ class SportorgPrinter:
                 fs_main,
             )
 
-        is_rogaine = race().get_setting("result_processing_mode", "time") == "scores"
-        if is_rogaine and result.rogaine_penalty > 0:
-            penalty = result.rogaine_penalty
-            total_score = result.rogaine_score + penalty
+        if is_rogaine and rogaine_breakdown:
             self.print_line(
-                translate("Points gained") + ": " + str(total_score),
+                translate("CP score total")
+                + ": "
+                + str(rogaine_breakdown["cp_score"]),
                 fn,
                 fs_main,
             )
+            if rogaine_breakdown["chain_bonus"]:
+                self.print_line(
+                    translate("Chain bonus")
+                    + ": +"
+                    + str(rogaine_breakdown["chain_bonus"]),
+                    fn,
+                    fs_main,
+                )
             self.print_line(
-                translate("Penalty for finishing late") + ": " + str(penalty),
+                translate("Points gained") + ": " + str(rogaine_breakdown["gross_score"]),
                 fn,
                 fs_main,
             )
+            if result.rogaine_penalty > 0:
+                self.print_line(
+                    translate("Penalty for finishing late")
+                    + ": "
+                    + str(result.rogaine_penalty),
+                    fn,
+                    fs_main,
+                )
 
         if result.is_status_ok():
             self.print_line(
-                translate("Result")
-                + ": "
-                + result.get_result()
-                + " " * 4
-                + result.speed,
+                translate("Result") + ": " + result.get_result(),
                 fn,
                 fs_main,
             )

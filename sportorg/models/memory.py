@@ -226,6 +226,9 @@ class Course:
 
         self.count_person = 0
         self.count_finished = 0
+        self.allowed_control_codes: List[str] = []
+        self.control_start_delay_minutes: Dict[str, int] = {}
+        self.control_chain_bonuses: List[Dict[str, Any]] = []
 
     def __repr__(self) -> str:
         return "Course {} {}".format(self.name, repr(self.controls))
@@ -271,6 +274,16 @@ class Course:
             "length": self.length,
             "climb": self.climb,
             "corridor": self.corridor,
+            "allowed_control_codes": list(self.allowed_control_codes),
+            "control_start_delay_minutes": dict(self.control_start_delay_minutes),
+            "control_chain_bonuses": [
+                {
+                    "codes": list(chain.get("codes") or []),
+                    "bonus": int(chain.get("bonus") or 0),
+                }
+                for chain in self.control_chain_bonuses
+                if len(chain.get("codes") or []) >= 2 and int(chain.get("bonus") or 0) > 0
+            ],
         }
 
     def update_data(self, data):
@@ -284,6 +297,41 @@ class Course:
             control = CourseControl()
             control.update_data(item)
             self.controls.append(control)
+        if "allowed_control_codes" in data and data["allowed_control_codes"] is not None:
+            self.allowed_control_codes = [
+                str(code) for code in data["allowed_control_codes"] if str(code).strip()
+            ]
+        else:
+            self.allowed_control_codes = []
+        raw_delays = data.get("control_start_delay_minutes")
+        if isinstance(raw_delays, dict):
+            self.control_start_delay_minutes = {
+                str(code): int(minutes)
+                for code, minutes in raw_delays.items()
+                if str(code).strip()
+            }
+        else:
+            self.control_start_delay_minutes = {}
+        raw_chains = data.get("control_chain_bonuses")
+        if isinstance(raw_chains, list):
+            chains = []
+            for item in raw_chains:
+                if not isinstance(item, dict):
+                    continue
+                codes = [
+                    str(code).strip()
+                    for code in (item.get("codes") or [])
+                    if str(code).strip()
+                ]
+                try:
+                    bonus = int(item.get("bonus") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if len(codes) >= 2 and bonus > 0:
+                    chains.append({"codes": codes, "bonus": bonus})
+            self.control_chain_bonuses = chains
+        else:
+            self.control_chain_bonuses = []
 
     def index_name(self):
         self._set_name(self.name)

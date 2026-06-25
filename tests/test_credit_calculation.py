@@ -91,6 +91,15 @@ def test_credit_calculation_when_credit_time_enabled(
     ok(new_split2, expected_result=hhmmss_to_time("02:01:35"))
 
 
+def test_credit_calculation_caps_segment_at_maximum(
+    new_race: Race, new_split1,
+):
+    race().set_setting("credit_time_enabled", True)
+    race().set_setting("credit_time_max", 30 * 60 * 1000)
+    # 2:35 for first 41 punch + 30:00 capped for second (58 min leg)
+    ok(new_split1, expected_result=hhmmss_to_time("00:32:35"))
+
+
 def ok(
     splits: List[Split],
     expected_result: OTime,
