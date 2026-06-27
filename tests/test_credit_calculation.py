@@ -111,3 +111,36 @@ def ok(
     ResultChecker.checking(result)
     result_credit = result.get_credit_time()
     assert result_credit == expected_result
+
+
+def test_rogaine_penalty_uses_credit_time_on_first_check(new_race: Race):
+    race().set_setting("result_processing_mode", "scores")
+    race().set_setting("result_processing_score_mode", "fixed")
+    race().set_setting("result_processing_fixed_score_value", 10)
+    race().set_setting("result_processing_scores_minute_penalty", 1)
+    race().set_setting("credit_time_enabled", True)
+    race().set_setting("credit_time_cp", 250)
+    race().set_setting("credit_time_max", 20 * 60 * 1000)
+
+    group = race().groups[0]
+    group.max_time = OTime(hour=2)
+
+    result = race().results[0]
+    result.status = ResultStatus.OK
+    result.start_time = OTime(hour=0)
+    result.finish_time = OTime(hour=2, minute=19)
+    result.person.start_time = OTime(hour=0)
+    result.splits = make_split(
+        [
+            ("31", "00:30:00"),
+            ("90", "01:00:00"),
+            ("250", "01:20:00"),
+        ]
+    )
+
+    ResultChecker.checking(result)
+
+    assert result.get_credit_time() == hhmmss_to_time("00:20:00")
+    assert result.get_result_otime() == hhmmss_to_time("01:59:00")
+    assert result.rogaine_penalty == 0
+    assert result.rogaine_score == 30

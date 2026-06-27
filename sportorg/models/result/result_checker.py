@@ -81,9 +81,9 @@ class ResultChecker:
         ]:
             result.status = ResultStatus.OK
 
+            ResultChecker.calculate_credit_time(result)
             check_flag = o.check_result(result)
             ResultChecker.calculate_penalty(result)
-            ResultChecker.calculate_credit_time(result)
             if not check_flag:
                 result.status = ResultStatus.MISSING_PUNCH
 
