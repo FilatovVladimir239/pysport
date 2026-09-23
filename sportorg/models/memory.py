@@ -1213,7 +1213,7 @@ class ResultSportident(Result):
                     self.__start_time = self.splits[0].time
                     return self.__start_time
                 for split in self.splits:
-                    if split.code == str(start_cp_number):
+                    if self._matches_timing_control(split, start_cp_number):
                         self.__start_time = split.time
                         return self.__start_time
         elif start_source == "gate":
@@ -1236,7 +1236,7 @@ class ResultSportident(Result):
                     self.__finish_time = self.splits[-1].time
                     return self.__finish_time
                 for split in reversed(self.splits):
-                    if split.code == str(finish_cp_number):
+                    if self._matches_timing_control(split, finish_cp_number):
                         self.__finish_time = split.time
                         return self.__finish_time
         elif finish_source == "beam":
@@ -1244,6 +1244,17 @@ class ResultSportident(Result):
 
         # return 0 to avoid incorrect results
         return OTime()
+
+    @staticmethod
+    def _matches_timing_control(split, control_number):
+        if str(split.code) == str(control_number):
+            return True
+        if race().get_setting("result_processing_mode", "time") == "trailo":
+            from sportorg.modules.trailo.codes import parse_trailo_code
+
+            parsed = parse_trailo_code(split.code)
+            return parsed.kind == "main" and str(parsed.main_num) == str(control_number)
+        return False
 
     def clear(self):
         self.__start_time = OTime()
