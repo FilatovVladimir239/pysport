@@ -6,12 +6,15 @@ from sportorg.models.memory import (
     ResultStatus,
     Organization,
     Group,
+    Race,
+    new_event,
     race,
 )
 from sportorg.modules.backup.sfr_results_board import get_srb_line_for_result
 
 
 def test_srb_generation():
+    new_event([Race()])
     res = ResultSportident()
     res.place = 12
     res.finish_time = OTime(hour=12, minute=58, sec=59)

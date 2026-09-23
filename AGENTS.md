@@ -5,14 +5,14 @@
 - GUI elements are in `sportorg/gui`.
 - Hardware and data integrations are in `sportorg/modules`.
 - Shared utilities are in `sportorg/common` and `sportorg/utils`.
-- PySide resources and assets are in `img/`, `sounds/`, `templates/`, and `styles/`.
-- Configuration defaults are in `configs/`.
+- Resources shipped inside the package live under `sportorg/data/`: `img/`, `sounds/`, `templates/`, `styles/`, `languages/`, and the reference tables in `configs/`.
 - CLI helpers are at the repository root: `SportOrg.pyw`, `builder.py`.
 - Tests are in `tests/`, with sample fixtures in `tests/data/`.
 - Teamwork protocol documentation is in [`docs/teamwork.md`](docs/teamwork.md).
 - Update [`docs/teamwork.md`](docs/teamwork.md) whenever the Teamwork protocol, packet format, or message flow changes.
-- Translation files are in `languages/<locale>/LC_MESSAGES/`.
+- Translation files are in `sportorg/data/languages/<locale>/LC_MESSAGES/`.
 - After editing `.po` files, regenerate `.mo` files via `generate-mo`.
+- At runtime everything writable lives next to the program, never in the working directory: `{app}/data/` (races, `settings.json`, and the operator's copies of `configs/`, `templates/`, `sounds/`) and `{app}/logs/`. `sportorg/paths.py` resolves these; `sportorg/startup.py` creates them.
 
 ## Build, Test, and Development Commands
 - `uv sync --frozen --extra gui [--extra win]`: install locked dependencies for Python 3.8 environments.
@@ -34,6 +34,9 @@
 - Keep templates and translation IDs aligned with GUI object names.
 - Regenerate `.mo` files after editing `.po` resources via `uv run poe generate-mo`.
 - Write all code comments in English.
+- Express parameter and return types with Python type hints, not in comments or docstrings (no `:param:`/`:return:`/`:type:` fields).
+- Comments explain why, not what; keep them in sync with the code when behavior changes.
+- Delete commented-out code instead of leaving it.
 
 ## Python Compatibility
 - Keep all code compatible with Python 3.8 and the latest stable Python release (currently Python 3.14).
@@ -68,7 +71,7 @@
 ## Security & Configuration Tips
 - Keep sensitive credentials (for example live result endpoints and Telegram tokens) in local config files only.
 - Never commit secrets.
-- Use `configs/` entries as templates.
+- Use the `sportorg/data/configs/` entries as templates.
 - Put real secret values in `.gitignored` overrides.
 - Stub network-module responses with `aiohttp` mocks during tests.
 - Avoid accidental external traffic in tests.

@@ -66,11 +66,9 @@ class PrintProcess(Process):
                 "print_html: got Printer done: {}".format(time.process_time() - t)
             )
 
-            # printer.setResolution(96)
-
             text_document = QTextDocument()
 
-            printer.setFullPage(True)
+            printer.setFullPage(False)
             if qt_version == 5:
                 printer.setPageMargins(
                     self.margin_left,

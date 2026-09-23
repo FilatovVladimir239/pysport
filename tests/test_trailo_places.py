@@ -49,7 +49,6 @@ def _add_ok_result(person: Person, trailo_score: int, trailo_time_msec: int) -> 
 def _assign_places(group: Group) -> None:
     calculation = ResultCalculation(race())
     finishes = calculation.get_group_finishes(group)
-    finishes.sort()
     calculation.set_places(finishes)
 
 

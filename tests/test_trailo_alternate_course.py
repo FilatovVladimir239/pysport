@@ -1,3 +1,5 @@
+import pytest
+
 from sportorg.common.otime import OTime
 from sportorg.models.memory import (
     Course,
@@ -57,7 +59,8 @@ def _add_result(person: Person, splits) -> ResultManual:
     return result
 
 
-def test_alternate_course_points_then_station_time_ranking():
+@pytest.mark.parametrize("scope", ["all", "group", "groups"])
+def test_alternate_course_points_then_station_time_ranking(scope):
     person, _course = _setup_trailo_person()
     race().set_setting(SETTING_ALTERNATE_COURSE, True)
     race().set_setting("trailo_main_course_enabled", True)
@@ -77,7 +80,12 @@ def test_alternate_course_points_then_station_time_ranking():
     split_tt.course_index = 1
 
     _add_result(person, [split_main, split_tt])
-    recalculate_results(recheck_results=True)
+    options = {}
+    if scope == "group":
+        options["group"] = person.group
+    elif scope == "groups":
+        options["groups"] = [person.group]
+    recalculate_results(recheck_results=True, **options)
 
     result = race().find_person_result(person)
     assert result.trailo_score == 1

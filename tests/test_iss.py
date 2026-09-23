@@ -12,7 +12,7 @@ def data():
 
 
 def _stable_version(version: str) -> str:
-    return re.sub(r"(a|b|rc)\d+$", "", version)
+    return re.sub(r"(a|b|rc)\d+$", "", version.split("+", 1)[0])
 
 
 def test_app_version(data):
