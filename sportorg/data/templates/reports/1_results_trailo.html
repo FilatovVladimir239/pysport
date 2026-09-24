@@ -819,6 +819,24 @@
         return null;
     }
 
+    function trailoProtocolFirstSplits(splits, course) {
+        var selected = Object.create(null);
+        var keys = [];
+        for (var i = 0; i < splits.length; i++) {
+            var split = splits[i];
+            if (!trailoProtocolIncludeSplit(split)) continue;
+            var key = trailoProtocolCellKey(split, course);
+            if (!key) continue;
+            var previous = selected[key];
+            // Match scoring: earliest punch wins; equal times keep the first.
+            var time = split.time == null ? Infinity : Number(split.time);
+            var previousTime = previous && previous.time != null ? Number(previous.time) : Infinity;
+            if (!previous) keys.push(key);
+            if (!previous || time < previousTime) selected[key] = split;
+        }
+        return keys.map(function (key) { return selected[key]; });
+    }
+
     function preoPassTime(result) {
         if (!isPreoMode || !result) return '';
         // finish - start; for relay leg 2+ start is already previous leg finish
@@ -1740,7 +1758,7 @@
                     };
                     var courseForKeys = getPersonCourse(result.person, group);
 
-                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                    for (var _b = 0, _c = trailoProtocolFirstSplits(result.splits, courseForKeys); _b < _c.length; _b++) {
                         var split = _c[_b];
 
                         if (trailoProtocolIncludeSplit(split)) {
@@ -1907,7 +1925,7 @@
                     };
                     var courseForKeys = personCourse;
 
-                    for (var _b = 0, _c = result.splits; _b < _c.length; _b++) {
+                    for (var _b = 0, _c = trailoProtocolFirstSplits(result.splits, courseForKeys); _b < _c.length; _b++) {
                         var split = _c[_b];
 
                         if (trailoProtocolIncludeSplit(split)) {

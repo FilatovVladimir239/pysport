@@ -702,13 +702,23 @@ def _build_result_row(
             row["trailo_time"] = ""
 
     course = course_for_keys or get_person_course(race, person, group)
+    selected_splits = {}
     for split in result.get("splits") or []:
         if not trailo_protocol_include_split(split, mode):
             continue
-        text, is_answer, is_correct = split_cell_value(split, mode)
         cell_key = trailo_protocol_cell_key(split, course)
         if cell_key:
-            row[cell_key] = SplitCell(text, is_answer=is_answer, is_correct=is_correct)
+            previous = selected_splits.get(cell_key)
+            time = split.get("time")
+            previous_time = previous.get("time") if previous else None
+            # Match scoring: earliest punch wins; equal times keep the first.
+            if previous is None or (
+                time is not None and (previous_time is None or time < previous_time)
+            ):
+                selected_splits[cell_key] = split
+    for cell_key, split in selected_splits.items():
+        text, is_answer, is_correct = split_cell_value(split, mode)
+        row[cell_key] = SplitCell(text, is_answer=is_answer, is_correct=is_correct)
     return row
 
 
