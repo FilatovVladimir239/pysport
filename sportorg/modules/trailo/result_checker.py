@@ -160,10 +160,21 @@ class TrailoResultChecker:
     def penalty_time_calculation_trailo(splits, controls) -> OTime:
         res = OTime()
         penalty_time = TrailoResultChecker.get_penalty_time_for_mode()
+        visited_stations = set()
+        for split in splits:
+            parsed = parse_trailo_code(str(split.code))
+            # Generated X placeholders are not evidence of a station visit.
+            if parsed.kind == "tc_time" or (
+                parsed.kind == "tc_answer" and parsed.tc_answer != "X"
+            ):
+                visited_stations.add(parsed.tc_idx)
 
         for control_point in controls:
             cp = parse_trailo_code(str(control_point.code))
             if cp.kind != "tc_answer" or cp.tc_idx is None or cp.tc_task is None:
+                continue
+            if cp.tc_idx not in visited_stations:
+                res += penalty_time + penalty_time
                 continue
             cur_split = trailo_first_split_for_control(
                 splits, str(control_point.code)
