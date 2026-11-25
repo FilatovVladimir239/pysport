@@ -43,6 +43,7 @@ class ResultSportidentGeneration:
     def _process_missed_finish(self):
         if self._result and self._result.finish_time is None:
             if self.finish_source == FinishSource.station:
+                self._result.finish_time_is_fallback = True
                 if self.missed_finish == FinishSource.readout:
                     self._result.finish_time = time_to_otime(
                         datetime.fromtimestamp(self._result.created_at)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional
 
 
-TrailoKind = Literal["main", "tc_time", "tc_answer", "unknown"]
+TrailoKind = Literal["main", "tc_time", "tc_missing_time", "tc_answer", "unknown"]
 
 
 @dataclass(frozen=True)
@@ -35,6 +35,21 @@ _RE_TC_ANSWER_LEGACY = re.compile(r"^(?P<code>\d{3})T(?P<ans>[A-Za-z])$")
 
 def parse_trailo_code(code: str | None) -> ParsedTrailoCode:
     raw = str(code or "")
+
+    # Missing time placeholders must not be interpreted as task answers.
+    if raw.endswith("TX"):
+        time_code = raw[:-1] + "T"
+        missing = _RE_TC_TIME_NEW.match(time_code)
+        if missing:
+            return ParsedTrailoCode(
+                kind="tc_missing_time", raw=raw, tc_idx=int(missing.group("idx"))
+            )
+        missing = _RE_TC_TIME_LEGACY.match(time_code)
+        if missing and int(missing.group("code")) % 10 == 0:
+            return ParsedTrailoCode(
+                kind="tc_missing_time", raw=raw,
+                tc_idx=int(missing.group("code")) // 10 - 10,
+            )
 
     m = _RE_TC_TIME_NEW.match(raw)
     if m:
@@ -208,7 +223,7 @@ def trailo_sort_key(split) -> tuple:
 
     if parsed.kind == "main":
         return (0, parsed.main_num or 10**9, t_msec, parsed.raw)
-    if parsed.kind == "tc_time":
+    if parsed.kind in ("tc_time", "tc_missing_time"):
         return (1, parsed.tc_idx or 10**9, 0, 0, "", parsed.raw, t_msec)
     if parsed.kind == "tc_answer":
         return (

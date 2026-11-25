@@ -67,6 +67,7 @@ Key message payloads:
   - `object`: object name (`Race`, `Person`, `Result`, etc.)
   - `id`: object UUID
   - other object fields
+  - Result payloads include optional `finish_time_is_fallback` (boolean, default `false` for older payloads). It identifies a finish substituted for a missing station punch (readout, zero, disqualification, or penalty); TrailO merging prioritizes actual station punches over these values. The field is also persisted in race files.
 - `Read` keepalive:
   - payload is `null`
 - `SendRaceId`:

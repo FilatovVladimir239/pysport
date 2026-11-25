@@ -545,6 +545,8 @@ def split_cell_value(
     split: Dict[str, Any], mode: TrailoMode
 ) -> Tuple[str, bool, Optional[bool]]:
     code = str(split.get("code") or "")
+    if parse_trailo_code(code).kind == "tc_missing_time":
+        return "—", False, None
     is_time = code[-1:] == "T" if code else False
     if is_time:
         time_msec = int(split.get("time") or 0)

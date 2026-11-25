@@ -514,7 +514,7 @@ class TrailOSportorgPrinter(SportorgPrinter):
             while split_i < len(splits):
                 split = splits[split_i]
                 parsed = parse_trailo_code(getattr(split, "code", None))
-                if parsed.kind in ("tc_time", "tc_answer"):
+                if parsed.kind in ("tc_time", "tc_missing_time", "tc_answer"):
                     break
                 raw = parsed.raw
                 if parsed.kind == "main":
@@ -565,10 +565,12 @@ class TrailOSportorgPrinter(SportorgPrinter):
             for split in splits[split_i:]:
                 parsed = parse_trailo_code(getattr(split, "code", None))
 
-                if parsed.kind == "tc_time":
+                if parsed.kind in ("tc_time", "tc_missing_time"):
                     flush_trailo_tc_block()
                     tc_idx_active = parsed.tc_idx
-                    tc_time_line = split.time.to_str()
+                    tc_time_line = (
+                        split.time.to_str() if parsed.kind == "tc_time" else "—"
+                    )
                     tc_answer_lines = []
                     continue
 

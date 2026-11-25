@@ -819,6 +819,10 @@
         return null;
     }
 
+    function trailoMissingTime(code) {
+        return /^(?:\d{1,2}|\d{2}0)TX$/.test(String(code || ''));
+    }
+
     function trailoProtocolFirstSplits(splits, course) {
         var selected = Object.create(null);
         var keys = [];
@@ -1764,13 +1768,15 @@
                         if (trailoProtocolIncludeSplit(split)) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
-                            if(split.is_correct && split.code.slice(-1) != "T"){
+                            if(split.is_correct && split.code.slice(-1) != "T" && !trailoMissingTime(split.code)){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                            if(!split.is_correct && split.code.slice(-1) != "T" && !trailoMissingTime(split.code)){
                                 tbl.className += ' incorrect'
                             }
-                            if (split.code.slice(-1) != "T"){
+                            if (trailoMissingTime(split.code)) {
+                                tbl.appendChild(getTrBlock("—"));
+                            } else if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
                                 tbl.appendChild(getTrBlock((isPreoMode || isTempoMode) ? (split.time / 1000) : toHHMMSS(split.time)));
@@ -1931,13 +1937,15 @@
                         if (trailoProtocolIncludeSplit(split)) {
                             var tbl = document.createElement('table');
                             tbl.className = 'table-split';
-                            if(split.is_correct && split.code.slice(-1) != "T"){
+                            if(split.is_correct && split.code.slice(-1) != "T" && !trailoMissingTime(split.code)){
                                 tbl.className += ' correct'
                             }
-                            if(!split.is_correct && split.code.slice(-1) != "T"){
+                            if(!split.is_correct && split.code.slice(-1) != "T" && !trailoMissingTime(split.code)){
                                 tbl.className += ' incorrect'
                             }
-                            if (split.code.slice(-1) != "T"){
+                            if (trailoMissingTime(split.code)) {
+                                tbl.appendChild(getTrBlock("—"));
+                            } else if (split.code.slice(-1) != "T"){
                                 tbl.appendChild(getTrBlock(split.code.slice(-1)));
                             } else {
                                 tbl.appendChild(getTrBlock((isPreoMode || isTempoMode) ? (split.time / 1000) : toHHMMSS(split.time)));

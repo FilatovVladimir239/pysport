@@ -518,6 +518,7 @@ class Result(ABC):
         self.bib = 0
         self.start_time: OTime = OTime()
         self.finish_time: OTime = OTime.now()
+        self.finish_time_is_fallback = False
         self.person: Optional[Person] = None
         self.status = ResultStatus.OK
         self.status_comment = ""
@@ -644,6 +645,7 @@ class Result(ABC):
             "days": self.days,
             "start_time": self.start_time.to_msec() if self.start_time else None,
             "finish_time": self.finish_time.to_msec() if self.finish_time else None,
+            "finish_time_is_fallback": self.finish_time_is_fallback,
             "diff": self.diff.to_msec() if self.diff else None,
             "diff_scores": self.diff_scores,
             "penalty_time": self.penalty_time.to_msec() if self.penalty_time else None,
@@ -718,8 +720,11 @@ class Result(ABC):
         self.assigned_rank = Qualification.get_qual_by_code(data["assigned_rank"])
         if data["start_time"] is not None:
             self.start_time = OTime(msec=data["start_time"])
+        self.finish_time_is_fallback = data.get("finish_time_is_fallback", False)
         if data["finish_time"] is not None:
             self.finish_time = OTime(msec=data["finish_time"])
+        elif self.finish_time_is_fallback:
+            self.finish_time = OTime()
         if data["penalty_time"]:
             self.penalty_time = OTime(msec=data["penalty_time"])
         if "credit_time" in data and data["credit_time"] is not None:
@@ -1416,17 +1421,36 @@ class ResultSportident(Result):
         is_changed = False
         is_trailo = race().get_setting("result_processing_mode", "time") == "trailo"
 
-        if self.start_time is None:
+        if is_trailo:
+            # Missing punches must not erase timing from another chip.
+            if new_result.start_time and (
+                not self.start_time or new_result.start_time < self.start_time
+            ):
+                self.start_time = new_result.start_time
+            if new_result.finish_time and (
+                not self.finish_time
+                or (
+                    self.finish_time_is_fallback
+                    and not new_result.finish_time_is_fallback
+                )
+                or (
+                    self.finish_time_is_fallback == new_result.finish_time_is_fallback
+                    and new_result.finish_time < self.finish_time
+                )
+            ):
+                self.finish_time = new_result.finish_time
+                self.finish_time_is_fallback = new_result.finish_time_is_fallback
+            is_changed = True
+        elif self.start_time is None:
             self.start_time = new_result.start_time
 
-        if is_trailo and self.finish_time > new_result.finish_time:
-            self.finish_time = new_result.finish_time
-
-        if is_trailo:
-            is_changed = True
-
         # backup old start as punch
-        if self.start_time and new_result.start_time and self.start_time > OTime():
+        if (
+            not is_trailo
+            and self.start_time
+            and new_result.start_time
+            and self.start_time > OTime()
+        ):
             if (
                 abs(new_result.start_time.to_sec() - self.start_time.to_sec())
                 > tolerance_sec
