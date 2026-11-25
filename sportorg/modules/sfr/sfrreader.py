@@ -83,6 +83,9 @@ class CardDataProcessor:
             result.start_time = time_to_otime(card_data["start"])
         if card_data["finish"]:
             result.finish_time = time_to_otime(card_data["finish"])
+        else:
+            # Let result generation apply the configured missing-finish policy.
+            result.finish_time = None
 
 
 class SFRReaderThread(QThread):
